@@ -2,13 +2,6 @@
 
 Synchronize agent skill definitions between `.claude` and `.codex` directories.
 
-## Installation
-
-```bash
-npm install
-npm link
-```
-
 ## Usage
 
 ```bash
