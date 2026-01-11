@@ -1,25 +1,20 @@
 import matter from 'gray-matter';
 
 export function parseSkillFile(content) {
-  const parsed = matter(content);
+  const trimmed = content.trim();
 
-  // gray-matter returns empty object for no frontmatter
-  // check if there was actual frontmatter by looking for --- in original
-  const hasFrontmatter = content.startsWith('---');
-
-  if (!hasFrontmatter || Object.keys(parsed.data).length === 0) {
-    // Check if this is truly no frontmatter or just empty
-    if (!content.trim().startsWith('---')) {
-      return null;
-    }
+  if (!trimmed.startsWith('---')) {
+    return null;
   }
+
+  const parsed = matter(content);
 
   const body = parsed.content.trim();
   const hasAtReference = body.startsWith('@');
 
   return {
     frontmatter: parsed.data,
-    body: parsed.content.trim(),
+    body,
     hasAtReference
   };
 }
