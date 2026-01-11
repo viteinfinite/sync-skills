@@ -36,4 +36,12 @@ describe('scanSkills', () => {
       path: `${testDir}/.claude/skills/test-skill/SKILL.md`
     });
   });
+
+  it('should handle non-existent directories gracefully', async () => {
+    const result = await scanSkills('/non/existent/path');
+
+    expect(result.claude).to.deep.equal([]);
+    expect(result.codex).to.deep.equal([]);
+    expect(result.common).to.deep.equal([]);
+  });
 });
