@@ -4,7 +4,6 @@ import { detectConflicts } from './detector.js';
 import { resolveConflict } from './resolver.js';
 import { refactorSkill, copySkill } from './syncer.js';
 import { promises as fs } from 'fs';
-import { join } from 'path';
 
 export async function run(options = {}) {
   const {
