@@ -1,0 +1,24 @@
+{
+  "name": "sync-skills",
+  "version": "0.1.0",
+  "description": "Synchronize agent skills between .claude and .codex directories",
+  "main": "src/index.js",
+  "bin": {
+    "sync-skills": "./bin/sync-skills.js"
+  },
+  "scripts": {
+    "test": "mocha test/**/*.test.js"
+  },
+  "dependencies": {
+    "chalk": "^5.3",
+    "gray-matter": "^4.0",
+    "inquirer": "^9.2",
+    "minimist": "^1.2",
+    "ora": "^7.0"
+  },
+  "devDependencies": {
+    "chai": "^5.0",
+    "mocha": "^10.0"
+  },
+  "type": "module"
+}
