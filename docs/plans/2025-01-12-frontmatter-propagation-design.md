@@ -1,7 +1,7 @@
 # Frontmatter Propagation Design
 
 **Date**: 2025-01-12
-**Status**: Design validated, ready for implementation
+**Status**: Implementation in progress (branch: feature/frontmatter-propagation)
 
 ## Overview
 
