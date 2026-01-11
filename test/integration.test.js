@@ -42,11 +42,12 @@ describe('Integration: Full Sync Workflow', () => {
     expect(claudePrContent).to.include('@.agents-common/skills/pr-review/SKILL.md');
     expect(claudePrContent).to.include('managed-by: sync-skills');
 
-    // Check that .agents-common file was created
+    // Check that .agents-common file was created with frontmatter
     const commonPrPath = join(testDir, '.agents-common/skills/pr-review/SKILL.md');
     const commonPrContent = await fs.readFile(commonPrPath, 'utf8');
     expect(commonPrContent).to.include('Different instructions');
-    expect(commonPrContent).to.not.include('---');
+    expect(commonPrContent).to.include('---');
+    expect(commonPrContent).to.include('name: pr-review');
 
     // Check that codex pr-review was also refactored
     const codexPrContent = await fs.readFile(codexPrPath, 'utf8');
