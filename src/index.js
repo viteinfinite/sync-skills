@@ -2,10 +2,11 @@ import { scanSkills } from './scanner.js';
 import { parseSkillFile } from './parser.js';
 import { detectConflicts } from './detector.js';
 import { resolveConflict } from './resolver.js';
-import { refactorSkill, copySkill } from './syncer.js';
+import { refactorSkill, copySkill, cloneCodexSkills } from './syncer.js';
 import { propagateFrontmatter } from './propagator.js';
 import { promises as fs } from 'fs';
 import { join, dirname, basename, resolve } from 'path';
+import inquirer from 'inquirer';
 
 export async function run(options = {}) {
   const {
@@ -30,6 +31,49 @@ export async function run(options = {}) {
         }
       }
     }
+  }
+
+  // Check if .codex folder exists, create .codex/skills if needed
+  const codexDir = join(baseDir, '.codex');
+  const codexSkillsDir = join(codexDir, 'skills');
+  let shouldCreateCodexSkills = false;
+
+  try {
+    await fs.access(codexDir);
+    // .codex folder exists - check if .codex/skills already has content
+    try {
+      await fs.access(codexSkillsDir);
+      // .codex/skills exists, check if it's empty by trying to read it
+      const entries = await fs.readdir(codexSkillsDir);
+      if (entries.length === 0) {
+        // .codex/skills exists but is empty, create skills
+        shouldCreateCodexSkills = true;
+      }
+      // If .codex/skills has content, don't overwrite
+    } catch {
+      // .codex/skills doesn't exist, create it
+      shouldCreateCodexSkills = true;
+    }
+  } catch {
+    // .codex folder doesn't exist, ask user
+    if (claude.length > 0 && !dryRun) {
+      const answer = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'createCodex',
+          message: '.codex folder does not exist. Would you like to create .codex/skills with references to common skills?',
+          default: false
+        }
+      ]);
+      shouldCreateCodexSkills = answer.createCodex;
+    }
+  }
+
+  if (shouldCreateCodexSkills && !dryRun) {
+    await cloneCodexSkills(baseDir, claude);
+    // Re-scan to get the newly created codex skills
+    const rescan = await scanSkills(baseDir);
+    codex.push(...rescan.codex);
   }
 
   for (const skill of codex) {
