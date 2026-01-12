@@ -7,13 +7,31 @@ const SKIP_FIELDS = ['sync'];
 const LIST_MERGE_FIELDS = ['allowed-tools'];
 const OBJECT_MERGE_FIELDS = ['metadata', 'hooks'];
 
+interface FrontmatterConflict {
+  field: string;
+  commonValue: unknown;
+  targetValue: unknown;
+}
+
+interface MergeResult {
+  merged: Record<string, unknown>;
+  conflicts: FrontmatterConflict[];
+}
+
+interface PropagateOptions {
+  failOnConflict?: boolean;
+  dryRun?: boolean;
+  resolver?: (conflict: FrontmatterConflict, targetPath: string) => Promise<string>;
+}
+
 /**
  * Propagate frontmatter from common skill to target skills
- * @param {string} commonPath - Path to .agents-common skill
- * @param {string[]} targetPaths - Paths to target skills (.claude, .codex)
- * @param {object} options - { failOnConflict, dryRun, resolver }
  */
-export async function propagateFrontmatter(commonPath, targetPaths, options = {}) {
+export async function propagateFrontmatter(
+  commonPath: string,
+  targetPaths: string[],
+  options: PropagateOptions = {}
+): Promise<void> {
   const { failOnConflict = false, dryRun = false, resolver = defaultResolver } = options;
 
   // Check if common file exists
@@ -28,12 +46,12 @@ export async function propagateFrontmatter(commonPath, targetPaths, options = {}
   const commonContent = await fs.readFile(commonPath, 'utf8');
   const commonParsed = parseSkillFile(commonContent);
 
-  if (!commonParsed || !commonParsed.frontmatter) {
+  if (!commonParsed || !commonParsed.data) {
     // No frontmatter in common, nothing to propagate
     return;
   }
 
-  const commonFrontmatter = commonParsed.frontmatter;
+  const commonFrontmatter = commonParsed.data;
 
   // Process each target
   for (const targetPath of targetPaths) {
@@ -81,11 +99,13 @@ export async function propagateFrontmatter(commonPath, targetPaths, options = {}
 
 /**
  * Merge common frontmatter into target frontmatter
- * @returns { object } - { merged: object, conflicts: array }
  */
-function mergeFrontmatter(common, target) {
+function mergeFrontmatter(
+  common: Record<string, unknown>,
+  target: Record<string, unknown>
+): MergeResult {
   const merged = { ...target };
-  const conflicts = [];
+  const conflicts: FrontmatterConflict[] = [];
 
   for (const [field, commonValue] of Object.entries(common)) {
     // Skip fields that should never be propagated
@@ -116,8 +136,14 @@ function mergeFrontmatter(common, target) {
     }
 
     // Special handling for object merge fields
-    if (OBJECT_MERGE_FIELDS.includes(field) && typeof commonValue === 'object' && typeof targetValue === 'object' && !Array.isArray(commonValue) && !Array.isArray(targetValue)) {
-      merged[field] = { ...targetValue, ...commonValue };
+    if (
+      OBJECT_MERGE_FIELDS.includes(field) &&
+      typeof commonValue === 'object' &&
+      typeof targetValue === 'object' &&
+      !Array.isArray(commonValue) &&
+      !Array.isArray(targetValue)
+    ) {
+      merged[field] = { ...(targetValue as Record<string, unknown>), ...(commonValue as Record<string, unknown>) };
       continue;
     }
 
@@ -134,9 +160,8 @@ function mergeFrontmatter(common, target) {
 
 /**
  * Default conflict resolver that prompts the user
- * This is a placeholder - actual implementation would use readline or inquirer
  */
-async function defaultResolver(conflict, targetPath) {
+async function defaultResolver(conflict: FrontmatterConflict, targetPath: string): Promise<string> {
   const skillName = targetPath.split('/').slice(-2, -1)[0];
 
   console.log(`\nConflict in skill "${skillName}" for field "${conflict.field}":`);

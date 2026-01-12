@@ -1,0 +1,4 @@
+spec: test/**/*.test.ts
+timeout: 10000
+node-option:
+  - import=tsx/cjs/api

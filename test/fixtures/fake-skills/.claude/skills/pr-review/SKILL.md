@@ -1,16 +1,9 @@
 ---
 name: pr-review
 description: Review pull requests using team standards
-allowed-tools: Read, Grep
+allowed-tools: 'Read, Grep'
+sync:
+  managed-by: sync-skills
+  refactored: '2026-01-12T01:12:40.972Z'
 ---
-
-# PR Review
-
-## Instructions
-
-Review pull requests by checking:
-- Code quality
-- Test coverage
-- Documentation
-
-Always provide constructive feedback.
+@.agents-common/skills/pr-review/SKILL.md

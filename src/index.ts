@@ -1,25 +1,39 @@
+import { promises as fs } from 'fs';
+import { join } from 'path';
 import { scanSkills } from './scanner.js';
 import { parseSkillFile } from './parser.js';
 import { detectConflicts } from './detector.js';
 import { resolveConflict } from './resolver.js';
-import { refactorSkill, copySkill, cloneCodexSkills } from './syncer.js';
+import { refactorSkill, copySkill } from './syncer.js';
 import { propagateFrontmatter } from './propagator.js';
-import { promises as fs } from 'fs';
-import { join, dirname, basename, resolve } from 'path';
-import inquirer from 'inquirer';
+import { discoverAssistants, findSyncPairs, processSyncPairs } from './assistants.js';
+import type { RunOptions } from './types.js';
 
-export async function run(options = {}) {
+export async function run(options: RunOptions = {}): Promise<void> {
   const {
     baseDir = process.cwd(),
     failOnConflict = false,
-    dryRun = false,
-    targets = ['claude', 'codex']
+    dryRun = false
   } = options;
 
-  // Scan for skills
-  const { claude, codex, common } = await scanSkills(baseDir);
+  // Phase 1: Discover assistants and find sync pairs
+  const states = await discoverAssistants(baseDir);
+  const syncPairs = findSyncPairs(states);
 
-  // Refactor skills that don't have @ references
+  // If no assistants have skills, exit silently (Scenario 3)
+  const anyHasSkills = states.some(s => s.hasSkills);
+  if (!anyHasSkills) {
+    console.log('No skills found. Exiting.');
+    return;
+  }
+
+  // Phase 2: Process sync pairs (bidirectional)
+  await processSyncPairs(baseDir, syncPairs, dryRun);
+
+  // Re-scan after sync to get updated state
+  const { claude, codex } = await scanSkills(baseDir);
+
+  // Phase 3: Refactor Claude skills that don't have @ references
   for (const skill of claude) {
     const content = await fs.readFile(skill.path, 'utf8');
     const parsed = parseSkillFile(content);
@@ -33,49 +47,7 @@ export async function run(options = {}) {
     }
   }
 
-  // Check if .codex folder exists, create .codex/skills if needed
-  const codexDir = join(baseDir, '.codex');
-  const codexSkillsDir = join(codexDir, 'skills');
-  let shouldCreateCodexSkills = false;
-
-  try {
-    await fs.access(codexDir);
-    // .codex folder exists - check if .codex/skills already has content
-    try {
-      await fs.access(codexSkillsDir);
-      // .codex/skills exists, check if it's empty by trying to read it
-      const entries = await fs.readdir(codexSkillsDir);
-      if (entries.length === 0) {
-        // .codex/skills exists but is empty, create skills
-        shouldCreateCodexSkills = true;
-      }
-      // If .codex/skills has content, don't overwrite
-    } catch {
-      // .codex/skills doesn't exist, create it
-      shouldCreateCodexSkills = true;
-    }
-  } catch {
-    // .codex folder doesn't exist, ask user
-    if (claude.length > 0 && !dryRun) {
-      const answer = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'createCodex',
-          message: '.codex folder does not exist. Would you like to create .codex/skills with references to common skills?',
-          default: false
-        }
-      ]);
-      shouldCreateCodexSkills = answer.createCodex;
-    }
-  }
-
-  if (shouldCreateCodexSkills && !dryRun) {
-    await cloneCodexSkills(baseDir, claude);
-    // Re-scan to get the newly created codex skills
-    const rescan = await scanSkills(baseDir);
-    codex.push(...rescan.codex);
-  }
-
+  // Phase 4: Refactor Codex skills that don't have @ references
   for (const skill of codex) {
     const content = await fs.readFile(skill.path, 'utf8');
     const parsed = parseSkillFile(content);
@@ -89,7 +61,7 @@ export async function run(options = {}) {
     }
   }
 
-  // Detect conflicts
+  // Phase 5: Detect and resolve conflicts
   const conflicts = await detectConflicts(claude, codex);
 
   if (conflicts.length > 0) {

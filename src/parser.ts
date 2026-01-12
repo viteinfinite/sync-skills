@@ -1,6 +1,10 @@
 import matter from 'gray-matter';
+import type { ParsedSkill } from './types.js';
 
-export function parseSkillFile(content) {
+/**
+ * Parse a skill file's frontmatter and body
+ */
+export function parseSkillFile(content: string): ParsedSkill | null {
   const trimmed = content.trim();
 
   if (!trimmed.startsWith('---')) {
@@ -13,8 +17,8 @@ export function parseSkillFile(content) {
   const hasAtReference = body.startsWith('@');
 
   return {
-    frontmatter: parsed.data,
-    body,
+    data: parsed.data,
+    content: body,
     hasAtReference
   };
 }

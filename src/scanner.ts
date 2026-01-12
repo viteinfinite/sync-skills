@@ -5,7 +5,19 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-async function* walkDir(dir, agent, baseDir, originalBaseDir) {
+interface WalkDirResult {
+  agent: string;
+  skillName: string;
+  path: string;
+  relativePath: string;
+}
+
+async function* walkDir(
+  dir: string,
+  agent: string,
+  baseDir: string,
+  originalBaseDir: string
+): AsyncGenerator<WalkDirResult> {
   try {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
@@ -30,15 +42,21 @@ async function* walkDir(dir, agent, baseDir, originalBaseDir) {
         };
       }
     }
-  } catch (e) {
+  } catch {
     // Directory doesn't exist
   }
 }
 
-export async function scanSkills(baseDir = process.cwd()) {
-  const claude = [];
-  const codex = [];
-  const common = [];
+interface ScanResult {
+  claude: WalkDirResult[];
+  codex: WalkDirResult[];
+  common: WalkDirResult[];
+}
+
+export async function scanSkills(baseDir: string = process.cwd()): Promise<ScanResult> {
+  const claude: WalkDirResult[] = [];
+  const codex: WalkDirResult[] = [];
+  const common: WalkDirResult[] = [];
 
   // Normalize the base directory for filesystem operations
   const normalizedBaseDir = join(baseDir);

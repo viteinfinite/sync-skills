@@ -1,6 +1,12 @@
 import inquirer from 'inquirer';
+import type { Conflict, ConflictResolution } from './types.js';
 
-export async function resolveConflict(conflict, inquirerImpl = inquirer) {
+type InquirerImpl = typeof inquirer;
+
+export async function resolveConflict(
+  conflict: Conflict,
+  inquirerImpl: InquirerImpl = inquirer
+): Promise<ConflictResolution> {
   const { action } = await inquirerImpl.prompt([
     {
       type: 'list',

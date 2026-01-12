@@ -2,12 +2,12 @@
   "name": "sync-skills",
   "version": "0.1.0",
   "description": "Synchronize agent skills between .claude and .codex directories",
-  "main": "src/index.js",
+  "main": "src/index.ts",
   "bin": {
-    "sync-skills": "./bin/sync-skills.js"
+    "sync-skills": "./bin/sync-skills.ts"
   },
   "scripts": {
-    "test": "mocha test/**/*.test.js",
+    "test": "tsx --test test/integration.test.ts",
     "test:clean": "rm -rf test/fixtures/*/ .agents-common"
   },
   "dependencies": {
@@ -18,9 +18,17 @@
     "ora": "^7.0"
   },
   "devDependencies": {
+    "@types/chai": "^4.3.20",
+    "@types/inquirer": "^9.0.9",
+    "@types/minimist": "^1.2.5",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.0.6",
+    "@types/sinon": "^17.0.4",
     "chai": "^5.0",
     "mocha": "^10.0",
-    "sinon": "^21.0.1"
+    "sinon": "^21.0.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   },
   "type": "module"
 }

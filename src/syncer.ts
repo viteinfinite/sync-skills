@@ -1,10 +1,11 @@
 import { promises as fs } from 'fs';
-import { join, dirname, basename, resolve } from 'path';
+import { join, dirname, resolve, basename } from 'path';
 import matter from 'gray-matter';
+import type { AssistantConfig, SkillFile } from './types.js';
 
 const CORE_FIELDS = ['name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'];
 
-export async function refactorSkill(sourcePath) {
+export async function refactorSkill(sourcePath: string): Promise<string | null> {
   const content = await fs.readFile(sourcePath, 'utf8');
   const parsed = matter(content);
 
@@ -19,12 +20,6 @@ export async function refactorSkill(sourcePath) {
   const skillName = basename(sourceDir);
 
   // Navigate from the source directory to find the project root
-  // The structure could be: project-root/.claude/skills/skill-name/SKILL.md
-  // or: project-root/.codex/skills/skill-name/SKILL.md
-  // We need to place it at: project-root/.agents-common/skills/skill-name/SKILL.md
-
-  // Find the project root by going up from sourceDir until we find a directory
-  // that doesn't have .claude or .codex as a direct child
   let currentDir = sourceDir;
   let projectRoot = resolve('.'); // Default to current working directory
 
@@ -46,7 +41,7 @@ export async function refactorSkill(sourcePath) {
   await fs.mkdir(dirname(commonPath), { recursive: true });
 
   // Extract core frontmatter fields to copy to common
-  const coreFrontmatter = {};
+  const coreFrontmatter: Record<string, unknown> = {};
   for (const field of CORE_FIELDS) {
     if (parsed.data[field]) {
       coreFrontmatter[field] = parsed.data[field];
@@ -71,18 +66,18 @@ export async function refactorSkill(sourcePath) {
   return commonPath;
 }
 
-export async function copySkill(sourcePath, targetPath) {
+export async function copySkill(sourcePath: string, targetPath: string): Promise<void> {
   await fs.mkdir(dirname(targetPath), { recursive: true });
   await fs.copyFile(sourcePath, targetPath);
 }
 
-export async function cloneCodexSkills(baseDir, claudeSkills) {
+export async function cloneCodexSkills(baseDir: string, claudeSkills: SkillFile[]): Promise<void> {
   for (const skill of claudeSkills) {
     const content = await fs.readFile(skill.path, 'utf8');
     const parsed = matter(content);
 
     // Extract only core frontmatter fields
-    const coreFrontmatter = {};
+    const coreFrontmatter: Record<string, unknown> = {};
     for (const field of CORE_FIELDS) {
       if (parsed.data[field]) {
         coreFrontmatter[field] = parsed.data[field];

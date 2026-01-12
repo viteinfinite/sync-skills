@@ -1,9 +1,9 @@
 ---
 name: pr-review
 description: Review pull requests
-tools: read, search
+tools: 'read, search'
+sync:
+  managed-by: sync-skills
+  refactored: '2026-01-12T01:12:40.991Z'
 ---
-
-# PR Review for Codex
-
-Different instructions here.
+@.agents-common/skills/pr-review/SKILL.md
