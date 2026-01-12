@@ -2,13 +2,15 @@ import { promises as fs } from 'fs';
 import { join, dirname, basename, resolve } from 'path';
 import matter from 'gray-matter';
 
+const CORE_FIELDS = ['name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'];
+
 export async function refactorSkill(sourcePath) {
   const content = await fs.readFile(sourcePath, 'utf8');
   const parsed = matter(content);
 
   // Skip if already has @ reference
   if (parsed.content.trim().startsWith('@')) {
-    return;
+    return null;
   }
 
   // Extract skill name from path and resolve paths
@@ -43,9 +45,18 @@ export async function refactorSkill(sourcePath) {
   // Ensure .agents-common directory exists
   await fs.mkdir(dirname(commonPath), { recursive: true });
 
-  // Write body to .agents-common (strip leading newline added by gray-matter)
+  // Extract core frontmatter fields to copy to common
+  const coreFrontmatter = {};
+  for (const field of CORE_FIELDS) {
+    if (parsed.data[field]) {
+      coreFrontmatter[field] = parsed.data[field];
+    }
+  }
+
+  // Write frontmatter + body to .agents-common (strip leading newline added by gray-matter)
   const bodyContent = parsed.content.startsWith('\n') ? parsed.content.slice(1) : parsed.content;
-  await fs.writeFile(commonPath, bodyContent);
+  const commonContent = matter.stringify(bodyContent, coreFrontmatter);
+  await fs.writeFile(commonPath, commonContent);
 
   // Add metadata to frontmatter
   parsed.data.sync = {
@@ -56,6 +67,8 @@ export async function refactorSkill(sourcePath) {
   // Replace body with @ reference
   const newContent = matter.stringify(`@${relativeCommonPath}\n`, parsed.data);
   await fs.writeFile(sourcePath, newContent);
+
+  return commonPath;
 }
 
 export async function copySkill(sourcePath, targetPath) {

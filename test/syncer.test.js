@@ -34,7 +34,11 @@ This is content`);
     expect(sourceContent).to.include('@.agents-common/skills/test-skill/SKILL.md');
     expect(sourceContent).to.include('managed-by: sync-skills');
     expect(sourceContent).to.include('refactored:');
-    expect(commonContent).to.equal('# Content\n\nThis is content');
+    // Common now contains frontmatter + body
+    expect(commonContent).to.include('name: test-skill');
+    expect(commonContent).to.include('description: Test skill');
+    expect(commonContent).to.include('# Content');
+    expect(commonContent).to.include('This is content');
   });
 
   it('should not refactor if @ reference already exists', async () => {

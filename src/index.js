@@ -3,7 +3,9 @@ import { parseSkillFile } from './parser.js';
 import { detectConflicts } from './detector.js';
 import { resolveConflict } from './resolver.js';
 import { refactorSkill, copySkill } from './syncer.js';
+import { propagateFrontmatter } from './propagator.js';
 import { promises as fs } from 'fs';
+import { join, dirname, basename, resolve } from 'path';
 
 export async function run(options = {}) {
   const {
@@ -22,7 +24,10 @@ export async function run(options = {}) {
     const parsed = parseSkillFile(content);
     if (parsed && !parsed.hasAtReference) {
       if (!dryRun) {
-        await refactorSkill(skill.path);
+        const commonPath = await refactorSkill(skill.path);
+        if (commonPath) {
+          await propagateFrontmatter(commonPath, [skill.path], { failOnConflict, dryRun });
+        }
       }
     }
   }
@@ -32,7 +37,10 @@ export async function run(options = {}) {
     const parsed = parseSkillFile(content);
     if (parsed && !parsed.hasAtReference) {
       if (!dryRun) {
-        await refactorSkill(skill.path);
+        const commonPath = await refactorSkill(skill.path);
+        if (commonPath) {
+          await propagateFrontmatter(commonPath, [skill.path], { failOnConflict, dryRun });
+        }
       }
     }
   }
@@ -60,6 +68,10 @@ export async function run(options = {}) {
       } else if (resolution.action === 'use-codex' && !dryRun) {
         await copySkill(conflict.codexPath, conflict.claudePath);
       }
+
+      // Propagate frontmatter from common to both targets after conflict resolution
+      const commonPath = join(baseDir, '.agents-common/skills', conflict.skillName, 'SKILL.md');
+      await propagateFrontmatter(commonPath, [conflict.claudePath, conflict.codexPath], { failOnConflict, dryRun });
     }
   }
 
