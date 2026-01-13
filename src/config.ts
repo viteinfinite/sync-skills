@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
+import inquirer from 'inquirer';
 import { ASSISTANT_MAP, getAssistantConfigs } from './types.js';
 
 /**
@@ -132,4 +133,44 @@ export async function detectAvailableAssistants(baseDir: string): Promise<string
   }
 
   return available;
+}
+
+/**
+ * Interactive reconfiguration flow
+ * @param baseDir - Base directory for config
+ */
+export async function reconfigure(baseDir: string): Promise<void> {
+  // Detect which folders exist for pre-selection
+  const detected = await detectAvailableAssistants(baseDir);
+
+  // Read existing config or default to detected folders
+  const existingConfig = await readConfig(baseDir);
+  const currentlyEnabled = existingConfig?.assistants || detected;
+
+  // Build choices for all available assistants
+  const choices = Object.keys(ASSISTANT_MAP).map(name => ({
+    name: name,
+    checked: currentlyEnabled.includes(name)
+  }));
+
+  // Interactive checkbox prompt
+  const answer = await inquirer.prompt([{
+    type: 'checkbox',
+    name: 'assistants',
+    message: 'Select assistants to sync:',
+    choices: choices,
+    validate: (input: string[]) => {
+      return input.length > 0 || 'Please select at least one assistant';
+    }
+  }]);
+
+  const selected = answer.assistants as string[];
+
+  // Write new config
+  await writeConfig(baseDir, {
+    version: 1,
+    assistants: selected
+  });
+
+  console.log(`Configured assistants: ${selected.join(', ')}`);
 }
