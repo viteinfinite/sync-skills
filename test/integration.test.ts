@@ -281,3 +281,31 @@ async function runTest(baseDir: string) {
   const { run } = await import('../src/index.js');
   await run({ baseDir, failOnConflict: false, dryRun: false });
 }
+
+// Auto-configuration test
+test('Integration: Auto-configuration - should auto-create config when folders exist', async () => {
+  const testDir = resolve('./test/fixtures/auto-config');
+
+  // Cleanup first
+  await fs.rm(testDir, { recursive: true, force: true });
+
+  // Create .claude folder with skills
+  await fs.mkdir(join(testDir, '.claude/skills/test'), { recursive: true });
+  await fs.writeFile(join(testDir, '.claude/skills/test/SKILL.md'), '@test');
+
+  // Import after setup to ensure fresh module
+  const { run } = await import('../src/index.js');
+
+  // Run sync (should auto-create config)
+  await run({ baseDir: testDir });
+
+  // Check config was created
+  const { readConfig } = await import('../src/config.js');
+  const config = await readConfig(testDir);
+
+  assert.ok(config);
+  assert.deepEqual(config?.assistants, ['claude']);
+
+  // Cleanup
+  await fs.rm(testDir, { recursive: true, force: true });
+});
