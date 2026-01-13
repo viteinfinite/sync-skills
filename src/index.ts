@@ -7,14 +7,36 @@ import { resolveConflict } from './resolver.js';
 import { refactorSkill, copySkill } from './syncer.js';
 import { propagateFrontmatter } from './propagator.js';
 import { discoverAssistants, findSyncPairs, processSyncPairs } from './assistants.js';
+import { ensureConfig, reconfigure as runReconfigure, getEnabledAssistants } from './config.js';
 import type { RunOptions } from './types.js';
 
 export async function run(options: RunOptions = {}): Promise<void> {
-  const {
+  let {
     baseDir = process.cwd(),
     failOnConflict = false,
-    dryRun = false
+    dryRun = false,
+    homeMode = false,
+    reconfigure = false
   } = options;
+
+  // Handle --home flag
+  if (homeMode) {
+    if (!process.env.HOME) {
+      console.error('Error: HOME environment variable not set');
+      process.exit(1);
+    }
+    baseDir = process.env.HOME;
+    console.log(`Using home directory: ${baseDir}`);
+  }
+
+  // Handle --reconfigure flag
+  if (reconfigure) {
+    await runReconfigure(baseDir);
+    return;
+  }
+
+  // Ensure config exists
+  const config = await ensureConfig(baseDir);
 
   // Phase 1: Discover assistants and find sync pairs
   const states = await discoverAssistants(baseDir);
