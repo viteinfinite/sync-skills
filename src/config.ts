@@ -1,6 +1,5 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import inquirer from 'inquirer';
 import { ASSISTANT_MAP, getAssistantConfigs } from './types.js';
 
 /**
@@ -29,8 +28,31 @@ export async function readConfig(baseDir: string): Promise<Config | null> {
     const config = JSON.parse(content) as Config;
 
     // Validate structure
+    if (typeof config.version !== 'number') {
+      console.warn('Invalid config: version must be a number');
+      return null;
+    }
+
+    if (config.version !== 1) {
+      console.warn(`Invalid config: unsupported version ${config.version} (expected 1)`);
+      return null;
+    }
+
     if (!Array.isArray(config.assistants)) {
-      throw new Error('Invalid config: assistants must be an array');
+      console.warn('Invalid config: assistants must be an array');
+      return null;
+    }
+
+    if (config.assistants.length === 0) {
+      console.warn('Invalid config: assistants array cannot be empty');
+      return null;
+    }
+
+    for (const assistant of config.assistants) {
+      if (typeof assistant !== 'string' || assistant.trim() === '') {
+        console.warn(`Invalid config: assistant name must be a non-empty string`);
+        return null;
+      }
     }
 
     return config;
@@ -39,8 +61,10 @@ export async function readConfig(baseDir: string): Promise<Config | null> {
       // File doesn't exist
       return null;
     }
-    // JSON parse error or other - return null to trigger recreation
-    console.warn('Config file is corrupted, will recreate');
+
+    // JSON parse error or other
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.warn(`Config file is corrupted: ${errorMessage}, will recreate`);
     return null;
   }
 }
