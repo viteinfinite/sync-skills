@@ -15,7 +15,32 @@ Synchronize agent skill definitions between `.claude` and `.codex` directories.
 sync-skills              # Interactive sync
 sync-skills --fail-on-conflict    # Fail on conflicts
 sync-skills --dry-run            # Show changes without applying
+sync-skills --reconfigure        # Change which assistants to sync
+sync-skills --home               # Sync in home directory (~/.claude, ~/.codex)
 ```
+
+## Configuration
+
+`sync-skills` stores configuration in `.agents-common/config.json`:
+
+```json
+{
+  "version": 1,
+  "assistants": ["claude", "codex"]
+}
+```
+
+The configuration is created automatically on first run based on which assistant folders exist in your project. Use `--reconfigure` to change which assistants are synced.
+
+## Home Mode
+
+Use the `--home` flag to sync skills in your home directory:
+
+```bash
+sync-skills --home
+```
+
+This syncs `~/.claude`, `~/.codex`, and `~/.agents-common` - useful for maintaining a personal skill collection that can be shared across projects.
 
 ## Behavior
 
