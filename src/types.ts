@@ -61,6 +61,10 @@ export interface RunOptions {
   dryRun?: boolean;
   /** Target assistants to sync (default: ['claude', 'codex']) */
   targets?: string[];
+  /** Use home directory instead of cwd (default: false) */
+  homeMode?: boolean;
+  /** Run reconfiguration flow (default: false) */
+  reconfigure?: boolean;
 }
 
 /**
@@ -106,3 +110,26 @@ export const ASSISTANTS: readonly AssistantConfig[] = [
   { name: 'claude', dir: '.claude', skillsDir: '.claude/skills' },
   { name: 'codex', dir: '.codex', skillsDir: '.codex/skills' }
 ] as const;
+
+/**
+ * Configurable map of assistant names to their folder names
+ * Add new assistants here as key-value pairs
+ */
+export const ASSISTANT_MAP: Record<string, string> = {
+  'claude': '.claude',
+  'codex': '.codex',
+};
+
+/**
+ * Get AssistantConfig[] from assistant names
+ * @param names - Optional array of assistant names. If omitted, returns all.
+ * @returns Array of AssistantConfig objects
+ */
+export function getAssistantConfigs(names?: string[]): AssistantConfig[] {
+  const enabled = names || Object.keys(ASSISTANT_MAP);
+  return enabled.map(name => ({
+    name,
+    dir: ASSISTANT_MAP[name],
+    skillsDir: `${ASSISTANT_MAP[name]}/skills`
+  }));
+}
