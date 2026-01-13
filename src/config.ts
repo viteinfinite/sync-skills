@@ -109,3 +109,24 @@ export async function writeConfig(baseDir: string, config: Config): Promise<void
   // Write config with pretty formatting
   await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
 }
+
+/**
+ * Detect which assistant folders exist in the directory
+ * @param baseDir - Base directory to scan
+ * @returns Array of assistant names that have folders present
+ */
+export async function detectAvailableAssistants(baseDir: string): Promise<string[]> {
+  const available: string[] = [];
+
+  for (const [name, folder] of Object.entries(ASSISTANT_MAP)) {
+    const dir = join(baseDir, folder);
+    try {
+      await fs.access(dir);
+      available.push(name);
+    } catch {
+      // Folder doesn't exist, skip
+    }
+  }
+
+  return available;
+}
