@@ -68,3 +68,19 @@ export async function readConfig(baseDir: string): Promise<Config | null> {
     return null;
   }
 }
+
+/**
+ * Write configuration file
+ * @param baseDir - Base directory to write to
+ * @param config - Config object to write
+ */
+export async function writeConfig(baseDir: string, config: Config): Promise<void> {
+  const configPath = join(baseDir, CONFIG_PATH);
+  const configDir = join(baseDir, '.agents-common');
+
+  // Ensure .agents-common directory exists
+  await fs.mkdir(configDir, { recursive: true });
+
+  // Write config with pretty formatting
+  await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+}
