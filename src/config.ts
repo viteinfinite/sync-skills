@@ -188,3 +188,57 @@ export async function reconfigure(baseDir: string): Promise<void> {
 
   console.log(`Configured assistants: ${selected.join(', ')}`);
 }
+
+/**
+ * Ensure config exists, create if needed
+ * @param baseDir - Base directory for config
+ * @returns Config object
+ */
+export async function ensureConfig(baseDir: string): Promise<Config> {
+  // Check if config already exists
+  const existing = await readConfig(baseDir);
+  if (existing) {
+    return existing;
+  }
+
+  // Detect which assistant folders exist
+  const detected = await detectAvailableAssistants(baseDir);
+
+  let assistants: string[];
+
+  if (detected.length === 0) {
+    // No folders exist - prompt user to select
+    console.log('No assistant folders found.');
+
+    const answer = await inquirer.prompt([{
+      type: 'checkbox',
+      name: 'assistants',
+      message: 'Select assistants to set up:',
+      choices: Object.keys(ASSISTANT_MAP),
+      validate: (input: string[]) => {
+        return input.length > 0 || 'Please select at least one assistant';
+      }
+    }]);
+
+    assistants = answer.assistants as string[];
+  } else {
+    // Folders exist - auto-create config
+    assistants = detected;
+    console.log(`Auto-configured assistants: ${detected.join(', ')}`);
+  }
+
+  // Create and save config
+  const config: Config = { version: 1, assistants };
+  await writeConfig(baseDir, config);
+
+  return config;
+}
+
+/**
+ * Get AssistantConfig[] from Config
+ * @param config - Config object
+ * @returns Array of AssistantConfig for enabled assistants
+ */
+export function getEnabledAssistants(config: Config): ReturnType<typeof getAssistantConfigs> {
+  return getAssistantConfigs(config.assistants);
+}
