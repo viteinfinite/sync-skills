@@ -153,24 +153,38 @@ export async function reconfigure(baseDir: string): Promise<void> {
     checked: currentlyEnabled.includes(name)
   }));
 
-  // Interactive checkbox prompt
-  const answer = await inquirer.prompt([{
-    type: 'checkbox',
-    name: 'assistants',
-    message: 'Select assistants to sync:',
-    choices: choices,
-    validate: (input: string[]) => {
-      return input.length > 0 || 'Please select at least one assistant';
-    }
-  }]);
+  let selected: string[];
 
-  const selected = answer.assistants as string[];
+  try {
+    // Interactive checkbox prompt
+    const answer = await inquirer.prompt([{
+      type: 'checkbox',
+      name: 'assistants',
+      message: 'Select assistants to sync:',
+      choices: choices,
+      validate: (input: string[]) => {
+        return input.length > 0 || 'Please select at least one assistant';
+      }
+    }]);
 
-  // Write new config
-  await writeConfig(baseDir, {
-    version: 1,
-    assistants: selected
-  });
+    selected = answer.assistants as string[];
+  } catch (error) {
+    // User cancelled (Ctrl+C)
+    console.log('\nConfiguration cancelled.');
+    process.exit(0);
+  }
+
+  try {
+    // Write new config
+    await writeConfig(baseDir, {
+      version: 1,
+      assistants: selected
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`Failed to write configuration: ${errorMessage}`);
+    process.exit(1);
+  }
 
   console.log(`Configured assistants: ${selected.join(', ')}`);
 }
