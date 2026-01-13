@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "tsx --test test/config.test.ts test/integration.test.ts",
-    "test:clean": "rm -rf test/fixtures/*/ .agents-common"
+    "test:clean": "rm -rf test/fixtures/*/ .agents-common",
+    "add-skill": "node scripts/add-fake-skill.js"
   },
   "dependencies": {
     "chalk": "^5.3",
