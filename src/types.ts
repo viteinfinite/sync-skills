@@ -105,6 +105,7 @@ export interface ParsedSkill {
 
 /**
  * Registry of known assistant types
+ * @deprecated Use ASSISTANT_MAP and getAssistantConfigs() instead. This will be removed in a future version.
  */
 export const ASSISTANTS: readonly AssistantConfig[] = [
   { name: 'claude', dir: '.claude', skillsDir: '.claude/skills' },
@@ -114,6 +115,9 @@ export const ASSISTANTS: readonly AssistantConfig[] = [
 /**
  * Configurable map of assistant names to their folder names
  * Add new assistants here as key-value pairs
+ *
+ * This replaces the ASSISTANTS constant for better extensibility.
+ * Use getAssistantConfigs() to convert this map into AssistantConfig[] objects.
  */
 export const ASSISTANT_MAP: Record<string, string> = {
   'claude': '.claude',
@@ -123,13 +127,29 @@ export const ASSISTANT_MAP: Record<string, string> = {
 /**
  * Get AssistantConfig[] from assistant names
  * @param names - Optional array of assistant names. If omitted, returns all.
- * @returns Array of AssistantConfig objects
+ * @returns Array of AssistantConfig objects for valid assistant names only
  */
 export function getAssistantConfigs(names?: string[]): AssistantConfig[] {
-  const enabled = names || Object.keys(ASSISTANT_MAP);
-  return enabled.map(name => ({
-    name,
-    dir: ASSISTANT_MAP[name],
-    skillsDir: `${ASSISTANT_MAP[name]}/skills`
-  }));
+  const requested = names || Object.keys(ASSISTANT_MAP);
+  const valid: AssistantConfig[] = [];
+  const invalid: string[] = [];
+
+  for (const name of requested) {
+    if (name in ASSISTANT_MAP) {
+      valid.push({
+        name,
+        dir: ASSISTANT_MAP[name],
+        skillsDir: `${ASSISTANT_MAP[name]}/skills`
+      });
+    } else {
+      invalid.push(name);
+    }
+  }
+
+  if (invalid.length > 0) {
+    console.warn(`Warning: Invalid assistant names ignored: ${invalid.join(', ')}`);
+    console.warn(`Valid assistants: ${Object.keys(ASSISTANT_MAP).join(', ')}`);
+  }
+
+  return valid;
 }
