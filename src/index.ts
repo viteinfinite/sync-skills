@@ -38,8 +38,9 @@ export async function run(options: RunOptions = {}): Promise<void> {
   // Ensure config exists
   const config = await ensureConfig(baseDir);
 
-  // Phase 1: Discover assistants and find sync pairs
-  const states = await discoverAssistants(baseDir);
+  // Phase 1: Get enabled assistants and find sync pairs
+  const enabledConfigs = getEnabledAssistants(config);
+  const states = await discoverAssistants(baseDir, enabledConfigs);
   const syncPairs = findSyncPairs(states);
 
   // If no assistants have skills, exit silently (Scenario 3)

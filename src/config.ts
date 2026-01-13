@@ -232,9 +232,10 @@ export async function ensureConfig(baseDir: string): Promise<Config> {
 
     assistants = selected;
   } else {
-    // Folders exist - auto-create config
-    assistants = detected;
-    console.log(`Auto-configured assistants: ${detected.join(', ')}`);
+    // Folders exist - auto-create config with all assistants
+    // This allows sync to create missing folders for assistants that don't exist yet
+    assistants = Object.keys(ASSISTANT_MAP);
+    console.log(`Auto-configured assistants: ${assistants.join(', ')}`);
   }
 
   // Create and save config

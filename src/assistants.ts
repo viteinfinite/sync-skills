@@ -8,16 +8,22 @@ import type {
   SkillFile,
   SyncPair
 } from './types.js';
+import { getAssistantConfigs } from './types.js';
 
 const CORE_FIELDS = ['name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'];
 
 /**
- * Discover the state of all configured assistants
+ * Discover the state of configured assistants
+ * @param baseDir - Base directory to scan
+ * @param configs - Assistant configs to discover (defaults to all)
  */
-export async function discoverAssistants(baseDir: string): Promise<AssistantState[]> {
+export async function discoverAssistants(
+  baseDir: string,
+  configs: AssistantConfig[] = getAssistantConfigs()
+): Promise<AssistantState[]> {
   const states: AssistantState[] = [];
 
-  for (const config of ASSISTANTS) {
+  for (const config of configs) {
     const state = await discoverAssistant(baseDir, config);
     states.push(state);
   }
@@ -198,6 +204,3 @@ function dirname(path: string): string {
   parts.pop();
   return parts.join('/');
 }
-
-// Re-export ASSISTANTS for convenience
-export const ASSISTANTS = await import('./types.js').then(m => m.ASSISTANTS);
