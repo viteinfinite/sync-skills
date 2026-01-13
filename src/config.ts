@@ -123,7 +123,10 @@ export async function detectAvailableAssistants(baseDir: string): Promise<string
     try {
       await fs.access(dir);
       available.push(name);
-    } catch {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error; // Re-throw unexpected errors
+      }
       // Folder doesn't exist, skip
     }
   }
