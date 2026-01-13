@@ -210,17 +210,27 @@ export async function ensureConfig(baseDir: string): Promise<Config> {
     // No folders exist - prompt user to select
     console.log('No assistant folders found.');
 
-    const answer = await inquirer.prompt([{
-      type: 'checkbox',
-      name: 'assistants',
-      message: 'Select assistants to set up:',
-      choices: Object.keys(ASSISTANT_MAP),
-      validate: (input: string[]) => {
-        return input.length > 0 || 'Please select at least one assistant';
-      }
-    }]);
+    let selected: string[];
 
-    assistants = answer.assistants as string[];
+    try {
+      const answer = await inquirer.prompt([{
+        type: 'checkbox',
+        name: 'assistants',
+        message: 'Select assistants to set up:',
+        choices: Object.keys(ASSISTANT_MAP),
+        validate: (input: string[]) => {
+          return input.length > 0 || 'Please select at least one assistant';
+        }
+      }]);
+
+      selected = answer.assistants as string[];
+    } catch (error) {
+      // User cancelled (Ctrl+C)
+      console.log('\nConfiguration cancelled.');
+      process.exit(0);
+    }
+
+    assistants = selected;
   } else {
     // Folders exist - auto-create config
     assistants = detected;
@@ -229,7 +239,14 @@ export async function ensureConfig(baseDir: string): Promise<Config> {
 
   // Create and save config
   const config: Config = { version: 1, assistants };
-  await writeConfig(baseDir, config);
+
+  try {
+    await writeConfig(baseDir, config);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`Failed to write configuration: ${errorMessage}`);
+    process.exit(1);
+  }
 
   return config;
 }
