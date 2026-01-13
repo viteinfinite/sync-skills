@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { ASSISTANT_MAP, getAssistantConfigs } from './types.js';
 
 /**
@@ -73,10 +73,35 @@ export async function readConfig(baseDir: string): Promise<Config | null> {
  * Write configuration file
  * @param baseDir - Base directory to write to
  * @param config - Config object to write
+ * @throws Error if validation fails
  */
 export async function writeConfig(baseDir: string, config: Config): Promise<void> {
+  // Validate version
+  if (config.version !== 1) {
+    throw new Error(`Invalid config: unsupported version ${config.version} (expected 1)`);
+  }
+
+  // Validate assistants array
+  if (!Array.isArray(config.assistants)) {
+    throw new Error('Invalid config: assistants must be an array');
+  }
+
+  if (config.assistants.length === 0) {
+    throw new Error('Invalid config: assistants array cannot be empty');
+  }
+
+  // Validate each assistant name exists in ASSISTANT_MAP
+  for (const assistant of config.assistants) {
+    if (typeof assistant !== 'string' || assistant.trim() === '') {
+      throw new Error('Invalid config: assistant name must be a non-empty string');
+    }
+    if (!(assistant in ASSISTANT_MAP)) {
+      throw new Error(`Invalid config: unknown assistant "${assistant}"`);
+    }
+  }
+
   const configPath = join(baseDir, CONFIG_PATH);
-  const configDir = join(baseDir, '.agents-common');
+  const configDir = join(baseDir, dirname(CONFIG_PATH));
 
   // Ensure .agents-common directory exists
   await fs.mkdir(configDir, { recursive: true });
