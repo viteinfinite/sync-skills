@@ -42,25 +42,48 @@ sync-skills --home
 
 This syncs `~/.claude`, `~/.codex`, and `~/.agents-common` - useful for maintaining a personal skill collection that can be shared across projects.
 
-## Behavior
+## How It Works
+
+`sync-skills` manages skill definitions across multiple AI assistants through a shared common directory.
+
+### Architecture
+
+```
+.agents-common/skills/     ← Shared skill definitions (canonical source)
+├── skill-a/SKILL.md
+└── skill-b/SKILL.md
+
+.claude/skills/             ← Claude-specific references
+├── skill-a/SKILL.md       → Contains: @.agents-common/skills/skill-a/SKILL.md
+└── skill-b/SKILL.md
+
+.codex/skills/              ← Codex-specific references
+├── skill-a/SKILL.md       → Contains: @.agents-common/skills/skill-a/SKILL.md
+└── skill-b/SKILL.md
+```
+
+### Sync Flow
 
 When running `sync-skills`:
 
-1. **Skills without `@` references** are refactored to use `.agents-common/skills`
-2. **Bidirectional auto-creation** - For any assistant type (claude, codex, etc.):
-   - If source has skills and target folder doesn't exist: Prompts to create target skills
-   - If source has skills and target folder exists: Automatically creates target skills
-   - If no skills exist anywhere: Exits silently
-3. **Conflicts** are detected and resolved interactively when skills differ between agents
+1. **Auto-configuration** - Detects which assistant folders exist and creates `.agents-common/config.json`
 
-## Test Scenarios
+2. **Bidirectional sync** - For each pair of assistants:
+   - **Source**: Assistant that has skills (e.g., `.claude/skills/`)
+   - **Target**: Assistant that needs those skills (e.g., `.codex/skills/`)
+   - If target folder doesn't exist: Prompts to create it
+   - If target folder exists: Automatically creates skill references
 
-The implementation is verified against these test scenarios:
+3. **Refactoring** - Skills without `@` references are moved to `.agents-common/skills/` and replaced with references
+
+4. **Conflict resolution** - When skills have different content, prompts to choose which version to keep
+
+### Test Scenarios
 
 | Scenario | Condition | Behavior |
 |----------|-----------|----------|
-| 1 | `.claude/skills` exists, `.codex` missing | Prompt user, create if yes |
-| 2 | `.claude/skills` exists, `.codex` exists | Auto-create without prompt |
+| 1 | `.claude/skills` exists, `.codex` missing | Prompt user, create `.codex` if yes |
+| 2 | `.claude/skills` exists, `.codex` exists | Auto-create `.codex` skills without prompt |
 | 3 | No skills exist anywhere | Exit silently |
-| 4 | `.codex/skills` exists, `.claude` missing | Prompt user, create if yes |
-| 5 | `.codex/skills` exists, `.claude` exists | Auto-create without prompt |
+| 4 | `.codex/skills` exists, `.claude` missing | Prompt user, create `.claude` if yes |
+| 5 | `.codex/skills` exists, `.claude` exists | Auto-create `.claude` skills without prompt |
