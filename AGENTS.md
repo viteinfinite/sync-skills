@@ -16,3 +16,9 @@ Use `@/openspec/AGENTS.md` to learn:
 Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
+
+# What to test
+
+- [ ] Unit tests pass
+- [ ] `npx github:viteinfinite/sync-skills` works as expected
+- [ ] Follow `TESTING.md` instructions

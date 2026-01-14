@@ -9,24 +9,34 @@ This document outlines the testing procedures for the sync-skills tool.
 
 ## Test Sequence
 
+### 0. Setup Test Environment
+Create a new test directory and navigate into it:
+
+```bash
+mkdir sync-skills-test
+cd sync-skills-test
+npm init -y
+npm install ../path-to-sync-skills
+```
+
 ### 1. Create Fake Skills
 
-Use the `add-skill` script to create test skills:
+From the test directory, use the `add-skill` script to create test skills:
 
 ```bash
 # Create skills in .claude
-npm run add-skill claude skill-a
-npm run add-skill claude skill-b
-npm run add-skill claude skill-c
+node ../scripts/add-skill claude skill-a
+node ../scripts/add-skill claude skill-b
+node ../scripts/add-skill claude skill-c
 
 # Or directly
-node scripts/add-fake-skill.js claude skill-a
-node scripts/add-fake-skill.js codex another-skill
+node ../scripts/add-fake-skill.js claude skill-a
+node ../scripts/add-fake-skill.js codex another-skill
 ```
 
 ### 2. Run Sync
 
-Test the sync functionality:
+From the test directory, test the sync functionality:
 
 ```bash
 # Dry-run to see what would happen
@@ -41,7 +51,7 @@ npx tsx bin/sync-skills.ts --fail-on-conflict
 
 ### 3. Verify Results
 
-Check the created structure:
+From the test directory, check the created structure:
 
 ```bash
 # Configuration

@@ -8,11 +8,11 @@
   },
   "scripts": {
     "test": "tsx --test test/config.test.ts test/integration.test.ts",
-    "test:clean": "rm -rf test/fixtures/*/ .agents-common",
-    "add-skill": "node scripts/add-fake-skill.js"
+    "test:clean": "rm -rf test/fixtures/*/ .agents-common"
   },
   "dependencies": {
     "chalk": "^5.3",
+    "diff": "^8.0.3",
     "gray-matter": "^4.0",
     "inquirer": "^9.2",
     "minimist": "^1.2",
@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@types/chai": "^4.3.20",
+    "@types/diff": "^7.0.2",
     "@types/inquirer": "^9.0.9",
     "@types/minimist": "^1.2.5",
     "@types/mocha": "^10.0.10",

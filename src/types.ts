@@ -81,6 +81,12 @@ export interface Conflict {
   claudeHash: string;
   /** Hash of Codex skill content */
   codexHash: string;
+  /** Claude skill content for diff display */
+  claudeContent?: string;
+  /** Codex skill content for diff display */
+  codexContent?: string;
+  /** Type of conflict: 'content' for full content, 'frontmatter' for metadata only */
+  conflictType?: 'content' | 'frontmatter';
 }
 
 /**

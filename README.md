@@ -32,6 +32,9 @@ npm install -g sync-skills
 
 # Run in your project
 sync-skills
+
+# Or using npx
+npx viteinfinite/sync-skills
 ```
 
 That's it! The tool will:

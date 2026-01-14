@@ -1,10 +1,55 @@
 import { promises as fs } from 'fs';
 import { createHash } from 'crypto';
+import matter from 'gray-matter';
+import { diffLines } from 'diff';
+import chalk from 'chalk';
 import type { Conflict, SkillFile } from './types.js';
 
 async function hashFile(filePath: string): Promise<string> {
   const content = await fs.readFile(filePath, 'utf8');
   return createHash('sha256').update(content).digest('hex');
+}
+
+function getConflictType(claudeContent: string, codexContent: string): 'content' | 'frontmatter' {
+  const claudeParsed = matter(claudeContent);
+  const codexParsed = matter(codexContent);
+
+  // If both have @ references, check if they point to the same file
+  const claudeRef = extractReference(claudeParsed.content);
+  const codexRef = extractReference(codexParsed.content);
+
+  if (claudeRef && codexRef) {
+    // Both are references - conflict is in frontmatter
+    return claudeRef === codexRef ? 'frontmatter' : 'content';
+  }
+
+  // At least one has actual content
+  return 'content';
+}
+
+function extractReference(content: string): string | null {
+  const match = content.trim().match(/^@(.+)$/);
+  return match ? match[1] : null;
+}
+
+function formatDiff(claudeContent: string, codexContent: string): string {
+  const diff = diffLines(claudeContent, codexContent);
+  const output: string[] = [];
+
+  for (const part of diff) {
+    const color = part.added ? chalk.green : part.removed ? chalk.red : chalk.gray;
+    const prefix = part.added ? '+ ' : part.removed ? '- ' : '  ';
+    // Limit output to first 20 lines
+    if (output.length < 20) {
+      output.push(color(prefix + part.value.trimEnd()));
+    }
+  }
+
+  if (diff.length > 20) {
+    output.push(chalk.gray('... (diff truncated)'));
+  }
+
+  return output.join('\n');
 }
 
 export async function detectConflicts(
@@ -17,16 +62,24 @@ export async function detectConflicts(
     const codexSkill = codexSkills.find(s => s.skillName === claudeSkill.skillName);
 
     if (codexSkill) {
-      const claudeHash = await hashFile(claudeSkill.path);
-      const codexHash = await hashFile(codexSkill.path);
+      const claudeContent = await fs.readFile(claudeSkill.path, 'utf8');
+      const codexContent = await fs.readFile(codexSkill.path, 'utf8');
+
+      const claudeHash = createHash('sha256').update(claudeContent).digest('hex');
+      const codexHash = createHash('sha256').update(codexContent).digest('hex');
 
       if (claudeHash !== codexHash) {
+        const conflictType = getConflictType(claudeContent, codexContent);
+
         conflicts.push({
           skillName: claudeSkill.skillName,
           claudePath: claudeSkill.path,
           codexPath: codexSkill.path,
           claudeHash,
-          codexHash
+          codexHash,
+          claudeContent,
+          codexContent,
+          conflictType
         });
       }
     }
@@ -34,3 +87,5 @@ export async function detectConflicts(
 
   return conflicts;
 }
+
+export { formatDiff };
