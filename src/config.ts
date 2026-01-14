@@ -119,7 +119,9 @@ export async function writeConfig(baseDir: string, config: Config): Promise<void
 export async function detectAvailableAssistants(baseDir: string): Promise<string[]> {
   const available: string[] = [];
 
-  for (const [name, folder] of Object.entries(ASSISTANT_MAP)) {
+  for (const [name, skillsPath] of Object.entries(ASSISTANT_MAP)) {
+    // Extract the folder name (first path segment before /)
+    const folder = skillsPath.split('/')[0];
     const dir = join(baseDir, folder);
     try {
       await fs.access(dir);

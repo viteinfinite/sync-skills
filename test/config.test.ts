@@ -89,3 +89,18 @@ test('getAssistantConfigs - supports non-standard skill folder names', () => {
   // Restore
   Object.assign(ASSISTANT_MAP, originalMap);
 });
+
+test('detectAvailableAssistants - detects by folder name not skills path', async () => {
+  const testDir = './test/fixtures/detect-test';
+
+  // Create .claude folder (no skills subfolder needed for detection)
+  await fs.mkdir(join(testDir, '.claude'), { recursive: true });
+
+  const detected = await detectAvailableAssistants(testDir);
+
+  assert.ok(detected.includes('claude'));
+  assert.ok(!detected.includes('codex'));
+
+  // Cleanup
+  await fs.rm(testDir, { recursive: true, force: true });
+});
