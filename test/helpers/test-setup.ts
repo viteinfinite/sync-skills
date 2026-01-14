@@ -3,6 +3,9 @@ import { resolve, join } from 'path';
 import sinon from 'sinon';
 import inquirer from 'inquirer';
 
+// Create a shared sandbox for all tests
+const sandbox = sinon.createSandbox();
+
 /**
  * Create a temporary test fixture directory
  * @param name - Name for the test fixture
@@ -39,11 +42,15 @@ export async function cleanupTestFixture(dir: string): Promise<void> {
 
 /**
  * Stub inquirer.prompt to avoid interactive prompts
+ * Uses a shared sandbox to avoid conflicts between tests
  * @param responses - Map of question names to resolved values
  * @returns Sinon stub that can be restored
  */
 export function stubInquirer(responses: Record<string, unknown>): sinon.SinonStub {
-  return sinon.stub(inquirer, 'prompt').callsFake(async (questions: unknown) => {
+  // Restore any existing prompt stub first
+  sandbox.restore();
+
+  return sandbox.stub(inquirer, 'prompt').callsFake(async (questions: unknown) => {
     const qs = questions as Array<{ name: string }>;
     const q = qs[0];
     if (q && q.name in responses) {
@@ -101,4 +108,23 @@ export async function createCommonSkill(
   const skillDir = join(dir, '.agents-common/skills', skillName);
   await fs.mkdir(skillDir, { recursive: true });
   await fs.writeFile(join(skillDir, 'SKILL.md'), content, 'utf-8');
+}
+
+/**
+ * Create a config file with specified assistants
+ * @param dir - Base directory
+ * @param assistants - Array of assistant names to enable
+ */
+export async function createConfig(
+  dir: string,
+  assistants: string[] = ['claude', 'codex']
+): Promise<void> {
+  const configDir = join(dir, '.agents-common');
+  await fs.mkdir(configDir, { recursive: true });
+  const configPath = join(configDir, 'config.json');
+  const config = {
+    version: 1,
+    assistants
+  };
+  await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
 }
