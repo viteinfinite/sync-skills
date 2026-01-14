@@ -126,8 +126,8 @@ export const ASSISTANTS: readonly AssistantConfig[] = [
  * Use getAssistantConfigs() to convert this map into AssistantConfig[] objects.
  */
 export const ASSISTANT_MAP: Record<string, string> = {
-  'claude': '.claude',
-  'codex': '.codex',
+  'claude': '.claude/skills',
+  'codex': '.codex/skills',
 };
 
 /**
