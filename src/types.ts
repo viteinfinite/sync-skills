@@ -142,10 +142,14 @@ export function getAssistantConfigs(names?: string[]): AssistantConfig[] {
 
   for (const name of requested) {
     if (name in ASSISTANT_MAP) {
+      const skillsPath = ASSISTANT_MAP[name];
+      // Extract the folder name (first path segment)
+      const folder = skillsPath.split('/')[0];
+
       valid.push({
         name,
-        dir: ASSISTANT_MAP[name],
-        skillsDir: `${ASSISTANT_MAP[name]}/skills`
+        dir: folder,
+        skillsDir: skillsPath
       });
     } else {
       invalid.push(name);
