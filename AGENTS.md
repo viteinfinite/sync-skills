@@ -21,6 +21,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 - [ ] Unit tests pass
 - [ ] Integration tests pass
+- [ ] `npm run build` has run and `./dist/` is up to date
 
 # ALWAYS VERIFY AFTER PUSHING
 
