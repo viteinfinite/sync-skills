@@ -163,3 +163,63 @@ export function getAssistantConfigs(names?: string[]): AssistantConfig[] {
 
   return valid;
 }
+
+/**
+ * A dependent file in a skill folder (non-SKILL.md files)
+ */
+export interface DependentFile {
+  /** Path relative to the skill folder, e.g., "scripts/util.js" */
+  relativePath: string;
+  /** Absolute path to the file */
+  absolutePath: string;
+  /** sha256 hash of the file content */
+  hash: string;
+}
+
+/**
+ * Map of relative file paths to their hashes
+ */
+export interface DependentFileHashes {
+  [relativePath: string]: string;  // "scripts/util.js": "sha256-abc123..."
+}
+
+/**
+ * Sync metadata stored in SKILL.md frontmatter
+ */
+export interface SyncMetadata {
+  version: number;
+  files: DependentFileHashes;
+}
+
+/**
+ * Conflict between dependent file versions
+ */
+export interface DependentConflict {
+  /** Name of the skill */
+  skillName: string;
+  /** Relative path to the file */
+  relativePath: string;
+  /** Platform name (e.g., 'claude', 'codex', 'common') */
+  platform: string;
+  /** Path to the platform's version */
+  platformPath: string;
+  /** Hash of the platform's version */
+  platformHash: string;
+  /** Path to the common version (if exists) */
+  commonPath?: string;
+  /** Hash of the common version (if exists) */
+  commonHash?: string;
+  /** Platform file content for diff display */
+  platformContent?: string;
+  /** Common file content for diff display */
+  commonContent?: string;
+  /** Stored hash from frontmatter (if exists) */
+  storedHash?: string;
+}
+
+/**
+ * User resolution for a dependent file conflict
+ */
+export interface DependentConflictResolution {
+  action: 'use-common' | 'use-platform' | 'skip' | 'abort';
+}

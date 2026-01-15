@@ -111,6 +111,200 @@ When no configuration exists:
 3. **Phase 3 - Refactoring:** Move skills without `@` references to `.agents-common`
 4. **Phase 4 - Conflict Resolution:** Detect and resolve skill conflicts
 5. **Phase 5 - Frontmatter Propagation:** Sync frontmatter from common to targets
+6. **Phase 6 - Dependent Files Sync:** Centralize non-SKILL.md files in `.agents-common`
+
+## Dependent Files Sync
+
+### Feature Overview
+
+Dependent files (all non-SKILL.md files in skill folders) are centralized in `.agents-common/skills/` with hash-based conflict resolution. These files are NOT copied to platform folders - they only exist in the common folder.
+
+### Supported File Types
+
+- Documentation files (`README.md`, `guide.md`, etc.)
+- Nested documentation (`docs/reference.md`)
+- Utility scripts (`scripts/util.js`)
+- Config files (`config.json`, `schema.yaml`)
+- Any other supporting files
+
+Excluded from sync:
+- `SKILL.md` (handled by main sync process)
+- `node_modules/`, `.git/`, and other ignored directories
+
+### Scenarios
+
+#### Scenario 1: Single Platform, No Common
+
+**Before:**
+```
+.claude/myskill/SKILL.md
+.claude/myskill/util.js
+```
+
+**After sync (with codex enabled):**
+```
+.claude/myskill/SKILL.md (@ reference)
+.codex/myskill/SKILL.md (@ reference)
+.agents-common/myskill/SKILL.md
+.agents-common/myskill/util.js (centralized)
+```
+
+#### Scenario 2: Multi-Platform, No Common
+
+**Before:**
+```
+.claude/myskill/SKILL.md
+.claude/myskill/util.js
+.codex/myskill/SKILL.md
+.codex/myskill/util.js (different content)
+```
+
+**After sync:**
+- Hash-based conflict resolution detects different content
+- User prompted to resolve conflict
+- Resolved file stored in common
+- Hash stored in `metadata.sync.files` field
+
+#### Scenario 3: Existing Common + Platforms
+
+- Platform files compared vs common files (hash)
+- Common files compared vs stored hashes (in frontmatter)
+- Conflicts detected when hashes differ
+- After resolution, `metadata.sync.files` updated
+
+#### Scenario 4: Common Only, Both Platforms
+
+**Before:**
+```
+.agents-common/myskill/SKILL.md
+.agents-common/myskill/util.js
+```
+
+**After sync (with codex and claude enabled):**
+```
+.claude/myskill/SKILL.md (@ reference created)
+.codex/myskill/SKILL.md (@ reference created)
+.agents-common/myskill/SKILL.md (unchanged)
+.agents-common/myskill/util.js (unchanged - centralized)
+```
+
+### Frontmatter Extension
+
+After dependent files sync, SKILL.md frontmatter includes:
+
+```yaml
+---
+name: my-skill
+description: My skill
+metadata:
+  sync:
+    version: 1
+    files:
+      util.js: sha256-abc123...
+      scripts/helper.js: sha256-def456...
+---
+```
+
+### Manual Testing
+
+#### Test Scenario 1: Single Platform
+
+```bash
+# Create skill with dependent file
+mkdir -p .claude/skills/test-skill
+cat > .claude/skills/test-skill/SKILL.md << 'EOF'
+---
+name: test-skill
+---
+# Test Skill
+EOF
+
+echo 'console.log("hello");' > .claude/skills/test-skill/util.js
+
+# Run sync
+npx tsx bin/sync-skills.ts
+
+# Verify
+cat .agents-common/skills/test-skill/util.js
+ls .claude/skills/test-skill/util.js  # Should not exist (removed)
+```
+
+#### Test Scenario 2: Multi-Platform Conflict
+
+```bash
+# Create skill in both platforms with different content
+mkdir -p .claude/skills/conflict-skill
+cat > .claude/skills/conflict-skill/SKILL.md << 'EOF'
+---
+name: conflict-skill
+---
+# Conflict Skill
+EOF
+
+mkdir -p .codex/skills/conflict-skill
+cat > .codex/skills/conflict-skill/SKILL.md << 'EOF'
+---
+name: conflict-skill
+---
+# Conflict Skill
+EOF
+
+# Different content triggers conflict
+echo 'console.log("claude");' > .claude/skills/conflict-skill/util.js
+echo 'console.log("codex");' > .codex/skills/conflict-skill/util.js
+
+# Run sync - should prompt for resolution
+npx tsx bin/sync-skills.ts
+
+# Verify hash stored in frontmatter
+grep -A5 'metadata:' .agents-common/skills/conflict-skill/SKILL.md
+```
+
+### Verification Checklist
+
+After running dependent files sync, verify:
+
+- [ ] Dependent files exist only in `.agents-common/skills/{skill}/`
+- [ ] Platform folders contain only `SKILL.md` (@ reference)
+- [ ] Hashes stored in `metadata.sync.files` field
+- [ ] Conflicts detected when file hashes differ
+- [ ] Cleanup removed platform dependent files
+- [ ] Empty directories removed from platform folders
+- [ ] `SKILL.md` preserved in all locations
+
+### Testing Hash-Based Conflicts
+
+```bash
+# Create skill with stored hash
+mkdir -p .agents-common/skills/hash-test
+cat > .agents-common/skills/hash-test/SKILL.md << 'EOF'
+---
+name: hash-test
+metadata:
+  sync:
+    version: 1
+    files:
+      util.js: sha256-original-hash
+---
+# Hash Test
+EOF
+
+echo 'original content' > .agents-common/skills/hash-test/util.js
+
+# Modify platform version - should detect conflict
+mkdir -p .claude/skills/hash-test
+cat > .claude/skills/hash-test/SKILL.md << 'EOF'
+---
+name: hash-test
+---
+# Hash Test
+EOF
+
+echo 'modified content' > .claude/skills/hash-test/util.js
+
+# Run sync - conflict detected (hash != stored hash)
+npx tsx bin/sync-skills.ts
+```
 
 ### Directory Structure After Sync
 
