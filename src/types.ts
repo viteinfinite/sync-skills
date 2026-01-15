@@ -114,19 +114,9 @@ export interface ParsedSkill {
 }
 
 /**
- * Registry of known assistant types
- * @deprecated Use ASSISTANT_MAP and getAssistantConfigs() instead. This will be removed in a future version.
- */
-export const ASSISTANTS: readonly AssistantConfig[] = [
-  { name: 'claude', dir: '.claude', skillsDir: '.claude/skills' },
-  { name: 'codex', dir: '.codex', skillsDir: '.codex/skills' }
-] as const;
-
-/**
  * Configurable map of assistant names to their folder names
  * Add new assistants here as key-value pairs
  *
- * This replaces the ASSISTANTS constant for better extensibility.
  * Use getAssistantConfigs() to convert this map into AssistantConfig[] objects.
  */
 export const ASSISTANT_MAP: Record<string, string> = {

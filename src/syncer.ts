@@ -1,9 +1,8 @@
 import { promises as fs } from 'fs';
 import { join, dirname, resolve, basename } from 'path';
 import matter from 'gray-matter';
-import type { AssistantConfig, SkillFile } from './types.js';
-
-const CORE_FIELDS = ['name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'];
+import { CORE_FIELDS } from './constants.js';
+import type { SkillFile } from './types.js';
 
 export async function refactorSkill(sourcePath: string): Promise<string | null> {
   const content = await fs.readFile(sourcePath, 'utf8');
@@ -69,33 +68,4 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
 export async function copySkill(sourcePath: string, targetPath: string): Promise<void> {
   await fs.mkdir(dirname(targetPath), { recursive: true });
   await fs.copyFile(sourcePath, targetPath);
-}
-
-export async function cloneCodexSkills(baseDir: string, claudeSkills: SkillFile[]): Promise<void> {
-  for (const skill of claudeSkills) {
-    const content = await fs.readFile(skill.path, 'utf8');
-    const parsed = matter(content);
-
-    // Extract only core frontmatter fields
-    const coreFrontmatter: Record<string, unknown> = {};
-    for (const field of CORE_FIELDS) {
-      if (parsed.data[field]) {
-        coreFrontmatter[field] = parsed.data[field];
-      }
-    }
-
-    // Get the @ reference from the content
-    const atReference = parsed.content.trim();
-
-    // Build the codex path
-    const skillName = skill.skillName;
-    const codexPath = join(baseDir, '.codex/skills', skillName, 'SKILL.md');
-
-    // Ensure directory exists
-    await fs.mkdir(dirname(codexPath), { recursive: true });
-
-    // Write the codex skill file with @ reference and core frontmatter
-    const codexContent = matter.stringify(atReference + '\n', coreFrontmatter);
-    await fs.writeFile(codexPath, codexContent);
-  }
 }

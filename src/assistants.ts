@@ -1,7 +1,8 @@
 import { promises as fs } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import inquirer from 'inquirer';
 import matter from 'gray-matter';
+import { CORE_FIELDS } from './constants.js';
 import type {
   AssistantConfig,
   AssistantState,
@@ -9,8 +10,6 @@ import type {
   SyncPair
 } from './types.js';
 import { getAssistantConfigs } from './types.js';
-
-const CORE_FIELDS = ['name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'];
 
 /**
  * Discover the state of configured assistants
@@ -196,11 +195,4 @@ export async function processSyncPairs(
       await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config);
     }
   }
-}
-
-// Helper function to get dirname
-function dirname(path: string): string {
-  const parts = path.split('/');
-  parts.pop();
-  return parts.join('/');
 }
