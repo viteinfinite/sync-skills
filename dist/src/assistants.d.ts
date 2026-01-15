@@ -25,4 +25,9 @@ export declare function cloneAssistantSkills(baseDir: string, sourceSkills: Skil
  * Process all sync pairs with appropriate prompts
  */
 export declare function processSyncPairs(baseDir: string, pairs: SyncPair[], dryRun: boolean): Promise<void>;
+/**
+ * Sync skills that exist only in .agents-common to enabled platforms
+ * Creates @ references in platform folders for common-only skills
+ */
+export declare function syncCommonOnlySkills(baseDir: string, commonSkills: SkillFile[], enabledConfigs: AssistantConfig[], dryRun: boolean): Promise<void>;
 //# sourceMappingURL=assistants.d.ts.map

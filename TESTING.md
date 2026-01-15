@@ -188,6 +188,25 @@ Excluded from sync:
 .agents-common/myskill/util.js (unchanged - centralized)
 ```
 
+#### Scenario 5: Common Only, Both Platforms
+
+**Before:**
+```
+.agents-common/myskill-1/SKILL.md
+.agents-common/myskill-1/util.js
+.agents-common/myskill-2/SKILL.md
+.claude/myskill-1/SKILL.md
+```
+
+**After sync (with claude enabled):**
+```
+.agents-common/myskill-1/SKILL.md
+.agents-common/myskill-1/util.js
+.agents-common/myskill-2/SKILL.md
+.claude/myskill-1/SKILL.md
+.claude/myskill-2/SKILL.md (new, with @ reference)
+```
+
 ### Frontmatter Extension
 
 After dependent files sync, SKILL.md frontmatter includes:

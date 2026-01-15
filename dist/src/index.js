@@ -6,7 +6,7 @@ import { detectConflicts } from './detector.js';
 import { resolveConflict, resolveDependentConflicts } from './resolver.js';
 import { refactorSkill, copySkill } from './syncer.js';
 import { propagateFrontmatter } from './propagator.js';
-import { discoverAssistants, findSyncPairs, processSyncPairs } from './assistants.js';
+import { discoverAssistants, findSyncPairs, processSyncPairs, syncCommonOnlySkills } from './assistants.js';
 import { ensureConfig, reconfigure as runReconfigure, getEnabledAssistants } from './config.js';
 import { collectDependentFilesFromPlatforms, consolidateDependentsToCommon, cleanupPlatformDependentFiles, getStoredHashes, storeFileHashesInFrontmatter, applyConflictResolutions } from './dependents.js';
 export async function run(options = {}) {
@@ -31,16 +31,21 @@ export async function run(options = {}) {
     const enabledConfigs = getEnabledAssistants(config);
     const states = await discoverAssistants(baseDir, enabledConfigs);
     const syncPairs = findSyncPairs(states);
-    // If no assistants have skills, exit silently (Scenario 3)
+    // Also scan for common skills to check if any exist
+    const initialScan = await scanSkills(baseDir);
+    const hasCommonSkills = initialScan.common.length > 0;
+    // If no assistants have skills AND no common skills exist, exit silently (Scenario 3)
     const anyHasSkills = states.some(s => s.hasSkills);
-    if (!anyHasSkills) {
+    if (!anyHasSkills && !hasCommonSkills) {
         console.log('No skills found. Exiting.');
         return;
     }
     // Phase 2: Process sync pairs (bidirectional)
     await processSyncPairs(baseDir, syncPairs, dryRun);
-    // Re-scan after sync to get updated state
-    const { claude, codex } = await scanSkills(baseDir);
+    // Re-scan after sync to get updated state (including common skills)
+    const { claude, codex, common } = await scanSkills(baseDir);
+    // Phase 2.5: Sync skills that exist only in .agents-common to enabled platforms
+    await syncCommonOnlySkills(baseDir, common.map(c => ({ path: c.path, skillName: c.skillName })), enabledConfigs, dryRun);
     // Phase 3: Refactor Claude skills that don't have @ references
     for (const skill of claude) {
         const content = await fs.readFile(skill.path, 'utf8');

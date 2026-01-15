@@ -17,13 +17,13 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
 
-# ALWAYS VERIFY BEFORE COMMITTING
+# CRITICAL: ALWAYS VERIFY BEFORE COMMITTING
 
 - [ ] Unit tests pass
 - [ ] Integration tests pass
 - [ ] `npm run build` has run and `./dist/` is up to date
 
-# ALWAYS VERIFY AFTER PUSHING
+# CRITICAL: ALWAYS VERIFY AFTER PUSHING
 
 - [ ] `./scripts/npx-test.sh` do not produce failures
 - [ ] `./scripts/npm-install-test.sh` do not produce failures

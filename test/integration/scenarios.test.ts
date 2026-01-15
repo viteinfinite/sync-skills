@@ -84,4 +84,62 @@ test.describe('scenarios', { concurrency: 1 }, () => {
     promptStub.restore();
     await cleanupTestFixture(testDir);
   });
+
+  test('Integration: Scenario 5 - common-only skills should get platform references', async () => {
+    const promptStub = stubInquirer({ action: 'keep-both' });
+
+    const testDir = await createTestFixture('scenario5', async (dir) => {
+      // Set up config with claude enabled
+      await createConfig(dir, ['claude']);
+
+      // Create myskill-1 in both common and claude (existing sync)
+      await createCommonSkill(dir, 'myskill-1', '---\nname: myskill-1\n---\n# My Skill 1\nContent');
+      await createSkillFile(dir, '.claude', 'myskill-1', '---\nname: myskill-1\n---\n@.agents-common/skills/myskill-1/SKILL.md\n');
+
+      // Create myskill-2 ONLY in common (no platform reference yet)
+      await createCommonSkill(dir, 'myskill-2', '---\nname: myskill-2\n---\n# My Skill 2\nCommon only skill');
+    });
+
+    await run({ baseDir: testDir });
+
+    // Verify myskill-2 now has @ reference in .claude
+    const claudeContent = await readSkillFile(testDir, '.claude', 'myskill-2');
+    assert.ok(claudeContent.includes('@.agents-common/skills/myskill-2/SKILL.md'),
+      'myskill-2 should have @ reference in .claude');
+    assert.ok(claudeContent.includes('name: myskill-2'),
+      'myskill-2 should have frontmatter preserved');
+
+    promptStub.restore();
+    await cleanupTestFixture(testDir);
+  });
+
+  test('Integration: Scenario 5 - common-only skills should sync to multiple platforms', async () => {
+    const promptStub = stubInquirer({ create: true, action: 'keep-both' });
+
+    const testDir = await createTestFixture('scenario5-multi', async (dir) => {
+      // Set up config with both claude and codex enabled
+      await createConfig(dir, ['claude', 'codex']);
+
+      // Create .codex folder so it doesn't prompt
+      await fs.mkdir(join(dir, '.codex'), { recursive: true });
+      await fs.mkdir(join(dir, '.claude'), { recursive: true });
+
+      // Create skill ONLY in common
+      await createCommonSkill(dir, 'common-only-skill', '---\nname: common-only-skill\ndescription: A skill only in common\n---\n# Common Only\nThis skill exists only in .agents-common');
+    });
+
+    await run({ baseDir: testDir });
+
+    // Verify skill has @ references in both platforms
+    const claudeContent = await readSkillFile(testDir, '.claude', 'common-only-skill');
+    const codexContent = await readSkillFile(testDir, '.codex', 'common-only-skill');
+
+    assert.ok(claudeContent.includes('@.agents-common/skills/common-only-skill/SKILL.md'),
+      'common-only-skill should have @ reference in .claude');
+    assert.ok(codexContent.includes('@.agents-common/skills/common-only-skill/SKILL.md'),
+      'common-only-skill should have @ reference in .codex');
+
+    promptStub.restore();
+    await cleanupTestFixture(testDir);
+  });
 });

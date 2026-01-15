@@ -159,4 +159,46 @@ export async function processSyncPairs(baseDir, pairs, dryRun) {
         }
     }
 }
+/**
+ * Sync skills that exist only in .agents-common to enabled platforms
+ * Creates @ references in platform folders for common-only skills
+ */
+export async function syncCommonOnlySkills(baseDir, commonSkills, enabledConfigs, dryRun) {
+    for (const commonSkill of commonSkills) {
+        for (const config of enabledConfigs) {
+            const platformSkillPath = join(baseDir, config.skillsDir, commonSkill.skillName, 'SKILL.md');
+            // Check if skill already exists in this platform
+            try {
+                await fs.access(platformSkillPath);
+                // Skill already exists, skip
+                continue;
+            }
+            catch {
+                // Skill doesn't exist in platform, create it
+            }
+            if (dryRun) {
+                console.log(`Would create @ reference for ${commonSkill.skillName} in ${config.name}`);
+                continue;
+            }
+            // Read the common skill to extract frontmatter
+            const content = await fs.readFile(commonSkill.path, 'utf-8');
+            const parsed = matter(content);
+            // Extract only core frontmatter fields
+            const coreFrontmatter = {};
+            for (const field of CORE_FIELDS) {
+                if (parsed.data[field]) {
+                    coreFrontmatter[field] = parsed.data[field];
+                }
+            }
+            // Create @ reference to common skill
+            const atReference = `@.agents-common/skills/${commonSkill.skillName}/SKILL.md`;
+            // Ensure directory exists
+            await fs.mkdir(dirname(platformSkillPath), { recursive: true });
+            // Write the platform skill file with @ reference and core frontmatter
+            const targetContent = matter.stringify(atReference + '\n', coreFrontmatter);
+            await fs.writeFile(platformSkillPath, targetContent);
+            console.log(`Created @ reference for ${commonSkill.skillName} in ${config.name}`);
+        }
+    }
+}
 //# sourceMappingURL=assistants.js.map
