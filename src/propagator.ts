@@ -155,6 +155,22 @@ function mergeFrontmatter(
     });
   }
 
+  // Always use common's sync hash as the source of truth
+  const commonMetadata = common.metadata as Record<string, unknown> | undefined;
+  if (commonMetadata?.sync && typeof commonMetadata.sync === 'object' && !Array.isArray(commonMetadata.sync)) {
+    const commonSync = commonMetadata.sync as Record<string, unknown>;
+    if (commonSync.hash) {
+      merged.metadata = merged.metadata || {};
+      const mergedMetadata = merged.metadata as Record<string, unknown>;
+      mergedMetadata.sync = {
+        ...(typeof mergedMetadata?.sync === 'object' && mergedMetadata.sync && !Array.isArray(mergedMetadata.sync)
+          ? mergedMetadata.sync as Record<string, unknown>
+          : {}),
+        hash: commonSync.hash
+      };
+    }
+  }
+
   return { merged, conflicts };
 }
 
