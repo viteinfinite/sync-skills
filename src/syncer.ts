@@ -50,13 +50,28 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
 
   // Write frontmatter + body to .agents-common (strip leading newline added by gray-matter)
   const bodyContent = parsed.content.startsWith('\n') ? parsed.content.slice(1) : parsed.content;
-  const commonContent = matter.stringify(bodyContent, coreFrontmatter);
+
+  // Compute hash of the new common skill (no dependents yet)
+  const skillHash = computeSkillHash(coreFrontmatter, bodyContent, []);
+
+  // Add sync metadata to common frontmatter
+  const commonFrontmatter = {
+    ...coreFrontmatter,
+    sync: {
+      'managed-by': 'sync-skills',
+      'version': 2,
+      'hash': skillHash,
+      'dependent-files': {}
+    }
+  };
+
+  const commonContent = matter.stringify(bodyContent, commonFrontmatter);
   await fs.writeFile(commonPath, commonContent);
 
-  // Add metadata to frontmatter
+  // Add sync metadata to source platform frontmatter
   parsed.data.sync = {
     'managed-by': 'sync-skills',
-    'refactored': new Date().toISOString()
+    'hash': skillHash
   };
 
   // Replace body with @ reference
