@@ -1,13 +1,15 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import matter from 'gray-matter';
 import { scanSkills } from './scanner.js';
 import { parseSkillFile } from './parser.js';
 import { detectConflicts } from './detector.js';
 import { resolveConflict, resolveDependentConflicts } from './resolver.js';
-import { refactorSkill, copySkill } from './syncer.js';
+import { refactorSkill, copySkill, computeSkillHash, updateMainHash } from './syncer.js';
 import { propagateFrontmatter } from './propagator.js';
 import { discoverAssistants, findSyncPairs, processSyncPairs, syncCommonOnlySkills } from './assistants.js';
 import { ensureConfig, reconfigure as runReconfigure, getEnabledAssistants } from './config.js';
+import { CORE_FIELDS } from './constants.js';
 import { collectDependentFilesFromPlatforms, consolidateDependentsToCommon, cleanupPlatformDependentFiles, getStoredHashes, storeFileHashesInFrontmatter, applyConflictResolutions } from './dependents.js';
 export async function run(options = {}) {
     let { baseDir = process.cwd(), failOnConflict = false, dryRun = false, homeMode = false, reconfigure = false } = options;
@@ -158,6 +160,52 @@ export async function run(options = {}) {
                     // SKILL.md doesn't exist in common - this shouldn't happen if earlier phases worked
                     console.warn(`Warning: SKILL.md not found in common for ${skillName}, skipping hash storage`);
                 }
+            }
+            // Recompute main hash with new dependent files and propagate to all platforms
+            try {
+                // Skip hash recomputation if no dependent files (hash won't change)
+                if (Object.keys(finalHashes).length === 0) {
+                    continue;
+                }
+                const commonFilePath = join(commonSkillPath, 'SKILL.md');
+                const commonContent = await fs.readFile(commonFilePath, 'utf8');
+                const commonParsed = matter(commonContent);
+                // Extract core frontmatter fields
+                const coreFrontmatter = {};
+                for (const field of CORE_FIELDS) {
+                    if (commonParsed.data[field]) {
+                        coreFrontmatter[field] = commonParsed.data[field];
+                    }
+                }
+                // Normalize body content (strip leading newline like in refactorSkill)
+                const bodyContent = commonParsed.content.startsWith('\n')
+                    ? commonParsed.content.slice(1)
+                    : commonParsed.content;
+                // Build dependent files array from finalHashes
+                const dependentFiles = Object.entries(finalHashes).map(([path, hash]) => ({ path, hash: hash }));
+                // Recompute hash with new dependent files
+                const newHash = computeSkillHash(coreFrontmatter, bodyContent, dependentFiles);
+                // Update hash in common file
+                await updateMainHash(commonFilePath, newHash);
+                // Propagate to all enabled platforms
+                const platformPaths = [];
+                for (const config of enabledConfigs) {
+                    const platformSkillPath = join(baseDir, config.skillsDir, skillName, 'SKILL.md');
+                    try {
+                        await fs.access(platformSkillPath);
+                        platformPaths.push(platformSkillPath);
+                    }
+                    catch {
+                        // Platform skill doesn't exist, skip
+                    }
+                }
+                if (platformPaths.length > 0) {
+                    await propagateFrontmatter(commonFilePath, platformPaths, { failOnConflict, dryRun: false });
+                }
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.warn(`Warning: Failed to recompute and propagate hash for ${skillName}: ${errorMessage}`);
             }
             // Clean up dependent files from platform folders
             const filesToCleanup = Object.keys(finalHashes);

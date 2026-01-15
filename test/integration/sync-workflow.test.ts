@@ -41,7 +41,8 @@ Codex version`);
   // Verify .claude skill was refactored
   const claudeContent = await readSkillFile(testDir, '.claude', 'my-skill');
   assert.ok(claudeContent.includes('@.agents-common/skills/my-skill/SKILL.md'));
-  assert.ok(claudeContent.includes('managed-by: sync-skills'));
+  assert.ok(claudeContent.includes('metadata:'));
+  assert.ok(claudeContent.includes('sync:'));
 
   // Verify .codex skill was refactored
   const codexContent = await readSkillFile(testDir, '.codex', 'my-skill');

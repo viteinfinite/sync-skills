@@ -39,12 +39,26 @@ export async function refactorSkill(sourcePath) {
     }
     // Write frontmatter + body to .agents-common (strip leading newline added by gray-matter)
     const bodyContent = parsed.content.startsWith('\n') ? parsed.content.slice(1) : parsed.content;
-    const commonContent = matter.stringify(bodyContent, coreFrontmatter);
+    // Compute hash of the new common skill (no dependents yet)
+    const skillHash = computeSkillHash(coreFrontmatter, bodyContent, []);
+    // Add sync metadata to common frontmatter
+    const commonFrontmatter = {
+        ...coreFrontmatter,
+        metadata: {
+            sync: {
+                version: 2,
+                files: {},
+                hash: skillHash
+            }
+        }
+    };
+    const commonContent = matter.stringify(bodyContent, commonFrontmatter);
     await fs.writeFile(commonPath, commonContent);
-    // Add metadata to frontmatter
-    parsed.data.sync = {
-        'managed-by': 'sync-skills',
-        'refactored': new Date().toISOString()
+    // Add sync metadata to source platform frontmatter
+    parsed.data.metadata = {
+        sync: {
+            hash: skillHash
+        }
     };
     // Replace body with @ reference
     const newContent = matter.stringify(`@${relativeCommonPath}\n`, parsed.data);
@@ -63,38 +77,72 @@ export async function copySkill(sourcePath, targetPath) {
  * @returns Hash in format "sha256-{hex}"
  */
 export function computeSkillHash(coreFrontmatter, bodyContent, dependentFiles = []) {
-    const crypto = createHash('sha256');
+    const hash = createHash('sha256');
     // 1. Hash core frontmatter (deterministic JSON)
     const frontmatterStr = stableStringify(coreFrontmatter);
-    crypto.update(frontmatterStr);
-    crypto.update('\n');
+    hash.update(frontmatterStr);
+    hash.update('\n');
     // 2. Hash body content
-    crypto.update(bodyContent);
-    crypto.update('\n');
+    hash.update(bodyContent);
+    hash.update('\n');
     // 3. Hash dependent files (sorted by path for consistency)
     const sortedFiles = [...dependentFiles].sort((a, b) => a.path.localeCompare(b.path));
     for (const file of sortedFiles) {
-        crypto.update(`${file.path}:${file.hash}\n`);
+        hash.update(`${file.path}:${file.hash}\n`);
     }
-    return `sha256-${crypto.digest('hex')}`;
+    return `sha256-${hash.digest('hex')}`;
+}
+/**
+ * Update the main hash in a skill's frontmatter
+ * @param skillPath - Path to the SKILL.md file
+ * @param newHash - New hash value
+ */
+export async function updateMainHash(skillPath, newHash) {
+    const content = await fs.readFile(skillPath, 'utf8');
+    const parsed = matter(content);
+    const existingData = parsed.data || {};
+    const existingMetadata = existingData.metadata || {};
+    const existingSync = existingMetadata.sync || {};
+    const newData = {
+        ...existingData,
+        metadata: {
+            ...existingMetadata,
+            sync: {
+                ...existingSync,
+                hash: newHash
+            }
+        }
+    };
+    const newContent = matter.stringify(content, newData);
+    await fs.writeFile(skillPath, newContent);
 }
 /**
  * Stable stringification for deterministic hashing
  * Sorts object keys recursively
  */
-function stableStringify(obj, indent = '') {
-    if (obj === null || obj === undefined) {
-        return '';
+function stableStringify(obj) {
+    // Handle null and undefined explicitly with markers
+    if (obj === null)
+        return 'null';
+    if (obj === undefined)
+        return 'undefined';
+    // Helper to escape strings
+    const jsonStringify = (s) => '"' + s.replace(/"/g, '\\"') + '"';
+    if (typeof obj === 'string') {
+        return jsonStringify(obj);
     }
-    if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'boolean') {
+    if (typeof obj === 'number' || typeof obj === 'boolean') {
         return String(obj);
     }
     if (Array.isArray(obj)) {
-        return '[' + obj.map(v => stableStringify(v, indent)).join(',') + ']';
+        return '[' + obj.map(v => stableStringify(v)).join(',') + ']';
     }
     if (typeof obj === 'object') {
         const sortedKeys = Object.keys(obj).sort();
-        const pairs = sortedKeys.map(key => `"${key}":${stableStringify(obj[key], indent)}`);
+        const pairs = sortedKeys.map(key => {
+            const value = obj[key];
+            return `"${key}":${stableStringify(value)}`;
+        });
         return '{' + pairs.join(',') + '}';
     }
     return '';

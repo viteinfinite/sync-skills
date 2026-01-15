@@ -11,4 +11,10 @@ export declare function computeSkillHash(coreFrontmatter: Record<string, unknown
     path: string;
     hash: string;
 }>): string;
+/**
+ * Update the main hash in a skill's frontmatter
+ * @param skillPath - Path to the SKILL.md file
+ * @param newHash - New hash value
+ */
+export declare function updateMainHash(skillPath: string, newHash: string): Promise<void>;
 //# sourceMappingURL=syncer.d.ts.map

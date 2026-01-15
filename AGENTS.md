@@ -23,6 +23,10 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 - [ ] Integration tests pass
 - [ ] `npm run build` has run and `./dist/` is up to date
 
+# CRITICAL: ALWAYS DO THIS BEFORE PUSHING
+- [ ] `npm run build` has run and `./dist/` is up to date
+- [ ] ensure the dist folder is committed
+
 # CRITICAL: ALWAYS VERIFY AFTER PUSHING
 
 - [ ] `./scripts/npx-test.sh` do not produce failures

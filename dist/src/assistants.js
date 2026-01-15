@@ -180,9 +180,10 @@ export async function syncCommonOnlySkills(baseDir, commonSkills, enabledConfigs
                 console.log(`Would create @ reference for ${commonSkill.skillName} in ${config.name}`);
                 continue;
             }
-            // Read the common skill to extract frontmatter
+            // Read the common skill to extract frontmatter and sync metadata
             const content = await fs.readFile(commonSkill.path, 'utf-8');
             const parsed = matter(content);
+            const commonHash = parsed.data?.metadata?.sync?.hash;
             // Extract only core frontmatter fields
             const coreFrontmatter = {};
             for (const field of CORE_FIELDS) {
@@ -190,12 +191,23 @@ export async function syncCommonOnlySkills(baseDir, commonSkills, enabledConfigs
                     coreFrontmatter[field] = parsed.data[field];
                 }
             }
+            // Remove metadata from coreFrontmatter since we'll create our own with only sync.hash
+            const { metadata, ...coreWithoutMetadata } = coreFrontmatter;
             // Create @ reference to common skill
             const atReference = `@.agents-common/skills/${commonSkill.skillName}/SKILL.md`;
             // Ensure directory exists
             await fs.mkdir(dirname(platformSkillPath), { recursive: true });
-            // Write the platform skill file with @ reference and core frontmatter
-            const targetContent = matter.stringify(atReference + '\n', coreFrontmatter);
+            // Build platform frontmatter with sync metadata
+            const platformFrontmatter = {
+                ...coreWithoutMetadata,
+                metadata: {
+                    sync: {
+                        ...(commonHash ? { hash: commonHash } : {})
+                    }
+                }
+            };
+            // Write the platform skill file with @ reference and frontmatter
+            const targetContent = matter.stringify(atReference + '\n', platformFrontmatter);
             await fs.writeFile(platformSkillPath, targetContent);
             console.log(`Created @ reference for ${commonSkill.skillName} in ${config.name}`);
         }
