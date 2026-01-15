@@ -62,12 +62,17 @@ test('Integration: Full Sync Workflow - should refactor skills and detect confli
   assert.ok(claudeCommitContent.includes('@.agents-common/skills/commit-message/SKILL.md'));
 });
 
-// Scenario 1: .claude/skills exists, .codex folder doesn't exist → prompt user
-test('Integration: Test Scenario 1 - should ask user and create .codex/skills when .codex folder does not exist', async () => {
+// Scenario 1: .claude/skills exists, .codex folder exists → auto-sync skills
+test('Integration: Test Scenario 1 - should auto-sync skills when both folders exist', async () => {
   const testDir = resolve('./test/fixtures/scenario1');
 
-  // Create scenario 1 setup: .claude/skills/my-skill exists, no .codex folder
+  // Clean up first
+  await fs.rm(testDir, { recursive: true, force: true });
+  await fs.rm(resolve(testDir, '.agents-common'), { recursive: true, force: true });
+
+  // Create scenario 1 setup: .claude/skills/my-skill exists, .codex folder exists
   await fs.mkdir(join(testDir, '.claude/skills/my-skill'), { recursive: true });
+  await fs.mkdir(join(testDir, '.codex'), { recursive: true });
   await fs.writeFile(join(testDir, '.claude/skills/my-skill/SKILL.md'), `---
 name: my-skill
 description: A test skill
@@ -77,19 +82,25 @@ description: A test skill
 
 This is the content of my skill.`);
 
-  // Stub inquirer.prompt to return yes (user wants to create .codex/skills)
-  promptStub.resolves({ create: true });
+  // Stub inquirer.prompt (should not be called for auto-sync)
+  promptStub.callsFake(async (questions: unknown) => {
+    const question = questions as Array<{ name: string }>;
+    const q = question[0];
+    if (q.name === 'create') {
+      return { create: false };
+    }
+    return { action: 'keep-both' };
+  });
 
   await runTest(testDir);
 
-  // Verify inquirer.prompt was called with the right message
-  assert.ok(promptStub.called);
-  const promptCall = promptStub.getCalls().find(call =>
-    call.args[0] && call.args[0][0] && call.args[0][0].message && call.args[0][0].message.includes('.codex folder does not exist')
+  // Verify the create prompt was NOT called (auto-sync)
+  const createCalls = promptStub.getCalls().filter(call =>
+    call.args[0] && call.args[0][0] && call.args[0][0].name === 'create'
   );
-  assert.ok(promptCall);
+  assert.strictEqual(createCalls.length, 0);
 
-  // Verify .codex/skills was created
+  // Verify .codex/skills was created automatically
   const codexSkillPath = join(testDir, '.codex/skills/my-skill/SKILL.md');
   const codexExists = await fs.access(codexSkillPath).then(() => true).catch(() => false);
   assert.ok(codexExists);
