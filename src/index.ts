@@ -3,12 +3,20 @@ import { join } from 'path';
 import { scanSkills } from './scanner.js';
 import { parseSkillFile } from './parser.js';
 import { detectConflicts } from './detector.js';
-import { resolveConflict } from './resolver.js';
+import { resolveConflict, resolveDependentConflicts } from './resolver.js';
 import { refactorSkill, copySkill } from './syncer.js';
 import { propagateFrontmatter } from './propagator.js';
 import { discoverAssistants, findSyncPairs, processSyncPairs } from './assistants.js';
 import { ensureConfig, reconfigure as runReconfigure, getEnabledAssistants } from './config.js';
-import type { RunOptions } from './types.js';
+import {
+  collectDependentFilesFromPlatforms,
+  consolidateDependentsToCommon,
+  cleanupPlatformDependentFiles,
+  getStoredHashes,
+  storeFileHashesInFrontmatter,
+  applyConflictResolutions
+} from './dependents.js';
+import type { RunOptions, AssistantConfig } from './types.js';
 
 export async function run(options: RunOptions = {}): Promise<void> {
   let {
@@ -111,6 +119,102 @@ export async function run(options: RunOptions = {}): Promise<void> {
       // Propagate frontmatter from common to both targets after conflict resolution
       const commonPath = join(baseDir, '.agents-common/skills', conflict.skillName, 'SKILL.md');
       await propagateFrontmatter(commonPath, [conflict.claudePath, conflict.codexPath], { failOnConflict, dryRun });
+    }
+  }
+
+  // Phase 6: Sync dependent files
+  if (!dryRun) {
+    const commonSkillsPath = join(baseDir, '.agents-common/skills');
+
+    // Collect all skill names from all platforms
+    const allSkillNames = new Set<string>();
+    for (const state of states) {
+      if (state.hasSkills) {
+        for (const skill of state.skills) {
+          allSkillNames.add(skill.skillName);
+        }
+      }
+    }
+
+    // Process each skill's dependent files
+    for (const skillName of allSkillNames) {
+      // Collect platform paths for enabled assistants
+      const platformPaths = enabledConfigs.map((config): { name: string; path: string } => ({
+        name: config.name,
+        path: join(baseDir, config.skillsDir)
+      }));
+
+      // Collect dependent files from all platforms
+      const platformFiles = await collectDependentFilesFromPlatforms(skillName, platformPaths);
+
+      if (platformFiles.size === 0) {
+        // No dependent files to sync
+        continue;
+      }
+
+      // Get stored hashes from common skill
+      const commonSkillPath = join(commonSkillsPath, skillName);
+      const storedHashes = await getStoredHashes(commonSkillPath);
+
+      // Consolidate dependent files to common (detects conflicts)
+      const { conflicts, hashes: initialHashes } = await consolidateDependentsToCommon(
+        skillName,
+        platformFiles,
+        commonSkillsPath,
+        storedHashes
+      );
+
+      let finalHashes = initialHashes;
+
+      // Resolve conflicts if any
+      if (conflicts.length > 0) {
+        if (failOnConflict) {
+          console.error(`Dependent file conflict in: ${skillName}`);
+          process.exit(1);
+        }
+
+        // Interactive resolution
+        const resolutions = await resolveDependentConflicts(conflicts);
+
+        // Check if user aborted
+        const hasAbort = Array.from(resolutions.values()).some(r => r.action === 'abort');
+        if (hasAbort) {
+          console.log('Aborted');
+          process.exit(0);
+        }
+
+        // Apply resolutions and get final hashes
+        const resolvedHashes = await applyConflictResolutions(conflicts, resolutions, commonSkillsPath);
+
+        // Merge resolved hashes with initial hashes
+        finalHashes = { ...initialHashes, ...resolvedHashes };
+      }
+
+      // Update frontmatter with final hashes
+      if (Object.keys(finalHashes).length > 0) {
+        // Ensure SKILL.md exists in common (it should from earlier phases)
+        try {
+          await fs.access(join(commonSkillPath, 'SKILL.md'));
+          await storeFileHashesInFrontmatter(commonSkillPath, finalHashes);
+        } catch {
+          // SKILL.md doesn't exist in common - this shouldn't happen if earlier phases worked
+          console.warn(`Warning: SKILL.md not found in common for ${skillName}, skipping hash storage`);
+        }
+      }
+
+      // Clean up dependent files from platform folders
+      const filesToCleanup = Object.keys(finalHashes);
+      if (filesToCleanup.length > 0) {
+        for (const config of enabledConfigs) {
+          const platformSkillsPath = join(baseDir, config.skillsDir);
+          try {
+            await cleanupPlatformDependentFiles(platformSkillsPath, skillName, filesToCleanup);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.warn(`Warning: Failed to cleanup ${config.name} dependent files for ${skillName}: ${errorMessage}`);
+          }
+        }
+      }
     }
   }
 

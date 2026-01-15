@@ -6,6 +6,7 @@ import type {
   DependentFile,
   DependentFileHashes,
   DependentConflict,
+  DependentConflictResolution,
   AssistantConfig
 } from './types.js';
 
@@ -445,6 +446,55 @@ export async function cleanupPlatformDependentFiles(
 
   // Clean up empty directories
   await removeEmptyDirectories(skillPath);
+}
+
+/**
+ * Apply conflict resolutions for dependent files
+ * @param conflicts - Array of conflicts to resolve
+ * @param resolutions - Map of conflict keys to resolutions
+ * @param commonPath - Path to the common skills folder
+ * @returns Object containing final hashes
+ */
+export async function applyConflictResolutions(
+  conflicts: DependentConflict[],
+  resolutions: Map<string, DependentConflictResolution>,
+  commonPath: string
+): Promise<DependentFileHashes> {
+  const finalHashes: DependentFileHashes = {};
+
+  for (const conflict of conflicts) {
+    const key = `${conflict.skillName}/${conflict.relativePath}`;
+    const resolution = resolutions.get(key);
+
+    if (!resolution || resolution.action === 'skip') {
+      // Skip this file - don't include in final hashes
+      continue;
+    }
+
+    if (resolution.action === 'abort') {
+      throw new Error('Sync aborted by user');
+    }
+
+    const commonSkillPath = join(commonPath, conflict.skillName);
+    const commonFilePath = join(commonSkillPath, conflict.relativePath);
+
+    if (resolution.action === 'use-common') {
+      // Keep common version - compute its hash
+      if (conflict.commonPath) {
+        const hash = await computeFileHash(conflict.commonPath);
+        finalHashes[conflict.relativePath] = hash;
+      }
+    } else if (resolution.action === 'use-platform') {
+      // Copy platform version to common
+      await fs.mkdir(join(commonFilePath, '..'), { recursive: true });
+      await fs.copyFile(conflict.platformPath, commonFilePath);
+
+      const hash = await computeFileHash(conflict.platformPath);
+      finalHashes[conflict.relativePath] = hash;
+    }
+  }
+
+  return finalHashes;
 }
 
 /**
