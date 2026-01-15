@@ -238,6 +238,9 @@ export async function syncCommonOnlySkills(
         }
       }
 
+      // Remove metadata from coreFrontmatter since we'll create our own with only sync.hash
+      const { metadata, ...coreWithoutMetadata } = coreFrontmatter;
+
       // Create @ reference to common skill
       const atReference = `@.agents-common/skills/${commonSkill.skillName}/SKILL.md`;
 
@@ -246,7 +249,7 @@ export async function syncCommonOnlySkills(
 
       // Build platform frontmatter with sync metadata
       const platformFrontmatter = {
-        ...coreFrontmatter,
+        ...coreWithoutMetadata,
         metadata: {
           sync: {
             ...(commonHash ? { hash: commonHash } : {})
