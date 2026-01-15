@@ -7,7 +7,7 @@
     "sync-skills": "./dist/bin/sync-skills.js"
   },
   "scripts": {
-    "build": "npx tsc",
+    "build": "./node_modules/.bin/tsc",
     "prepare": "npm run build",
     "test": "tsx --test test/*.test.ts",
     "test:integration": "tsx --test test/integration/*.test.ts",
