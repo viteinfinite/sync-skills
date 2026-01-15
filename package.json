@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run build",
+    "prepare": "npm run build",
     "test": "tsx --test test/*.test.ts",
     "test:integration": "tsx --test test/integration/*.test.ts",
     "test:all": "npm test && npm run test:integration",
