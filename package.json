@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "./node_modules/.bin/tsc",
-    "prepare": "npm run build",
+    "prepare": "test -f ./node_modules/.bin/tsc && npm run build || echo 'Skipping build (tsc not available)'",
     "test": "tsx --test test/*.test.ts",
     "test:integration": "tsx --test test/integration/*.test.ts",
     "test:all": "npm test && npm run test:integration",
