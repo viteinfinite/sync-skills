@@ -49,23 +49,23 @@ That's it! The tool will:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Your Project                              │
+│                        Your Project                         │
 ├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  .agents-common/          ←  One place for all your skills   │
-│  ├── skill-a/SKILL.md                                         │
-│  ├── skill-a/util.js     ←  Supporting files also synced!    │
-│  ├── skill-a/docs/guide.md                                   │
-│  └── skill-b/SKILL.md                                         │
-│                                                               │
-│  .claude/skills/           ←  References to common skills     │
-│  ├── skill-a/SKILL.md     →  @.agents-common/skills/...      │
-│  └── skill-b/SKILL.md     →  (dependent files removed)       │
-│                                                               │
-│  .codex/skills/            ←  Same skills, same references    │
-│  ├── skill-a/SKILL.md     →  @.agents-common/skills/...      │
-│  └── skill-b/SKILL.md     →  (dependent files removed)       │
-│                                                               │
+│                                                             │
+│  .agents-common/          ←  One place for all your skills  │
+│  ├── skill-a/SKILL.md                                       │
+│  ├── skill-a/util.js      ←  Supporting files also synced!  │
+│  ├── skill-a/docs/guide.md                                  │
+│  └── skill-b/SKILL.md                                       │
+│                                                             │
+│  .claude/skills/          ←  References to common skills    │
+│  ├── skill-a/SKILL.md     →  @.agents-common/skills/...     │
+│  └── skill-b/SKILL.md     →  (dependent files removed)      │
+│                                                             │
+│  .codex/skills/           ←  Same skills, same references   │
+│  ├── skill-a/SKILL.md     →  @.agents-common/skills/...     │
+│  └── skill-b/SKILL.md     →  (dependent files removed)      │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -123,9 +123,10 @@ mkdir -p .agents-common/skills/my-new-skill
 echo "# My Skill" > .agents-common/skills/my-new-skill/SKILL.md
 
 # 2. Run sync
-sync-skills
+npx github:viteinfinite/sync-skills
 
 # 3. ✅ Done! All assistants now have access to this skill
+#    🔗 .claude/skills/ and .codex/skills/ both reference the common files
 ```
 
 ### Syncing Existing .claude Skills to .codex
@@ -135,7 +136,7 @@ sync-skills
 ls .claude/skills/
 
 # 2. Run sync (auto-detects both .claude and .codex)
-sync-skills
+npx github:viteinfinite/sync-skills
 
 # 3. ✅ Skills are now available in both assistants!
 #    📁 .agents-common/ contains the source of truth
