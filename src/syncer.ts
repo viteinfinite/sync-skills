@@ -121,6 +121,34 @@ export function computeSkillHash(
 }
 
 /**
+ * Update the main hash in a skill's frontmatter
+ * @param skillPath - Path to the SKILL.md file
+ * @param newHash - New hash value
+ */
+export async function updateMainHash(skillPath: string, newHash: string): Promise<void> {
+  const content = await fs.readFile(skillPath, 'utf8');
+  const parsed = matter(content);
+
+  const existingData = parsed.data || {};
+  const existingMetadata = (existingData as { metadata?: Record<string, unknown> }).metadata || {};
+  const existingSync = (existingMetadata as { sync?: Record<string, unknown> }).sync || {};
+
+  const newData = {
+    ...existingData,
+    metadata: {
+      ...existingMetadata,
+      sync: {
+        ...existingSync,
+        hash: newHash
+      }
+    }
+  };
+
+  const newContent = matter.stringify(content, newData);
+  await fs.writeFile(skillPath, newContent);
+}
+
+/**
  * Stable stringification for deterministic hashing
  * Sorts object keys recursively
  */
