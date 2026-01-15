@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Node](https://img.shields.io/badge/Node-20+-green.svg)](https://nodejs.org/)
-[![Tests](https://img.shields.io/badge/Tests-16%2F16-brightgreen.svg)](https://github.com/viteinfinite/sync-skills/actions)
+[![Tests](https://img.shields.io/badge/Tests-35%2F35-brightgreen.svg)](https://github.com/viteinfinite/sync-skills/actions)
 
 </div>
 
@@ -54,20 +54,24 @@ That's it! The tool will:
 │                                                               │
 │  .agents-common/          ←  One place for all your skills   │
 │  ├── skill-a/SKILL.md                                         │
+│  ├── skill-a/util.js     ←  Supporting files also synced!    │
+│  ├── skill-a/docs/guide.md                                   │
 │  └── skill-b/SKILL.md                                         │
 │                                                               │
 │  .claude/skills/           ←  References to common skills     │
 │  ├── skill-a/SKILL.md     →  @.agents-common/skills/...      │
-│  └── skill-b/SKILL.md                                        │
+│  └── skill-b/SKILL.md     →  (dependent files removed)       │
 │                                                               │
 │  .codex/skills/            ←  Same skills, same references    │
 │  ├── skill-a/SKILL.md     →  @.agents-common/skills/...      │
-│  └── skill-b/SKILL.md                                        │
+│  └── skill-b/SKILL.md     →  (dependent files removed)       │
 │                                                               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **The magic:** Edit once in `.agents-common/`, and all your AI assistants see the changes!
+
+**Dependent files** (scripts, docs, configs) are automatically centralized in `.agents-common/` with hash-based conflict resolution.
 
 ---
 
@@ -150,6 +154,7 @@ Configuration is stored in `.agents-common/config.json`:
 
 ## 📚 What Gets Synced
 
+### Skills (SKILL.md)
 - ✅ Skill body
 - ✅ Frontmatter metadata (cf [Agent Skill Specs](https://agentskills.io/specification)):
   - name
@@ -158,6 +163,19 @@ Configuration is stored in `.agents-common/config.json`:
   - license
   - metadata
   - compatibility
+
+### Dependent Files
+- ✅ **All non-SKILL.md files** in skill folders are also synced:
+  - Documentation (`README.md`, `guide.md`, `docs/reference.md`)
+  - Utility scripts (`scripts/util.js`, `helpers/*.ts`)
+  - Config files (`config.json`, `schema.yaml`)
+  - Any other supporting files
+
+**How it works:**
+1. Dependent files are centralized in `.agents-common/skills/{skill}/`
+2. Platform folders contain only `SKILL.md` (with `@` references)
+3. Hash-based conflict resolution detects changes
+4. File hashes stored in `metadata.sync.files` frontmatter
 
 ---
 
