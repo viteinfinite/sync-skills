@@ -57,11 +57,12 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
   // Add sync metadata to common frontmatter
   const commonFrontmatter = {
     ...coreFrontmatter,
-    sync: {
-      'managed-by': 'sync-skills',
-      'version': 2,
-      'hash': skillHash,
-      'dependent-files': {}
+    metadata: {
+      sync: {
+        version: 2,
+        files: {},
+        hash: skillHash
+      }
     }
   };
 
@@ -69,9 +70,10 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
   await fs.writeFile(commonPath, commonContent);
 
   // Add sync metadata to source platform frontmatter
-  parsed.data.sync = {
-    'managed-by': 'sync-skills',
-    'hash': skillHash
+  parsed.data.metadata = {
+    sync: {
+      hash: skillHash
+    }
   };
 
   // Replace body with @ reference
