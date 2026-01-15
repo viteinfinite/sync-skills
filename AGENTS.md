@@ -17,8 +17,12 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
 
-# What to test
+# ALWAYS VERIFY BEFORE COMMITTING
 
 - [ ] Unit tests pass
-- [ ] `npx github:viteinfinite/sync-skills` works as expected
-- [ ] Follow `TESTING.md` instructions
+- [ ] Integration tests pass
+
+# ALWAYS VERIFY AFTER PUSHING
+
+- [ ] `./scripts/npx-test.sh` do not produce failures
+- [ ] `./scripts/npm-install-test.sh` do not produce failures
