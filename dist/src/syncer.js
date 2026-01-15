@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import { join, dirname, resolve, basename } from 'path';
+import { createHash } from 'crypto';
 import matter from 'gray-matter';
 import { CORE_FIELDS } from './constants.js';
 export async function refactorSkill(sourcePath) {
@@ -53,5 +54,49 @@ export async function refactorSkill(sourcePath) {
 export async function copySkill(sourcePath, targetPath) {
     await fs.mkdir(dirname(targetPath), { recursive: true });
     await fs.copyFile(sourcePath, targetPath);
+}
+/**
+ * Compute hash of skill state (frontmatter + body + dependent files)
+ * @param coreFrontmatter - CORE_FIELDS from skill
+ * @param bodyContent - SKILL.md body content
+ * @param dependentFiles - Array of dependent files with hashes
+ * @returns Hash in format "sha256-{hex}"
+ */
+export function computeSkillHash(coreFrontmatter, bodyContent, dependentFiles = []) {
+    const crypto = createHash('sha256');
+    // 1. Hash core frontmatter (deterministic JSON)
+    const frontmatterStr = stableStringify(coreFrontmatter);
+    crypto.update(frontmatterStr);
+    crypto.update('\n');
+    // 2. Hash body content
+    crypto.update(bodyContent);
+    crypto.update('\n');
+    // 3. Hash dependent files (sorted by path for consistency)
+    const sortedFiles = [...dependentFiles].sort((a, b) => a.path.localeCompare(b.path));
+    for (const file of sortedFiles) {
+        crypto.update(`${file.path}:${file.hash}\n`);
+    }
+    return `sha256-${crypto.digest('hex')}`;
+}
+/**
+ * Stable stringification for deterministic hashing
+ * Sorts object keys recursively
+ */
+function stableStringify(obj, indent = '') {
+    if (obj === null || obj === undefined) {
+        return '';
+    }
+    if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'boolean') {
+        return String(obj);
+    }
+    if (Array.isArray(obj)) {
+        return '[' + obj.map(v => stableStringify(v, indent)).join(',') + ']';
+    }
+    if (typeof obj === 'object') {
+        const sortedKeys = Object.keys(obj).sort();
+        const pairs = sortedKeys.map(key => `"${key}":${stableStringify(obj[key], indent)}`);
+        return '{' + pairs.join(',') + '}';
+    }
+    return '';
 }
 //# sourceMappingURL=syncer.js.map
