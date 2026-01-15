@@ -2,11 +2,13 @@
   "name": "sync-skills",
   "version": "0.1.0",
   "description": "Synchronize agent skills between .claude and .codex directories",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
   "bin": {
-    "sync-skills": "./bin/sync-skills.ts"
+    "sync-skills": "./dist/bin/sync-skills.js"
   },
   "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
     "test": "tsx --test test/*.test.ts",
     "test:integration": "tsx --test test/integration/*.test.ts",
     "test:all": "npm test && npm run test:integration",

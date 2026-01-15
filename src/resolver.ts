@@ -76,7 +76,7 @@ export async function resolveConflict(
     }
   ]);
 
-  return { action, conflict };
+  return { action };
 }
 
 /**

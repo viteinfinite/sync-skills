@@ -52,7 +52,7 @@ async function discoverAssistant(baseDir: string, config: AssistantConfig): Prom
       const entries = await fs.readdir(skillsDir, { withFileTypes: true });
 
       for (const entry of entries) {
-        if (entry.isDirectory) {
+        if (entry.isDirectory()) {
           const skillFile = join(skillsDir, entry.name, 'SKILL.md');
           try {
             await fs.access(skillFile);
