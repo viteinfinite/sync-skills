@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import matter from 'gray-matter';
 import { scanSkills } from './scanner.js';
 import { parseSkillFile } from './parser.js';
 import { detectConflicts } from './detector.js';
@@ -217,24 +218,33 @@ export async function run(options: RunOptions = {}): Promise<void> {
 
       // Recompute main hash with new dependent files and propagate to all platforms
       try {
+        // Skip hash recomputation if no dependent files (hash won't change)
+        if (Object.keys(finalHashes).length === 0) {
+          continue;
+        }
+
         const commonFilePath = join(commonSkillPath, 'SKILL.md');
         const commonContent = await fs.readFile(commonFilePath, 'utf8');
-        const matter = await import('gray-matter');
-        const parsed = matter.default(commonContent);
+        const commonParsed = matter(commonContent);
 
         // Extract core frontmatter fields
         const coreFrontmatter: Record<string, unknown> = {};
         for (const field of CORE_FIELDS) {
-          if (parsed.data[field]) {
-            coreFrontmatter[field] = parsed.data[field];
+          if (commonParsed.data[field]) {
+            coreFrontmatter[field] = commonParsed.data[field];
           }
         }
+
+        // Normalize body content (strip leading newline like in refactorSkill)
+        const bodyContent = commonParsed.content.startsWith('\n')
+          ? commonParsed.content.slice(1)
+          : commonParsed.content;
 
         // Build dependent files array from finalHashes
         const dependentFiles = Object.entries(finalHashes).map(([path, hash]) => ({ path, hash: hash as string }));
 
         // Recompute hash with new dependent files
-        const newHash = computeSkillHash(coreFrontmatter, parsed.content, dependentFiles);
+        const newHash = computeSkillHash(coreFrontmatter, bodyContent, dependentFiles);
 
         // Update hash in common file
         await updateMainHash(commonFilePath, newHash);
