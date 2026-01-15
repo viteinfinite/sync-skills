@@ -83,43 +83,53 @@ export function computeSkillHash(
   bodyContent: string,
   dependentFiles: Array<{ path: string; hash: string }> = []
 ): string {
-  const crypto = createHash('sha256');
+  const hash = createHash('sha256');
 
   // 1. Hash core frontmatter (deterministic JSON)
   const frontmatterStr = stableStringify(coreFrontmatter);
-  crypto.update(frontmatterStr);
-  crypto.update('\n');
+  hash.update(frontmatterStr);
+  hash.update('\n');
 
   // 2. Hash body content
-  crypto.update(bodyContent);
-  crypto.update('\n');
+  hash.update(bodyContent);
+  hash.update('\n');
 
   // 3. Hash dependent files (sorted by path for consistency)
   const sortedFiles = [...dependentFiles].sort((a, b) => a.path.localeCompare(b.path));
   for (const file of sortedFiles) {
-    crypto.update(`${file.path}:${file.hash}\n`);
+    hash.update(`${file.path}:${file.hash}\n`);
   }
 
-  return `sha256-${crypto.digest('hex')}`;
+  return `sha256-${hash.digest('hex')}`;
 }
 
 /**
  * Stable stringification for deterministic hashing
  * Sorts object keys recursively
  */
-function stableStringify(obj: unknown, indent = ''): string {
-  if (obj === null || obj === undefined) {
-    return '';
+function stableStringify(obj: unknown): string {
+  // Handle null and undefined explicitly with markers
+  if (obj === null) return 'null';
+  if (obj === undefined) return 'undefined';
+
+  // Helper to escape strings
+  const jsonStringify = (s: string): string => '"' + s.replace(/"/g, '\\"') + '"';
+
+  if (typeof obj === 'string') {
+    return jsonStringify(obj);
   }
-  if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'boolean') {
+  if (typeof obj === 'number' || typeof obj === 'boolean') {
     return String(obj);
   }
   if (Array.isArray(obj)) {
-    return '[' + obj.map(v => stableStringify(v, indent)).join(',') + ']';
+    return '[' + obj.map(v => stableStringify(v)).join(',') + ']';
   }
   if (typeof obj === 'object') {
     const sortedKeys = Object.keys(obj).sort();
-    const pairs = sortedKeys.map(key => `"${key}":${stableStringify((obj as Record<string, unknown>)[key], indent)}`);
+    const pairs = sortedKeys.map(key => {
+      const value = (obj as Record<string, unknown>)[key];
+      return `"${key}":${stableStringify(value)}`;
+    });
     return '{' + pairs.join(',') + '}';
   }
   return '';
