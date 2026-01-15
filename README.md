@@ -7,6 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Node](https://img.shields.io/badge/Node-20+-green.svg)](https://nodejs.org/)
+[![Tests](https://img.shields.io/badge/Tests-16%2F16-brightgreen.svg)](https://github.com/viteinfinite/sync-skills/actions)
 
 </div>
 
@@ -164,16 +165,18 @@ Configuration is stored in `.agents-common/config.json`:
 
 ### Custom Assistants
 
-Easily add new AI assistants by extending the map in `src/types.ts`:
+Easily add new AI assistants with non-standard skill folder names:
 
 ```typescript
 export const ASSISTANT_MAP: Record<string, string> = {
-  'claude': '.claude',
-  'codex': '.codex',
-  'cursor': '.cursor',     // ← Add your own!
-  'copilot': '.copilot'   // ← Add your own!
+  'claude': '.claude/skills',
+  'codex': '.codex/skills',
+  'cursor': '.cursor/skills',           // ← Add your own!
+  'copilot': '.github/copilot/prompts'  // ← Supports custom paths!
 };
 ```
+
+The full skills path allows flexibility for assistants with different folder structures.
 
 ### Adding Skills via Script
 
@@ -183,6 +186,33 @@ Quickly create test skills:
 npm run add-skill claude my-skill
 npm run add-skill codex another-skill
 ```
+
+---
+
+## 🧪 Testing
+
+The project uses a comprehensive test suite with separate unit and integration tests:
+
+```bash
+# Run unit tests only
+npm test
+
+# Run integration tests only
+npm run test:integration
+
+# Run all tests
+npm run test:all
+
+# Clean up test fixtures
+npm run test:clean
+```
+
+**CI/CD Pipeline:**
+- ✅ **unit-tests** - Fast configuration and parsing tests
+- ✅ **integration-tests** - Full workflow validation with real file operations
+- Both run in parallel for quick feedback
+
+---
 
 ## Contributions welcome!
 
