@@ -225,9 +225,10 @@ export async function syncCommonOnlySkills(
         continue;
       }
 
-      // Read the common skill to extract frontmatter
+      // Read the common skill to extract frontmatter and sync metadata
       const content = await fs.readFile(commonSkill.path, 'utf-8');
       const parsed = matter(content);
+      const commonHash = parsed.data?.metadata?.sync?.hash;
 
       // Extract only core frontmatter fields
       const coreFrontmatter: Record<string, unknown> = {};
@@ -243,8 +244,18 @@ export async function syncCommonOnlySkills(
       // Ensure directory exists
       await fs.mkdir(dirname(platformSkillPath), { recursive: true });
 
-      // Write the platform skill file with @ reference and core frontmatter
-      const targetContent = matter.stringify(atReference + '\n', coreFrontmatter);
+      // Build platform frontmatter with sync metadata
+      const platformFrontmatter = {
+        ...coreFrontmatter,
+        metadata: {
+          sync: {
+            ...(commonHash ? { hash: commonHash } : {})
+          }
+        }
+      };
+
+      // Write the platform skill file with @ reference and frontmatter
+      const targetContent = matter.stringify(atReference + '\n', platformFrontmatter);
       await fs.writeFile(platformSkillPath, targetContent);
 
       console.log(`Created @ reference for ${commonSkill.skillName} in ${config.name}`);
