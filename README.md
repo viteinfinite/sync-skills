@@ -125,8 +125,27 @@ echo "# My Skill" > .agents-common/skills/my-new-skill/SKILL.md
 # 2. Run sync
 sync-skills
 
-# 3. Done! All assistants now have access to this skill
+# 3. ✅ Done! All assistants now have access to this skill
 ```
+
+### Syncing Existing .claude Skills to .codex
+
+```bash
+# 1. Ensure you have existing skills in .claude/skills/
+ls .claude/skills/
+
+# 2. Run sync (auto-detects both .claude and .codex)
+sync-skills
+
+# 3. ✅ Skills are now available in both assistants!
+#    📁 .agents-common/ contains the source of truth
+#    🔗 .claude/skills/ and .codex/skills/ both reference the common files
+```
+
+**What happens:**
+- Existing `.claude` skills are moved to `.agents-common/`
+- Both `.claude` and `.codex` get reference files pointing to common skills
+- Future edits in `.agents-common/` sync to both platforms automatically
 
 ### Setting Up a New Project
 
