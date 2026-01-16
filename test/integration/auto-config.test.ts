@@ -7,25 +7,23 @@ import { createTestFixture, createSkillFile, cleanupTestFixture, stubInquirer } 
 
 let promptStub: ReturnType<typeof stubInquirer>;
 
-test.beforeEach(() => {
-  promptStub = stubInquirer({});
-});
-
 test.afterEach(async () => {
   promptStub.restore();
   await fs.rm(resolve('.agents-common'), { recursive: true, force: true });
 });
 
-test('Integration: Auto-configuration - should auto-create config when folders exist', async () => {
+test('Integration: Auto-configuration - should prompt and create config when folders exist', async () => {
   const testDir = await createTestFixture('auto-config-folders-exist', async (dir) => {
     // Create .claude folder with skills
     await createSkillFile(dir, '.claude', 'test-skill', '@test');
   });
 
+  promptStub = stubInquirer({ assistants: ['claude'] });
+
   // Import after setup to ensure fresh module
   const { run } = await import('../../src/index.js');
 
-  // Run sync (should auto-create config)
+  // Run sync (should prompt and create config)
   await run({ baseDir: testDir });
 
   // Check config was created
@@ -43,7 +41,6 @@ test('Integration: Auto-configuration - should prompt when no folders exist', as
   const testDir = await createTestFixture('auto-config-no-folders');
 
   // Stub inquirer to select claude
-  promptStub.restore();
   promptStub = stubInquirer({ assistants: ['claude'] });
 
   // This should prompt and create config

@@ -154,14 +154,10 @@ export async function reconfigure(baseDir: string): Promise<void> {
   // Detect which folders exist for pre-selection
   const detected = await detectAvailableAssistants(baseDir);
 
-  // Read existing config or default to detected folders
-  const existingConfig = await readConfig(baseDir);
-  const currentlyEnabled = existingConfig?.assistants || detected;
-
   // Build choices for all available assistants
   const choices = Object.keys(ASSISTANT_MAP).map(name => ({
     name: name,
-    checked: currentlyEnabled.includes(name)
+    checked: detected.includes(name)
   }));
 
   let selected: string[];
@@ -215,41 +211,38 @@ export async function ensureConfig(baseDir: string): Promise<Config> {
   // Detect which assistant folders exist
   const detected = await detectAvailableAssistants(baseDir);
 
-  let assistants: string[];
-
   if (detected.length === 0) {
     // No folders exist - prompt user to select
     console.log('No assistant folders found.');
+  }
 
-    let selected: string[];
+  let selected: string[];
 
-    try {
-      const answer = await inquirer.prompt([{
-        type: 'checkbox',
-        name: 'assistants',
-        message: 'Select assistants to set up:',
-        choices: Object.keys(ASSISTANT_MAP),
-        validate: (input: string[]) => {
-          return input.length > 0 || 'Please select at least one assistant';
-        }
-      }]);
+  const choices = Object.keys(ASSISTANT_MAP).map(name => ({
+    name: name,
+    checked: detected.includes(name)
+  }));
 
-      selected = answer.assistants as string[];
-    } catch (error) {
-      // User cancelled (Ctrl+C)
-      console.log('\nConfiguration cancelled.');
-      process.exit(0);
-    }
+  try {
+    const answer = await inquirer.prompt([{
+      type: 'checkbox',
+      name: 'assistants',
+      message: 'Select assistants to set up:',
+      choices,
+      validate: (input: string[]) => {
+        return input.length > 0 || 'Please select at least one assistant';
+      }
+    }]);
 
-    assistants = selected;
-  } else {
-    // Folders exist - auto-create config with detected assistants
-    assistants = detected;
-    console.log(`Auto-configured assistants: ${assistants.join(', ')}`);
+    selected = answer.assistants as string[];
+  } catch (error) {
+    // User cancelled (Ctrl+C)
+    console.log('\nConfiguration cancelled.');
+    process.exit(0);
   }
 
   // Create and save config
-  const config: Config = { version: 1, assistants };
+  const config: Config = { version: 1, assistants: selected };
 
   try {
     await writeConfig(baseDir, config);

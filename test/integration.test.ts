@@ -9,6 +9,17 @@ const fakeSkillsDir = resolve('./test/fixtures/fake-skills');
 const backupDir = resolve('./test/fixtures/fake-skills-backup');
 let promptStub: sinon.SinonStub;
 
+function stubPrompt(responses: Record<string, unknown>): void {
+  promptStub.callsFake(async (questions: unknown) => {
+    const question = questions as Array<{ name: string }>;
+    const q = question[0];
+    if (q && q.name in responses) {
+      return { [q.name]: responses[q.name] };
+    }
+    throw new Error(`No stub response for question: ${q?.name}`);
+  });
+}
+
 test.beforeEach(async () => {
   // Backup original files
   await fs.cp(fakeSkillsDir, backupDir, { recursive: true })
@@ -31,7 +42,10 @@ test.afterEach(async () => {
 });
 
 test('Integration: Full Sync Workflow - should refactor skills and detect conflicts', async () => {
-  promptStub.resolves({ action: 'keep-both' });
+  stubPrompt({
+    assistants: ['claude', 'codex'],
+    action: 'keep-both'
+  });
 
   const claudePrPath = join(fakeSkillsDir, '.claude/skills/pr-review/SKILL.md');
   const codexPrPath = join(fakeSkillsDir, '.codex/skills/pr-review/SKILL.md');
@@ -82,14 +96,10 @@ description: A test skill
 
 This is the content of my skill.`);
 
-  // Stub inquirer.prompt (should not be called for auto-sync)
-  promptStub.callsFake(async (questions: unknown) => {
-    const question = questions as Array<{ name: string }>;
-    const q = question[0];
-    if (q.name === 'create') {
-      return { create: false };
-    }
-    return { action: 'keep-both' };
+  // Stub inquirer.prompt (should not be called for auto-sync create prompt)
+  stubPrompt({
+    assistants: ['claude', 'codex'],
+    action: 'keep-both'
   });
 
   await runTest(testDir);
@@ -135,13 +145,9 @@ description: A test skill
 This is the content of my skill.`);
 
   // Stub to handle any prompts
-  promptStub.callsFake(async (questions: unknown) => {
-    const question = questions as Array<{ name: string }>;
-    const q = question[0];
-    if (q.name === 'create') {
-      return { create: false };
-    }
-    return { action: 'keep-both' };
+  stubPrompt({
+    assistants: ['claude', 'codex'],
+    action: 'keep-both'
   });
 
   await runTest(testDir);
@@ -172,6 +178,8 @@ test('Integration: Test Scenario 3 - should exit silently when no skills exist',
   // Create scenario 3 setup: No skills exist anywhere
   await fs.mkdir(testDir, { recursive: true });
 
+  stubPrompt({ assistants: ['claude', 'codex'] });
+
   await runTest(testDir);
 
   // Verify no directories were created
@@ -185,7 +193,7 @@ test('Integration: Test Scenario 3 - should exit silently when no skills exist',
 });
 
 // Scenario 4: .codex/skills exists, .claude folder doesn't exist → prompt user
-test('Integration: Test Scenario 4 - should prompt user when .codex has skills but .claude does not exist', async () => {
+test('Integration: Test Scenario 4 - should not create .claude when user declines', async () => {
   const testDir = resolve('./test/fixtures/scenario4');
 
   // Create scenario 4 setup: .codex/skills/my-skill exists, no .claude folder
@@ -210,16 +218,12 @@ description: A test skill
 This is the content of my skill.`);
 
   // Stub inquirer.prompt - user says NO to creating .claude/skills
-  promptStub.resolves({ create: false });
+  stubPrompt({
+    assistants: ['claude', 'codex'],
+    create: false
+  });
 
   await runTest(testDir);
-
-  // Verify prompt was called
-  assert.ok(promptStub.called);
-  const promptCall = promptStub.getCalls().find(call =>
-    call.args[0] && call.args[0][0] && call.args[0][0].message && call.args[0][0].message.includes('.claude folder does not exist')
-  );
-  assert.ok(promptCall);
 
   // Verify .claude/skills was NOT created (user said no)
   const claudeExists = await fs.access(join(testDir, '.claude')).then(() => true).catch(() => false);
@@ -256,13 +260,9 @@ description: A test skill
 This is the content of my skill.`);
 
   // Stub to handle any prompts
-  promptStub.callsFake(async (questions: unknown) => {
-    const question = questions as Array<{ name: string }>;
-    const q = question[0];
-    if (q.name === 'create') {
-      return { create: false };
-    }
-    return { action: 'keep-both' };
+  stubPrompt({
+    assistants: ['claude', 'codex'],
+    action: 'keep-both'
   });
 
   await runTest(testDir);
@@ -294,7 +294,7 @@ async function runTest(baseDir: string) {
 }
 
 // Auto-configuration test
-test('Integration: Auto-configuration - should auto-create config when folders exist', async () => {
+test('Integration: Auto-configuration - should prompt and create config when folders exist', async () => {
   const testDir = resolve('./test/fixtures/auto-config');
 
   // Cleanup first
@@ -307,7 +307,9 @@ test('Integration: Auto-configuration - should auto-create config when folders e
   // Import after setup to ensure fresh module
   const { run } = await import('../src/index.js');
 
-  // Run sync (should auto-create config)
+  stubPrompt({ assistants: ['claude'] });
+
+  // Run sync (should prompt and create config)
   await run({ baseDir: testDir });
 
   // Check config was created

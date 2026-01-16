@@ -101,8 +101,8 @@ rm -rf .agents-common .claude .codex
 ### Auto-Configuration
 
 When no configuration exists:
-- If assistant folders exist → Auto-create config with detected assistants
-- If no folders exist → Prompt user to select assistants
+- Always prompt the user to select assistants
+- Preselect detected assistants when any folders exist
 
 ### Sync Process
 

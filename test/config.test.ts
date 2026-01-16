@@ -3,7 +3,9 @@ import { strict as assert } from 'assert';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { describe, it, beforeEach, afterEach } from 'node:test';
-import { readConfig, writeConfig, detectAvailableAssistants, CONFIG_PATH } from '../src/config.js';
+import inquirer from 'inquirer';
+import sinon from 'sinon';
+import { readConfig, writeConfig, detectAvailableAssistants, ensureConfig, reconfigure, CONFIG_PATH } from '../src/config.js';
 import { getAssistantConfigs, ASSISTANT_MAP } from '../src/types.js';
 
 const TEST_DIR = 'test/fixtures/config-test';
@@ -62,6 +64,56 @@ describe('config', () => {
       const result = await detectAvailableAssistants(TEST_DIR);
 
       assert.deepEqual(result, []);
+    });
+  });
+
+  describe('ensureConfig', () => {
+    it('should prompt with detected assistants preselected', async () => {
+      await fs.mkdir(join(TEST_DIR, '.claude'), { recursive: true });
+
+      const promptStub = sinon.stub(inquirer, 'prompt').callsFake(async (questions: unknown) => {
+        const q = (questions as Array<{ choices: Array<{ name: string; checked?: boolean }> }>)[0];
+        const claudeChoice = q.choices.find(choice => choice.name === 'claude');
+        const codexChoice = q.choices.find(choice => choice.name === 'codex');
+
+        assert.ok(claudeChoice?.checked, 'claude should be preselected');
+        assert.ok(!codexChoice?.checked, 'codex should not be preselected');
+
+        return { assistants: ['claude'] };
+      });
+
+      try {
+        const config = await ensureConfig(TEST_DIR);
+        assert.deepEqual(config.assistants, ['claude']);
+      } finally {
+        promptStub.restore();
+      }
+    });
+  });
+
+  describe('reconfigure', () => {
+    it('should preselect detected assistants when reconfiguring', async () => {
+      await fs.mkdir(join(TEST_DIR, '.codex'), { recursive: true });
+
+      const promptStub = sinon.stub(inquirer, 'prompt').callsFake(async (questions: unknown) => {
+        const q = (questions as Array<{ choices: Array<{ name: string; checked?: boolean }> }>)[0];
+        const codexChoice = q.choices.find(choice => choice.name === 'codex');
+        const claudeChoice = q.choices.find(choice => choice.name === 'claude');
+
+        assert.ok(codexChoice?.checked, 'codex should be preselected');
+        assert.ok(!claudeChoice?.checked, 'claude should not be preselected');
+
+        return { assistants: ['codex'] };
+      });
+
+      try {
+        await reconfigure(TEST_DIR);
+      } finally {
+        promptStub.restore();
+      }
+
+      const config = await readConfig(TEST_DIR);
+      assert.deepEqual(config?.assistants, ['codex']);
     });
   });
 });
