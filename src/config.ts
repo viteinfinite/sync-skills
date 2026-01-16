@@ -119,7 +119,16 @@ export async function writeConfig(baseDir: string, config: Config): Promise<void
 export async function detectAvailableAssistants(baseDir: string): Promise<string[]> {
   const available: string[] = [];
 
-  for (const [name, skillsPath] of Object.entries(ASSISTANT_MAP)) {
+  for (const [name, config] of Object.entries(ASSISTANT_MAP)) {
+    // Handle both string and AssistantPathConfig types
+    let skillsPath: string;
+    if (typeof config === 'string') {
+      skillsPath = config;
+    } else {
+      // For assistants with dual paths, check the project path
+      skillsPath = config.project;
+    }
+
     // Extract the folder name (first path segment before /)
     const folder = skillsPath.split('/')[0];
     const dir = join(baseDir, folder);
@@ -256,8 +265,9 @@ export async function ensureConfig(baseDir: string): Promise<Config> {
 /**
  * Get AssistantConfig[] from Config
  * @param config - Config object
+ * @param homeMode - If true, use home paths; if false, use project paths (default: false)
  * @returns Array of AssistantConfig for enabled assistants
  */
-export function getEnabledAssistants(config: Config): ReturnType<typeof getAssistantConfigs> {
-  return getAssistantConfigs(config.assistants);
+export function getEnabledAssistants(config: Config, homeMode: boolean = false): ReturnType<typeof getAssistantConfigs> {
+  return getAssistantConfigs(config.assistants, homeMode);
 }

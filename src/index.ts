@@ -49,7 +49,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
   const config = await ensureConfig(baseDir);
 
   // Phase 1: Get enabled assistants and find sync pairs
-  const enabledConfigs = getEnabledAssistants(config);
+  const enabledConfigs = getEnabledAssistants(config, homeMode);
   const states = await discoverAssistants(baseDir, enabledConfigs);
   const syncPairs = findSyncPairs(states);
 

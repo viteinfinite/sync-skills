@@ -8,6 +8,20 @@ export interface AssistantConfig {
   dir: string;
   /** Full path to skills directory (e.g., '.claude/skills') */
   skillsDir: string;
+  /** Home directory name (e.g., '.config/assistant', only set in home mode) */
+  homeDir?: string;
+  /** Full path to home skills directory (only set in home mode) */
+  homeSkillsDir?: string;
+}
+
+/**
+ * Path configuration for assistants with separate project and home paths
+ */
+export interface AssistantPathConfig {
+  /** Project-local skills path */
+  project: string;
+  /** Home/global skills path */
+  home: string;
 }
 
 /**
@@ -119,39 +133,59 @@ export interface ParsedSkill {
  *
  * Use getAssistantConfigs() to convert this map into AssistantConfig[] objects.
  */
-export const ASSISTANT_MAP: Record<string, string> = {
+export const ASSISTANT_MAP: Record<string, string | AssistantPathConfig> = {
   'claude': '.claude/skills',
   'codex': '.codex/skills',
   'kilo': '.kilocode/skills',
   'cursor': '.cursor/skills',
-  'windsurf': '.windsurf/skills',
+  'windsurf': { project: '.windsurf/skills', home: '.codeium/windsurf/skills' },
   'gemini': '.gemini/skills',
   'cline': '.cline/skills',
   'roo': '.roo/skills',
-  'opencode': '.opencode/skill',
+  'opencode': { project: '.opencode/skill', home: '.config/opencode/skill' },
 };
 
 /**
  * Get AssistantConfig[] from assistant names
  * @param names - Optional array of assistant names. If omitted, returns all.
+ * @param homeMode - If true, use home paths; if false, use project paths (default: false)
  * @returns Array of AssistantConfig objects for valid assistant names only
  */
-export function getAssistantConfigs(names?: string[]): AssistantConfig[] {
+export function getAssistantConfigs(names?: string[], homeMode: boolean = false): AssistantConfig[] {
   const requested = names || Object.keys(ASSISTANT_MAP);
   const valid: AssistantConfig[] = [];
   const invalid: string[] = [];
 
   for (const name of requested) {
     if (name in ASSISTANT_MAP) {
-      const skillsPath = ASSISTANT_MAP[name];
+      const config = ASSISTANT_MAP[name];
+
+      // Handle both string and AssistantPathConfig types
+      let skillsPath: string;
+      if (typeof config === 'string') {
+        skillsPath = config;
+      } else {
+        // AssistantPathConfig: use project or home path based on mode
+        skillsPath = homeMode ? config.home : config.project;
+      }
+
       // Extract the folder name (first path segment)
       const folder = skillsPath.split('/')[0];
 
-      valid.push({
+      const assistantConfig: AssistantConfig = {
         name,
         dir: folder,
         skillsDir: skillsPath
-      });
+      };
+
+      // Add home properties if in home mode and config has home path
+      if (homeMode && typeof config === 'object') {
+        const homeFolder = config.home.split('/')[0];
+        assistantConfig.homeDir = homeFolder;
+        assistantConfig.homeSkillsDir = config.home;
+      }
+
+      valid.push(assistantConfig);
     } else {
       invalid.push(name);
     }

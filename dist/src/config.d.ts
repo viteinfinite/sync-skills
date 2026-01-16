@@ -43,7 +43,8 @@ export declare function ensureConfig(baseDir: string): Promise<Config>;
 /**
  * Get AssistantConfig[] from Config
  * @param config - Config object
+ * @param homeMode - If true, use home paths; if false, use project paths (default: false)
  * @returns Array of AssistantConfig for enabled assistants
  */
-export declare function getEnabledAssistants(config: Config): ReturnType<typeof getAssistantConfigs>;
+export declare function getEnabledAssistants(config: Config, homeMode?: boolean): ReturnType<typeof getAssistantConfigs>;
 //# sourceMappingURL=config.d.ts.map

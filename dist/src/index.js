@@ -30,7 +30,7 @@ export async function run(options = {}) {
     // Ensure config exists
     const config = await ensureConfig(baseDir);
     // Phase 1: Get enabled assistants and find sync pairs
-    const enabledConfigs = getEnabledAssistants(config);
+    const enabledConfigs = getEnabledAssistants(config, homeMode);
     const states = await discoverAssistants(baseDir, enabledConfigs);
     const syncPairs = findSyncPairs(states);
     // Also scan for common skills to check if any exist

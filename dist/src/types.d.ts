@@ -8,6 +8,19 @@ export interface AssistantConfig {
     dir: string;
     /** Full path to skills directory (e.g., '.claude/skills') */
     skillsDir: string;
+    /** Home directory name (e.g., '.config/assistant', only set in home mode) */
+    homeDir?: string;
+    /** Full path to home skills directory (only set in home mode) */
+    homeSkillsDir?: string;
+}
+/**
+ * Path configuration for assistants with separate project and home paths
+ */
+export interface AssistantPathConfig {
+    /** Project-local skills path */
+    project: string;
+    /** Home/global skills path */
+    home: string;
 }
 /**
  * State of an assistant directory and its skills
@@ -110,13 +123,14 @@ export interface ParsedSkill {
  *
  * Use getAssistantConfigs() to convert this map into AssistantConfig[] objects.
  */
-export declare const ASSISTANT_MAP: Record<string, string>;
+export declare const ASSISTANT_MAP: Record<string, string | AssistantPathConfig>;
 /**
  * Get AssistantConfig[] from assistant names
  * @param names - Optional array of assistant names. If omitted, returns all.
+ * @param homeMode - If true, use home paths; if false, use project paths (default: false)
  * @returns Array of AssistantConfig objects for valid assistant names only
  */
-export declare function getAssistantConfigs(names?: string[]): AssistantConfig[];
+export declare function getAssistantConfigs(names?: string[], homeMode?: boolean): AssistantConfig[];
 /**
  * A dependent file in a skill folder (non-SKILL.md files)
  */
