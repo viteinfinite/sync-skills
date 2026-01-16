@@ -45,6 +45,38 @@ That's it! The tool will:
 
 ---
 
+## 🤖 Supported Assistants
+
+sync-skills supports the following AI assistants out of the box:
+
+| Assistant | Directory | Description |
+|-----------|-----------|-------------|
+| **claude** | `.claude/skills` | Claude Code / Anthropic Claude |
+| **codex** | `.codex/skills` | Cursor Copilot / Codex |
+| **kilo** | `.kilocode/skills` | Kilocode AI assistant |
+
+### Custom Assistants
+
+You can easily add support for additional AI assistants by editing `src/types.ts`:
+
+```typescript
+export const ASSISTANT_MAP: Record<string, string> = {
+  'claude': '.claude/skills',
+  'codex': '.codex/skills',
+  'kilo': '.kilocode/skills',
+  'your-assistant': '.your-folder/skills',  // ← Add your own!
+};
+```
+
+Then rebuild and reinstall:
+
+```bash
+npm run build
+npm link  # or npm install -g .
+```
+
+---
+
 ## 💡 How It Works
 
 ```
@@ -201,20 +233,7 @@ Configuration is stored in `.agents-common/config.json`:
 
 ## 🔧 Contributing & Debugging
 
-### Custom Assistants
-
-Easily add new AI assistants with non-standard skill folder names:
-
-```typescript
-export const ASSISTANT_MAP: Record<string, string> = {
-  'claude': '.claude/skills',
-  'codex': '.codex/skills',
-  'cursor': '.cursor/skills',           // ← Add your own!
-  'copilot': '.github/copilot/prompts'  // ← Supports custom paths!
-};
-```
-
-The full skills path allows flexibility for assistants with different folder structures.
+> **💡 See [Supported Assistants](#-supported-assistants) above for how to add custom AI assistants.**
 
 ### Adding Skills via Script
 
