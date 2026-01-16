@@ -23,6 +23,52 @@ Managing the same AI agent skills across multiple platforms (Claude, Cursor Copi
 - 🚀 **Auto-setup** on first run - just run and go
 - ⚙️ **Reconfigure anytime** with interactive prompts
 
+### Why not just use symlinks?
+
+You might wonder: *"Why not just symlink `.claude/skills`, `.codex/skills`, etc. to a common directory?"*
+
+While symlinks work for basic cases, **sync-skills** provides important advantages:
+
+**1. Assistant-specific frontmatter values**
+
+Different assistants may need different configurations for the same skill:
+
+```yaml
+---
+name: my-skill
+description: A useful skill
+# Assistant-specific model selection:
+claude:
+  model: claude-sonnet-4-5
+codex:
+  model: gpt-4o
+windsurf:
+  model: deepseek-coder-v2
+---
+```
+
+With symlinks, all assistants would share the same frontmatter. sync-skills maintains separate `SKILL.md` files per platform while keeping the skill body in sync, allowing per-assistant customization.
+
+**2. Bring-your-own-assistant (BYOA) policies**
+
+Many companies have policies requiring developers to use specific AI assistants. With sync-skills:
+
+- Each developer can run with their own assistant set: `sync-skills --reconfigure`
+- Skills sync across all configured assistants automatically
+- No need to maintain separate skill sets or manually copy files
+- Works seamlessly whether you use Claude, Cursor, Windsurf, or all of them
+
+**3. Conflict resolution and safety**
+
+- Hash-based conflict detection when dependent files change
+- Interactive prompts before creating new directories
+- Dry-run mode to preview changes
+- Safe rollback if something goes wrong
+
+**4. Dependent file management**
+
+Scripts, configs, and docs in skill folders are automatically consolidated to the common directory, with platform folders containing only lightweight `@` references. Symlinks would either duplicate these files or break the reference structure.
+
 ---
 
 ## 🚀 Quick Start
@@ -49,22 +95,34 @@ That's it! The tool will:
 
 sync-skills supports the following AI assistants out of the box:
 
-| Assistant | Directory | Description |
-|-----------|-----------|-------------|
-| **claude** | `.claude/skills` | Claude Code / Anthropic Claude |
-| **codex** | `.codex/skills` | Cursor Copilot / Codex |
-| **kilo** | `.kilocode/skills` | Kilocode AI assistant |
+| Assistant | Project Directory | Home Directory | Description |
+|-----------|-------------------|----------------|-------------|
+| **claude** | `.claude/skills` | — | Claude Code / Anthropic Claude |
+| **codex** | `.codex/skills` | — | Cursor Copilot / Codex |
+| **kilo** | `.kilocode/skills` | — | Kilocode AI assistant |
+| **cursor** | `.cursor/skills` | — | Cursor AI |
+| **windsurf** | `.windsurf/skills` | `.codeium/windsurf/skills` | Codeium Windsurf |
+| **gemini** | `.gemini/skills` | — | Google Gemini CLI |
+| **cline** | `.cline/skills` | — | Cline AI assistant |
+| **roo** | `.roo/skills` | — | Roo Code |
+| **opencode** | `.opencode/skill` | `.config/opencode/skill` | OpenCode |
 
-### Custom Assistants
+*Some assistants have separate project and home directory configurations. Use `--home` flag to sync home directories.*
+
+### Adding Custom Assistants
 
 You can easily add support for additional AI assistants by editing `src/types.ts`:
 
 ```typescript
-export const ASSISTANT_MAP: Record<string, string> = {
-  'claude': '.claude/skills',
-  'codex': '.codex/skills',
-  'kilo': '.kilocode/skills',
-  'your-assistant': '.your-folder/skills',  // ← Add your own!
+export const ASSISTANT_MAP: Record<string, string | AssistantPathConfig> = {
+  // ... existing entries
+  'your-assistant': '.your-folder/skills',  // ← Simple string
+
+  // Or with separate project/home paths:
+  'another-assistant': {
+    project: '.project/skills',
+    home: '.config/assistant/skills'
+  },
 };
 ```
 
