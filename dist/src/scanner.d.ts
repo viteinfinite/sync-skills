@@ -1,3 +1,4 @@
+import type { AssistantConfig } from './types.js';
 interface WalkDirResult {
     agent: string;
     skillName: string;
@@ -5,10 +6,26 @@ interface WalkDirResult {
     relativePath: string;
 }
 interface ScanResult {
+    /** Map of assistant name to their skills (e.g., { claude: [...], codex: [...], kilo: [...] }) */
+    platforms: Record<string, WalkDirResult[]>;
+    /** Skills in .agents-common */
+    common: WalkDirResult[];
+}
+/**
+ * Scan for skills in all enabled assistant directories and .agents-common
+ * @param baseDir - Base directory to scan
+ * @param assistantConfigs - Array of assistant configs to scan
+ * @returns ScanResult with platform skills map and common skills
+ */
+export declare function scanSkills(baseDir?: string, assistantConfigs?: AssistantConfig[]): Promise<ScanResult>;
+/**
+ * Legacy compatibility function - extracts claude/codex from platforms map
+ * @deprecated Use scanSkills(baseDir, assistantConfigs) instead
+ */
+export declare function scanSkillsLegacy(baseDir?: string): Promise<{
     claude: WalkDirResult[];
     codex: WalkDirResult[];
     common: WalkDirResult[];
-}
-export declare function scanSkills(baseDir?: string): Promise<ScanResult>;
+}>;
 export {};
 //# sourceMappingURL=scanner.d.ts.map

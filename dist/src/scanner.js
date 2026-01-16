@@ -32,21 +32,47 @@ async function* walkDir(dir, agent, baseDir, originalBaseDir) {
         // Directory doesn't exist
     }
 }
-export async function scanSkills(baseDir = process.cwd()) {
-    const claude = [];
-    const codex = [];
+/**
+ * Scan for skills in all enabled assistant directories and .agents-common
+ * @param baseDir - Base directory to scan
+ * @param assistantConfigs - Array of assistant configs to scan
+ * @returns ScanResult with platform skills map and common skills
+ */
+export async function scanSkills(baseDir = process.cwd(), assistantConfigs) {
+    // If no configs provided, use default for backwards compatibility
+    const configs = assistantConfigs || [
+        { name: 'claude', dir: '.claude', skillsDir: '.claude/skills' },
+        { name: 'codex', dir: '.codex', skillsDir: '.codex/skills' }
+    ];
+    const platforms = {};
     const common = [];
     // Normalize the base directory for filesystem operations
     const normalizedBaseDir = join(baseDir);
-    for await (const skill of walkDir(join(baseDir, '.claude'), 'claude', normalizedBaseDir, baseDir)) {
-        claude.push(skill);
+    // Scan each enabled assistant platform
+    for (const config of configs) {
+        const platformSkills = [];
+        const skillsPath = join(baseDir, config.skillsDir);
+        for await (const skill of walkDir(skillsPath, config.name, normalizedBaseDir, baseDir)) {
+            platformSkills.push(skill);
+        }
+        platforms[config.name] = platformSkills;
     }
-    for await (const skill of walkDir(join(baseDir, '.codex'), 'codex', normalizedBaseDir, baseDir)) {
-        codex.push(skill);
-    }
+    // Scan .agents-common
     for await (const skill of walkDir(join(baseDir, '.agents-common'), 'common', normalizedBaseDir, baseDir)) {
         common.push(skill);
     }
-    return { claude, codex, common };
+    return { platforms, common };
+}
+/**
+ * Legacy compatibility function - extracts claude/codex from platforms map
+ * @deprecated Use scanSkills(baseDir, assistantConfigs) instead
+ */
+export async function scanSkillsLegacy(baseDir = process.cwd()) {
+    const result = await scanSkills(baseDir);
+    return {
+        claude: result.platforms.claude || [],
+        codex: result.platforms.codex || [],
+        common: result.common
+    };
 }
 //# sourceMappingURL=scanner.js.map

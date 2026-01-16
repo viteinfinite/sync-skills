@@ -7,6 +7,7 @@
 export const ASSISTANT_MAP = {
     'claude': '.claude/skills',
     'codex': '.codex/skills',
+    'kilo': '.kilocode/skills',
 };
 /**
  * Get AssistantConfig[] from assistant names

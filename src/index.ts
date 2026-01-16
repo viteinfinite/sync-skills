@@ -68,7 +68,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
   await processSyncPairs(baseDir, syncPairs, dryRun);
 
   // Re-scan after sync to get updated state (including common skills)
-  const { claude, codex, common } = await scanSkills(baseDir);
+  const { platforms, common } = await scanSkills(baseDir, enabledConfigs);
 
   // Phase 2.5: Sync skills that exist only in .agents-common to enabled platforms
   await syncCommonOnlySkills(
@@ -78,36 +78,31 @@ export async function run(options: RunOptions = {}): Promise<void> {
     dryRun
   );
 
-  // Phase 3: Refactor Claude skills that don't have @ references
-  for (const skill of claude) {
-    const content = await fs.readFile(skill.path, 'utf8');
-    const parsed = parseSkillFile(content);
-    if (parsed && !parsed.hasAtReference) {
-      if (!dryRun) {
-        const commonPath = await refactorSkill(skill.path);
-        if (commonPath) {
-          await propagateFrontmatter(commonPath, [skill.path], { failOnConflict, dryRun });
+  // Phase 3: Refactor platform skills that don't have @ references
+  for (const config of enabledConfigs) {
+    const platformSkills = platforms[config.name] || [];
+    for (const skill of platformSkills) {
+      const content = await fs.readFile(skill.path, 'utf8');
+      const parsed = parseSkillFile(content);
+      if (parsed && !parsed.hasAtReference) {
+        if (!dryRun) {
+          const commonPath = await refactorSkill(skill.path);
+          if (commonPath) {
+            await propagateFrontmatter(commonPath, [skill.path], { failOnConflict, dryRun });
+          }
         }
       }
     }
   }
 
-  // Phase 4: Refactor Codex skills that don't have @ references
-  for (const skill of codex) {
-    const content = await fs.readFile(skill.path, 'utf8');
-    const parsed = parseSkillFile(content);
-    if (parsed && !parsed.hasAtReference) {
-      if (!dryRun) {
-        const commonPath = await refactorSkill(skill.path);
-        if (commonPath) {
-          await propagateFrontmatter(commonPath, [skill.path], { failOnConflict, dryRun });
-        }
-      }
-    }
-  }
-
-  // Phase 5: Detect and resolve conflicts
-  const conflicts = await detectConflicts(claude, codex);
+  // Phase 4: Detect and resolve conflicts (between first two platforms for now)
+  const platformNames = Object.keys(platforms);
+  const firstPlatform = platformNames[0] || 'claude';
+  const secondPlatform = platformNames[1] || 'codex';
+  const conflicts = await detectConflicts(
+    platforms[firstPlatform] || [],
+    platforms[secondPlatform] || []
+  );
 
   if (conflicts.length > 0) {
     if (failOnConflict) {

@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import type { AssistantConfig } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -48,30 +49,67 @@ async function* walkDir(
 }
 
 interface ScanResult {
-  claude: WalkDirResult[];
-  codex: WalkDirResult[];
+  /** Map of assistant name to their skills (e.g., { claude: [...], codex: [...], kilo: [...] }) */
+  platforms: Record<string, WalkDirResult[]>;
+  /** Skills in .agents-common */
   common: WalkDirResult[];
 }
 
-export async function scanSkills(baseDir: string = process.cwd()): Promise<ScanResult> {
-  const claude: WalkDirResult[] = [];
-  const codex: WalkDirResult[] = [];
+/**
+ * Scan for skills in all enabled assistant directories and .agents-common
+ * @param baseDir - Base directory to scan
+ * @param assistantConfigs - Array of assistant configs to scan
+ * @returns ScanResult with platform skills map and common skills
+ */
+export async function scanSkills(
+  baseDir: string = process.cwd(),
+  assistantConfigs?: AssistantConfig[]
+): Promise<ScanResult> {
+  // If no configs provided, use default for backwards compatibility
+  const configs = assistantConfigs || [
+    { name: 'claude', dir: '.claude', skillsDir: '.claude/skills' },
+    { name: 'codex', dir: '.codex', skillsDir: '.codex/skills' }
+  ];
+
+  const platforms: Record<string, WalkDirResult[]> = {};
   const common: WalkDirResult[] = [];
 
   // Normalize the base directory for filesystem operations
   const normalizedBaseDir = join(baseDir);
 
-  for await (const skill of walkDir(join(baseDir, '.claude'), 'claude', normalizedBaseDir, baseDir)) {
-    claude.push(skill);
+  // Scan each enabled assistant platform
+  for (const config of configs) {
+    const platformSkills: WalkDirResult[] = [];
+    const skillsPath = join(baseDir, config.skillsDir);
+
+    for await (const skill of walkDir(skillsPath, config.name, normalizedBaseDir, baseDir)) {
+      platformSkills.push(skill);
+    }
+
+    platforms[config.name] = platformSkills;
   }
 
-  for await (const skill of walkDir(join(baseDir, '.codex'), 'codex', normalizedBaseDir, baseDir)) {
-    codex.push(skill);
-  }
-
+  // Scan .agents-common
   for await (const skill of walkDir(join(baseDir, '.agents-common'), 'common', normalizedBaseDir, baseDir)) {
     common.push(skill);
   }
 
-  return { claude, codex, common };
+  return { platforms, common };
+}
+
+/**
+ * Legacy compatibility function - extracts claude/codex from platforms map
+ * @deprecated Use scanSkills(baseDir, assistantConfigs) instead
+ */
+export async function scanSkillsLegacy(baseDir: string = process.cwd()): Promise<{
+  claude: WalkDirResult[];
+  codex: WalkDirResult[];
+  common: WalkDirResult[];
+}> {
+  const result = await scanSkills(baseDir);
+  return {
+    claude: result.platforms.claude || [],
+    codex: result.platforms.codex || [],
+    common: result.common
+  };
 }

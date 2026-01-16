@@ -122,6 +122,7 @@ export interface ParsedSkill {
 export const ASSISTANT_MAP: Record<string, string> = {
   'claude': '.claude/skills',
   'codex': '.codex/skills',
+  'kilo': '.kilocode/skills',
 };
 
 /**

@@ -75,6 +75,19 @@ test('getAssistantConfigs - parses full skills path correctly', () => {
   assert.strictEqual(configs[0].skillsDir, '.claude/skills');  // full path
 });
 
+test('getAssistantConfigs - includes kilo in ASSISTANT_MAP', () => {
+  // Verify kilo is available in the assistant map
+  assert.ok('kilo' in ASSISTANT_MAP);
+  assert.strictEqual(ASSISTANT_MAP['kilo'], '.kilocode/skills');
+
+  const configs = getAssistantConfigs(['kilo']);
+
+  assert.strictEqual(configs.length, 1);
+  assert.strictEqual(configs[0].name, 'kilo');
+  assert.strictEqual(configs[0].dir, '.kilocode');
+  assert.strictEqual(configs[0].skillsDir, '.kilocode/skills');
+});
+
 test('getAssistantConfigs - supports non-standard skill folder names', () => {
   // Add a custom assistant for testing
   const originalMap = { ...ASSISTANT_MAP };
