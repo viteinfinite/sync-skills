@@ -81,3 +81,41 @@ Codex content`);
 
   await cleanupTestFixture(testDir);
 });
+
+test('Integration: Frontmatter field order - should not treat different field order as conflict', async () => {
+  const testDir = await createTestFixture('field-order-test', async (dir) => {
+    // Same content and fields, but different field order
+    await createSkillFile(dir, '.claude', 'order-skill', `---
+name: order-skill
+description: Test field order
+tags: test, sync
+---
+
+Same content`);
+    await createSkillFile(dir, '.codex', 'order-skill', `---
+tags: test, sync
+name: order-skill
+description: Test field order
+---
+
+Same content`);
+  });
+
+  // Run sync - should not detect conflict
+  await run({ baseDir: testDir, failOnConflict: true });
+
+  // Verify both were refactored successfully
+  const claudeContent = await readSkillFile(testDir, '.claude', 'order-skill');
+  const codexContent = await readSkillFile(testDir, '.codex', 'order-skill');
+
+  // Both should now reference the common skill
+  assert.ok(claudeContent.includes('@.agents-common/skills/order-skill/SKILL.md'));
+  assert.ok(codexContent.includes('@.agents-common/skills/order-skill/SKILL.md'));
+
+  // Common skill should exist
+  const commonContent = await fs.readFile(join(testDir, '.agents-common/skills/order-skill/SKILL.md'), 'utf8');
+  assert.ok(commonContent.includes('name: order-skill'));
+  assert.ok(commonContent.includes('Same content'));
+
+  await cleanupTestFixture(testDir);
+});
