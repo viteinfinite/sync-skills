@@ -11,6 +11,9 @@ export const ASSISTANT_MAP = {
     'cursor': '.cursor/skills',
     'windsurf': '.windsurf/skills',
     'gemini': '.gemini/skills',
+    'cline': '.cline/skills',
+    'roo': '.roo/skills',
+    'opencode': '.opencode/skill',
 };
 /**
  * Get AssistantConfig[] from assistant names

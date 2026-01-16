@@ -126,6 +126,9 @@ export const ASSISTANT_MAP: Record<string, string> = {
   'cursor': '.cursor/skills',
   'windsurf': '.windsurf/skills',
   'gemini': '.gemini/skills',
+  'cline': '.cline/skills',
+  'roo': '.roo/skills',
+  'opencode': '.opencode/skill',
 };
 
 /**
