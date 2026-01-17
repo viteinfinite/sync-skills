@@ -70,14 +70,18 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
   await fs.writeFile(commonPath, commonContent);
 
   // Add sync metadata to source platform frontmatter
-  parsed.data.metadata = {
+  const normalizedPlatform = parsed.data as Record<string, unknown>;
+  normalizedPlatform.metadata = {
+    ...(normalizedPlatform.metadata && typeof normalizedPlatform.metadata === 'object' && !Array.isArray(normalizedPlatform.metadata)
+      ? normalizedPlatform.metadata as Record<string, unknown>
+      : {}),
     sync: {
       hash: skillHash
     }
   };
 
   // Replace body with @ reference
-  const newContent = matter.stringify(`@${relativeCommonPath}\n`, parsed.data);
+  const newContent = matter.stringify(`@${relativeCommonPath}\n`, normalizedPlatform);
   await fs.writeFile(sourcePath, newContent);
 
   return commonPath;

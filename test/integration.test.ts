@@ -196,6 +196,9 @@ test('Integration: Test Scenario 3 - should exit silently when no skills exist',
 test('Integration: Test Scenario 4 - should not create .claude when user declines', async () => {
   const testDir = resolve('./test/fixtures/scenario4');
 
+  // Clean up first
+  await fs.rm(testDir, { recursive: true, force: true });
+
   // Create scenario 4 setup: .codex/skills/my-skill exists, no .claude folder
   await fs.mkdir(join(testDir, '.codex/skills/my-skill'), { recursive: true });
   await fs.writeFile(join(testDir, '.codex/skills/my-skill/SKILL.md'), `---

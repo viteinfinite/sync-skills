@@ -9,10 +9,37 @@ import chalk from 'chalk';
  */
 function normalizeFrontmatter(content) {
     const parsed = matter(content);
+    const normalizedContent = parsed.content.trim();
+    // Drop tool-managed sync metadata to avoid false conflicts
+    const cleanedData = stripSyncMetadata(parsed.data);
     // Sort object keys recursively for deterministic output
-    const sortedData = sortObjectKeys(parsed.data);
+    const sortedData = sortObjectKeys(cleanedData);
     // Re-stringify with sorted keys
-    return matter.stringify(parsed.content, sortedData);
+    return matter.stringify(normalizedContent, sortedData);
+}
+/**
+ * Remove tool-managed sync metadata so it's not treated as a conflict
+ */
+function stripSyncMetadata(data) {
+    const cleaned = { ...data };
+    if ('sync' in cleaned) {
+        delete cleaned.sync;
+    }
+    if (cleaned.metadata &&
+        typeof cleaned.metadata === 'object' &&
+        !Array.isArray(cleaned.metadata)) {
+        const metadata = { ...cleaned.metadata };
+        if ('sync' in metadata) {
+            delete metadata.sync;
+        }
+        if (Object.keys(metadata).length === 0) {
+            delete cleaned.metadata;
+        }
+        else {
+            cleaned.metadata = metadata;
+        }
+    }
+    return cleaned;
 }
 /**
  * Recursively sort object keys for deterministic frontmatter

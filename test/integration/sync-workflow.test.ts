@@ -47,6 +47,8 @@ Codex version`);
   // Verify .codex skill was refactored
   const codexContent = await readSkillFile(testDir, '.codex', 'my-skill');
   assert.ok(codexContent.includes('@.agents-common/skills/my-skill/SKILL.md'));
+  assert.ok(codexContent.includes('metadata:'));
+  assert.ok(codexContent.includes('sync:'));
 
   // Verify common skill exists with frontmatter
   const commonContent = await fs.readFile(join(testDir, '.agents-common/skills/my-skill/SKILL.md'), 'utf8');

@@ -45,7 +45,7 @@ export async function run(options = {}) {
     // Phase 2: Process sync pairs (bidirectional)
     await processSyncPairs(baseDir, syncPairs, dryRun);
     // Re-scan after sync to get updated state (including common skills)
-    const { platforms, common } = await scanSkills(baseDir, enabledConfigs);
+    let { platforms, common } = await scanSkills(baseDir, enabledConfigs);
     // Phase 2.5: Sync skills that exist only in .agents-common to enabled platforms
     await syncCommonOnlySkills(baseDir, common.map(c => ({ path: c.path, skillName: c.skillName })), enabledConfigs, dryRun);
     // Phase 3: Refactor platform skills that don't have @ references
@@ -64,6 +64,8 @@ export async function run(options = {}) {
             }
         }
     }
+    // Re-scan after refactor to capture new common skills and updated platform state
+    ({ platforms, common } = await scanSkills(baseDir, enabledConfigs));
     // Phase 4: Detect and resolve conflicts (between first two platforms for now)
     const platformNames = Object.keys(platforms);
     const firstPlatform = platformNames[0] || 'claude';
@@ -90,6 +92,23 @@ export async function run(options = {}) {
             // Propagate frontmatter from common to both targets after conflict resolution
             const commonPath = join(baseDir, '.agents-common/skills', conflict.skillName, 'SKILL.md');
             await propagateFrontmatter(commonPath, [conflict.claudePath, conflict.codexPath], { failOnConflict, dryRun });
+        }
+    }
+    // Phase 5: Propagate frontmatter from common skills to all platforms
+    for (const commonSkill of common) {
+        const targetPaths = [];
+        for (const config of enabledConfigs) {
+            const platformSkillPath = join(baseDir, config.skillsDir, commonSkill.skillName, 'SKILL.md');
+            try {
+                await fs.access(platformSkillPath);
+                targetPaths.push(platformSkillPath);
+            }
+            catch {
+                // Platform skill doesn't exist, skip
+            }
+        }
+        if (targetPaths.length > 0) {
+            await propagateFrontmatter(commonSkill.path, targetPaths, { failOnConflict, dryRun });
         }
     }
     // Phase 6: Sync dependent files

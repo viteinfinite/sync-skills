@@ -68,7 +68,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
   await processSyncPairs(baseDir, syncPairs, dryRun);
 
   // Re-scan after sync to get updated state (including common skills)
-  const { platforms, common } = await scanSkills(baseDir, enabledConfigs);
+  let { platforms, common } = await scanSkills(baseDir, enabledConfigs);
 
   // Phase 2.5: Sync skills that exist only in .agents-common to enabled platforms
   await syncCommonOnlySkills(
@@ -94,6 +94,9 @@ export async function run(options: RunOptions = {}): Promise<void> {
       }
     }
   }
+
+  // Re-scan after refactor to capture new common skills and updated platform state
+  ({ platforms, common } = await scanSkills(baseDir, enabledConfigs));
 
   // Phase 4: Detect and resolve conflicts (between first two platforms for now)
   const platformNames = Object.keys(platforms);
@@ -128,6 +131,24 @@ export async function run(options: RunOptions = {}): Promise<void> {
       // Propagate frontmatter from common to both targets after conflict resolution
       const commonPath = join(baseDir, '.agents-common/skills', conflict.skillName, 'SKILL.md');
       await propagateFrontmatter(commonPath, [conflict.claudePath, conflict.codexPath], { failOnConflict, dryRun });
+    }
+  }
+
+  // Phase 5: Propagate frontmatter from common skills to all platforms
+  for (const commonSkill of common) {
+    const targetPaths: string[] = [];
+    for (const config of enabledConfigs) {
+      const platformSkillPath = join(baseDir, config.skillsDir, commonSkill.skillName, 'SKILL.md');
+      try {
+        await fs.access(platformSkillPath);
+        targetPaths.push(platformSkillPath);
+      } catch {
+        // Platform skill doesn't exist, skip
+      }
+    }
+
+    if (targetPaths.length > 0) {
+      await propagateFrontmatter(commonSkill.path, targetPaths, { failOnConflict, dryRun });
     }
   }
 

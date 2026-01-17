@@ -166,6 +166,13 @@ export async function processSyncPairs(baseDir, pairs, dryRun) {
 export async function syncCommonOnlySkills(baseDir, commonSkills, enabledConfigs, dryRun) {
     for (const commonSkill of commonSkills) {
         for (const config of enabledConfigs) {
+            try {
+                await fs.access(join(baseDir, config.dir));
+            }
+            catch {
+                // Assistant directory doesn't exist, skip creation
+                continue;
+            }
             const platformSkillPath = join(baseDir, config.skillsDir, commonSkill.skillName, 'SKILL.md');
             // Check if skill already exists in this platform
             try {
@@ -183,7 +190,13 @@ export async function syncCommonOnlySkills(baseDir, commonSkills, enabledConfigs
             // Read the common skill to extract frontmatter and sync metadata
             const content = await fs.readFile(commonSkill.path, 'utf-8');
             const parsed = matter(content);
-            const commonHash = parsed.data?.metadata?.sync?.hash;
+            const commonMetadata = parsed.data?.metadata && typeof parsed.data.metadata === 'object' && !Array.isArray(parsed.data.metadata)
+                ? parsed.data.metadata
+                : undefined;
+            const commonSync = commonMetadata?.sync && typeof commonMetadata.sync === 'object' && !Array.isArray(commonMetadata.sync)
+                ? commonMetadata.sync
+                : undefined;
+            const commonHash = commonSync?.hash;
             // Extract only core frontmatter fields
             const coreFrontmatter = {};
             for (const field of CORE_FIELDS) {
@@ -198,13 +211,16 @@ export async function syncCommonOnlySkills(baseDir, commonSkills, enabledConfigs
             // Ensure directory exists
             await fs.mkdir(dirname(platformSkillPath), { recursive: true });
             // Build platform frontmatter with sync metadata
+            const platformMetadata = { ...(commonMetadata || {}) };
+            if (commonSync || commonHash) {
+                platformMetadata.sync = {
+                    ...(commonSync || {}),
+                    ...(commonHash ? { hash: commonHash } : {})
+                };
+            }
             const platformFrontmatter = {
                 ...coreWithoutMetadata,
-                metadata: {
-                    sync: {
-                        ...(commonHash ? { hash: commonHash } : {})
-                    }
-                }
+                ...(Object.keys(platformMetadata).length > 0 ? { metadata: platformMetadata } : {})
             };
             // Write the platform skill file with @ reference and frontmatter
             const targetContent = matter.stringify(atReference + '\n', platformFrontmatter);

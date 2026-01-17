@@ -54,9 +54,10 @@ Frontmatter + `@` reference:
 ---
 name: pr-review
 description: Review PRs using team standards
-sync:
-  managed-by: sync-skills
-  refactored: 2025-01-11T10:30:00Z
+metadata:
+  sync:
+    managed-by: sync-skills
+    refactored: 2025-01-11T10:30:00Z
 ---
 
 @.agents-common/skills/pr-review/SKILL.md
@@ -239,9 +240,10 @@ Full content...
 ---
 name: pr-review
 description: ...
-sync:
-  managed-by: sync-skills
-  refactored: 2025-01-11T10:30:00Z
+metadata:
+  sync:
+    managed-by: sync-skills
+    refactored: 2025-01-11T10:30:00Z
 ---
 
 @.agents-common/skills/pr-review/SKILL.md
@@ -324,7 +326,8 @@ function refactorSkill(sourcePath, targetAgent) {
   fs.writeFileSync(commonPath, parsed.body);
 
   // 2. Add metadata to frontmatter
-  parsed.frontmatter.sync = {
+  parsed.frontmatter.metadata = parsed.frontmatter.metadata || {};
+  parsed.frontmatter.metadata.sync = {
     managed-by: 'sync-skills',
     refactored: new Date().toISOString()
   };
@@ -338,12 +341,13 @@ function refactorSkill(sourcePath, targetAgent) {
 
 ## Metadata Schema
 
-Skills managed by sync-skills include a `sync` field in their frontmatter:
+Skills managed by sync-skills include a `metadata.sync` field in their frontmatter:
 
 ```yaml
-sync:
-  managed-by: sync-skills    # Identifier for the tool
-  refactored: string          # ISO 8601 timestamp of last refactor
+metadata:
+  sync:
+    managed-by: sync-skills    # Identifier for the tool
+    refactored: string          # ISO 8601 timestamp of last refactor
 ```
 
 This metadata:
@@ -356,9 +360,10 @@ This metadata:
 Potential additions to the metadata schema:
 
 ```yaml
-sync:
-  managed-by: sync-skills
-  refactored: 2025-01-11T10:30:00Z
-  content-hash: abc123...    # Hash of .agents-common content
-  version: 1.0               # Schema version
+metadata:
+  sync:
+    managed-by: sync-skills
+    refactored: 2025-01-11T10:30:00Z
+    content-hash: abc123...    # Hash of .agents-common content
+    version: 1.0               # Schema version
 ```

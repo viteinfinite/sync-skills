@@ -130,14 +130,15 @@ metadata:
     expect(targetContent).to.include('category: test');
   });
 
-  it('should preserve sync field in target', async () => {
+  it('should preserve sync metadata in target', async () => {
     // Create target file with sync metadata
     const targetPath = join(testDir, 'target.md');
     await fs.writeFile(targetPath, `---
 name: test-skill
-sync:
-  managed-by: sync-skills
-  refactored: 2025-01-12T00:00:00.000Z
+metadata:
+  sync:
+    managed-by: sync-skills
+    refactored: 2025-01-12T00:00:00.000Z
 ---
 
 # Target content`);
