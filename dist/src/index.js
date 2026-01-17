@@ -68,9 +68,9 @@ export async function run(options = {}) {
     ({ platforms, common } = await scanSkills(baseDir, enabledConfigs));
     // Phase 4: Detect and resolve conflicts (between first two platforms for now)
     const platformNames = Object.keys(platforms);
-    const firstPlatform = platformNames[0] || 'claude';
-    const secondPlatform = platformNames[1] || 'codex';
-    const conflicts = await detectConflicts(platforms[firstPlatform] || [], platforms[secondPlatform] || []);
+    const platformA = platformNames[0] || 'claude';
+    const platformB = platformNames[1] || 'codex';
+    const conflicts = await detectConflicts(platforms[platformA] || [], platforms[platformB] || [], platformA, platformB);
     if (conflicts.length > 0) {
         if (failOnConflict) {
             console.error(`Conflict detected in: ${conflicts.map(c => c.skillName).join(', ')}`);
@@ -83,15 +83,15 @@ export async function run(options = {}) {
                 console.log('Aborted');
                 process.exit(0);
             }
-            if (resolution.action === 'use-claude' && !dryRun) {
-                await copySkill(conflict.claudePath, conflict.codexPath);
+            if (resolution.action === 'use-a' && !dryRun) {
+                await copySkill(conflict.pathA, conflict.pathB);
             }
-            else if (resolution.action === 'use-codex' && !dryRun) {
-                await copySkill(conflict.codexPath, conflict.claudePath);
+            else if (resolution.action === 'use-b' && !dryRun) {
+                await copySkill(conflict.pathB, conflict.pathA);
             }
             // Propagate frontmatter from common to both targets after conflict resolution
             const commonPath = join(baseDir, '.agents-common/skills', conflict.skillName, 'SKILL.md');
-            await propagateFrontmatter(commonPath, [conflict.claudePath, conflict.codexPath], { failOnConflict, dryRun });
+            await propagateFrontmatter(commonPath, [conflict.pathA, conflict.pathB], { failOnConflict, dryRun });
         }
     }
     // Phase 5: Propagate frontmatter from common skills to all platforms

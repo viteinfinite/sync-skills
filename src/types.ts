@@ -91,18 +91,22 @@ export interface RunOptions {
 export interface Conflict {
   /** Name of the skill in conflict */
   skillName: string;
-  /** Path to Claude version of the skill */
-  claudePath: string;
-  /** Path to Codex version of the skill */
-  codexPath: string;
-  /** Hash of Claude skill content */
-  claudeHash: string;
-  /** Hash of Codex skill content */
-  codexHash: string;
-  /** Claude skill content for diff display */
-  claudeContent?: string;
-  /** Codex skill content for diff display */
-  codexContent?: string;
+  /** Name of the first platform (e.g., 'claude') */
+  platformA: string;
+  /** Name of the second platform (e.g., 'codex') */
+  platformB: string;
+  /** Path to first platform's version of the skill */
+  pathA: string;
+  /** Path to second platform's version of the skill */
+  pathB: string;
+  /** Hash of first platform's skill content */
+  hashA: string;
+  /** Hash of second platform's skill content */
+  hashB: string;
+  /** First platform's skill content for diff display */
+  contentA?: string;
+  /** Second platform's skill content for diff display */
+  contentB?: string;
   /** Type of conflict: 'content' for full content, 'frontmatter' for metadata only */
   conflictType?: 'content' | 'frontmatter';
 }
@@ -112,7 +116,7 @@ export interface Conflict {
  */
 export interface ConflictResolution {
   /** Action to take */
-  action: 'abort' | 'use-claude' | 'use-codex' | 'keep-both';
+  action: 'abort' | 'use-a' | 'use-b' | 'keep-both';
 }
 
 /**

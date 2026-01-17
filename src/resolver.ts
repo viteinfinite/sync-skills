@@ -16,39 +16,39 @@ function formatConflictDetails(conflict: Conflict): string {
     lines.push(chalk.yellow(`\nConflict type: Frontmatter (metadata) only`));
     lines.push(chalk.gray(`Both files reference the same common skill, but have different metadata.`));
 
-    const claudeParsed = matter(conflict.claudeContent || '');
-    const codexParsed = matter(conflict.codexContent || '');
+    const parsedA = matter(conflict.contentA || '');
+    const parsedB = matter(conflict.contentB || '');
 
-    lines.push(chalk.cyan(`\n.claude/skills/${conflict.skillName}/SKILL.md frontmatter:`));
-    lines.push(chalk.gray(JSON.stringify(claudeParsed.data, null, 2)));
+    lines.push(chalk.cyan(`\n.${conflict.platformA} version frontmatter:`));
+    lines.push(chalk.gray(JSON.stringify(parsedA.data, null, 2)));
 
-    lines.push(chalk.magenta(`\n.codex/skills/${conflict.skillName}/SKILL.md frontmatter:`));
-    lines.push(chalk.gray(JSON.stringify(codexParsed.data, null, 2)));
+    lines.push(chalk.magenta(`\n.${conflict.platformB} version frontmatter:`));
+    lines.push(chalk.gray(JSON.stringify(parsedB.data, null, 2)));
   } else {
     lines.push(chalk.yellow(`\nConflict type: Content`));
     lines.push(chalk.gray(`The files have different content.`));
 
-    if (conflict.claudeContent && conflict.codexContent) {
-      const claudeParsed = matter(conflict.claudeContent);
-      const codexParsed = matter(conflict.codexContent);
+    if (conflict.contentA && conflict.contentB) {
+      const parsedA = matter(conflict.contentA);
+      const parsedB = matter(conflict.contentB);
 
       // Show what each file references or contains
-      lines.push(chalk.cyan(`\n.claude/skills/${conflict.skillName}/SKILL.md:`));
-      if (claudeParsed.content.trim().startsWith('@')) {
-        lines.push(chalk.gray(`  References: ${claudeParsed.content.trim()}`));
+      lines.push(chalk.cyan(`\n.${conflict.platformA} version:`));
+      if (parsedA.content.trim().startsWith('@')) {
+        lines.push(chalk.gray(`  References: ${parsedA.content.trim()}`));
       } else {
-        lines.push(chalk.gray(`  Has ${claudeParsed.content.split('\n').length} lines of content`));
+        lines.push(chalk.gray(`  Has ${parsedA.content.split('\n').length} lines of content`));
       }
 
-      lines.push(chalk.magenta(`\n.codex/skills/${conflict.skillName}/SKILL.md:`));
-      if (codexParsed.content.trim().startsWith('@')) {
-        lines.push(chalk.gray(`  References: ${codexParsed.content.trim()}`));
+      lines.push(chalk.magenta(`\n.${conflict.platformB} version:`));
+      if (parsedB.content.trim().startsWith('@')) {
+        lines.push(chalk.gray(`  References: ${parsedB.content.trim()}`));
       } else {
-        lines.push(chalk.gray(`  Has ${codexParsed.content.split('\n').length} lines of content`));
+        lines.push(chalk.gray(`  Has ${parsedB.content.split('\n').length} lines of content`));
       }
 
       lines.push(chalk.gray('\nDiff (red = removed, green = added):'));
-      lines.push(formatDiff(conflict.claudeContent, conflict.codexContent));
+      lines.push(formatDiff(conflict.contentA, conflict.contentB));
     }
   }
 
@@ -68,8 +68,8 @@ export async function resolveConflict(
       name: 'action',
       message: 'How would you like to resolve this conflict?',
       choices: [
-        { name: 'Use .claude version (overwrite .codex)', value: 'use-claude' },
-        { name: 'Use .codex version (overwrite .claude)', value: 'use-codex' },
+        { name: `Use .${conflict.platformA} version (overwrite .${conflict.platformB})`, value: 'use-a' },
+        { name: `Use .${conflict.platformB} version (overwrite .${conflict.platformA})`, value: 'use-b' },
         { name: 'Keep both unchanged', value: 'keep-both' },
         { name: 'Abort sync', value: 'abort' }
       ]

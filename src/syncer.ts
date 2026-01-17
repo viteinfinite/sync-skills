@@ -3,6 +3,7 @@ import { join, dirname, resolve, basename } from 'path';
 import { createHash } from 'crypto';
 import matter from 'gray-matter';
 import { CORE_FIELDS } from './constants.js';
+import { ASSISTANT_MAP } from './types.js';
 import type { SkillFile } from './types.js';
 
 export async function refactorSkill(sourcePath: string): Promise<string | null> {
@@ -23,14 +24,25 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
   let currentDir = sourceDir;
   let projectRoot = resolve('.'); // Default to current working directory
 
-  // Check if we're in a .claude or .codex directory structure
-  const dirParts = sourceDir.split('/');
-  const claudeIndex = dirParts.lastIndexOf('.claude');
-  const codexIndex = dirParts.lastIndexOf('.codex');
+  // Extract all assistant directory names
+  const assistantDirs = Object.values(ASSISTANT_MAP).map(config => {
+    const skillsPath = typeof config === 'string' ? config : config.project;
+    return skillsPath.split('/')[0];
+  });
 
-  if (claudeIndex >= 0 || codexIndex >= 0) {
-    // We're in a .claude or .codex directory, go up to the parent of that directory
-    const agentDirIndex = Math.max(claudeIndex, codexIndex);
+  // Check if we're in any assistant directory structure
+  const dirParts = sourceDir.split('/');
+  let agentDirIndex = -1;
+
+  for (const assistantDir of assistantDirs) {
+    const index = dirParts.lastIndexOf(assistantDir);
+    if (index >= 0 && index > agentDirIndex) {
+      agentDirIndex = index;
+    }
+  }
+
+  if (agentDirIndex >= 0) {
+    // We're in an assistant directory, go up to the parent of that directory
     projectRoot = '/' + dirParts.slice(0, agentDirIndex).join('/');
   }
 

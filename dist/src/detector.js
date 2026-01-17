@@ -72,15 +72,15 @@ async function hashNormalized(filePath) {
     const normalized = normalizeFrontmatter(content);
     return createHash('sha256').update(normalized).digest('hex');
 }
-function getConflictType(claudeContent, codexContent) {
-    const claudeParsed = matter(claudeContent);
-    const codexParsed = matter(codexContent);
+function getConflictType(contentA, contentB) {
+    const parsedA = matter(contentA);
+    const parsedB = matter(contentB);
     // If both have @ references, check if they point to the same file
-    const claudeRef = extractReference(claudeParsed.content);
-    const codexRef = extractReference(codexParsed.content);
-    if (claudeRef && codexRef) {
+    const refA = extractReference(parsedA.content);
+    const refB = extractReference(parsedB.content);
+    if (refA && refB) {
         // Both are references - conflict is in frontmatter
-        return claudeRef === codexRef ? 'frontmatter' : 'content';
+        return refA === refB ? 'frontmatter' : 'content';
     }
     // At least one has actual content
     return 'content';
@@ -89,8 +89,8 @@ function extractReference(content) {
     const match = content.trim().match(/^@(.+)$/);
     return match ? match[1] : null;
 }
-function formatDiff(claudeContent, codexContent) {
-    const diff = diffLines(claudeContent, codexContent);
+function formatDiff(contentA, contentB) {
+    const diff = diffLines(contentA, contentB);
     const output = [];
     for (const part of diff) {
         const color = part.added ? chalk.green : part.removed ? chalk.red : chalk.gray;
@@ -105,26 +105,28 @@ function formatDiff(claudeContent, codexContent) {
     }
     return output.join('\n');
 }
-export async function detectConflicts(claudeSkills, codexSkills) {
+export async function detectConflicts(skillsA, skillsB, platformA = 'claude', platformB = 'codex') {
     const conflicts = [];
-    for (const claudeSkill of claudeSkills) {
-        const codexSkill = codexSkills.find(s => s.skillName === claudeSkill.skillName);
-        if (codexSkill) {
-            const claudeContent = await fs.readFile(claudeSkill.path, 'utf8');
-            const codexContent = await fs.readFile(codexSkill.path, 'utf8');
+    for (const skillA of skillsA) {
+        const skillB = skillsB.find(s => s.skillName === skillA.skillName);
+        if (skillB) {
+            const contentA = await fs.readFile(skillA.path, 'utf8');
+            const contentB = await fs.readFile(skillB.path, 'utf8');
             // Use normalized hashes to ignore field order differences
-            const claudeHash = await hashNormalized(claudeSkill.path);
-            const codexHash = await hashNormalized(codexSkill.path);
-            if (claudeHash !== codexHash) {
-                const conflictType = getConflictType(claudeContent, codexContent);
+            const hashA = await hashNormalized(skillA.path);
+            const hashB = await hashNormalized(skillB.path);
+            if (hashA !== hashB) {
+                const conflictType = getConflictType(contentA, contentB);
                 conflicts.push({
-                    skillName: claudeSkill.skillName,
-                    claudePath: claudeSkill.path,
-                    codexPath: codexSkill.path,
-                    claudeHash,
-                    codexHash,
-                    claudeContent,
-                    codexContent,
+                    skillName: skillA.skillName,
+                    platformA,
+                    platformB,
+                    pathA: skillA.path,
+                    pathB: skillB.path,
+                    hashA,
+                    hashB,
+                    contentA,
+                    contentB,
                     conflictType
                 });
             }
