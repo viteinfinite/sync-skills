@@ -88,14 +88,15 @@ sync-skills supports the following AI assistants out of the box:
 | Assistant | Project Directory | Home Directory | Description |
 |-----------|-------------------|----------------|-------------|
 | **claude** | `.claude/skills` | — | Claude Code / Anthropic Claude |
-| **codex** | `.codex/skills` | — | Cursor Copilot / Codex |
-| **kilo** | `.kilocode/skills` | — | Kilocode AI assistant |
-| **cursor** | `.cursor/skills` | — | Cursor AI |
-| **windsurf** | `.windsurf/skills` | `.codeium/windsurf/skills` | Codeium Windsurf |
-| **gemini** | `.gemini/skills` | — | Google Gemini CLI |
 | **cline** | `.cline/skills` | — | Cline AI assistant |
-| **roo** | `.roo/skills` | — | Roo Code |
+| **codex** | `.codex/skills` | — | Cursor Copilot / Codex |
+| **cursor** | `.cursor/skills` | — | Cursor AI |
+| **gemini** | `.gemini/skills` | — | Google Gemini CLI |
+| **github** | `.github/skills` | — | GitHub Copilot CLI |
+| **kilo** | `.kilocode/skills` | — | Kilocode AI assistant |
 | **opencode** | `.opencode/skill` | `.config/opencode/skill` | OpenCode |
+| **roo** | `.roo/skills` | — | Roo Code |
+| **windsurf** | `.windsurf/skills` | `.codeium/windsurf/skills` | Codeium Windsurf |
 
 *Some assistants have separate project and home directory configurations. Use `--home` flag to sync home directories.*
 

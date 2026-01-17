@@ -134,14 +134,15 @@ export interface ParsedSkill {
  */
 export const ASSISTANT_MAP: Record<string, string | AssistantPathConfig> = {
   'claude': '.claude/skills',
-  'codex': '.codex/skills',
-  'kilo': '.kilocode/skills',
-  'cursor': '.cursor/skills',
-  'windsurf': { project: '.windsurf/skills', home: '.codeium/windsurf/skills' },
-  'gemini': '.gemini/skills',
   'cline': '.cline/skills',
-  'roo': '.roo/skills',
+  'codex': '.codex/skills',
+  'cursor': '.cursor/skills',
+  'gemini': '.gemini/skills',
+  'github': '.github/skills',
+  'kilo': '.kilocode/skills',
   'opencode': { project: '.opencode/skill', home: '.config/opencode/skill' },
+  'roo': '.roo/skills',
+  'windsurf': { project: '.windsurf/skills', home: '.codeium/windsurf/skills' },
 };
 
 /**
