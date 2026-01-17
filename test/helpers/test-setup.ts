@@ -49,12 +49,16 @@ export function stubInquirer(responses: Record<string, unknown>): sinon.SinonStu
   sandbox.restore();
 
   return sandbox.stub(inquirer, 'prompt').callsFake(async (questions: unknown) => {
-    const qs = questions as Array<{ name: string }>;
-    const q = qs[0];
-    if (q && q.name in responses) {
-      return { [q.name]: responses[q.name] };
+    const qs = (Array.isArray(questions) ? questions : [questions]) as Array<{ name: string }>;
+    const result: Record<string, unknown> = {};
+    for (const q of qs) {
+      if (q.name in responses) {
+        result[q.name] = responses[q.name];
+      } else {
+        throw new Error(`No stub response for question: ${q.name}`);
+      }
     }
-    throw new Error(`No stub response for question: ${q.name}`);
+    return result;
   });
 }
 

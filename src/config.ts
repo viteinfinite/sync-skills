@@ -177,8 +177,7 @@ export async function reconfigure(baseDir: string): Promise<void> {
     selected = answer.assistants as string[];
   } catch (error) {
     // User cancelled (Ctrl+C)
-    console.log('\nConfiguration cancelled.');
-    process.exit(0);
+    throw new Error('Configuration cancelled.');
   }
 
   try {
@@ -237,8 +236,7 @@ export async function ensureConfig(baseDir: string): Promise<Config> {
     selected = answer.assistants as string[];
   } catch (error) {
     // User cancelled (Ctrl+C)
-    console.log('\nConfiguration cancelled.');
-    process.exit(0);
+    throw new Error('Configuration cancelled.');
   }
 
   // Create and save config

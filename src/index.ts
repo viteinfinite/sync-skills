@@ -32,8 +32,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
   // Handle --home flag
   if (homeMode) {
     if (!process.env.HOME) {
-      console.error('Error: HOME environment variable not set');
-      process.exit(1);
+      throw new Error('HOME environment variable not set');
     }
     baseDir = process.env.HOME;
     console.log(`Using home directory: ${baseDir}`);
@@ -111,8 +110,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
 
   if (conflicts.length > 0) {
     if (failOnConflict) {
-      console.error(`Conflict detected in: ${conflicts.map(c => c.skillName).join(', ')}`);
-      process.exit(1);
+      throw new Error(`Conflict detected in: ${conflicts.map(c => c.skillName).join(', ')}`);
     }
 
     // Interactive resolution
@@ -120,8 +118,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
       const resolution = await resolveConflict(conflict);
 
       if (resolution.action === 'abort') {
-        console.log('Aborted');
-        process.exit(0);
+        throw new Error('Sync aborted');
       }
 
       if (resolution.action === 'use-a' && !dryRun) {
@@ -201,8 +198,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
       // Resolve conflicts if any
       if (conflicts.length > 0) {
         if (failOnConflict) {
-          console.error(`Dependent file conflict in: ${skillName}`);
-          process.exit(1);
+          throw new Error(`Dependent file conflict in: ${skillName}`);
         }
 
         // Interactive resolution
@@ -211,8 +207,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
         // Check if user aborted
         const hasAbort = Array.from(resolutions.values()).some(r => r.action === 'abort');
         if (hasAbort) {
-          console.log('Aborted');
-          process.exit(0);
+          throw new Error('Sync aborted');
         }
 
         // Apply resolutions and get final hashes

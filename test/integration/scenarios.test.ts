@@ -8,7 +8,11 @@ import { createTestFixture, createSkillFile, createCommonSkill, cleanupTestFixtu
 // Run tests sequentially to avoid sinon stub conflicts
 test.describe('scenarios', { concurrency: 1 }, () => {
   test('Integration: Scenario 1 - .codex folder missing should prompt user', async () => {
-    const promptStub = stubInquirer({ create: true, action: 'keep-both' });
+    const promptStub = stubInquirer({ 
+      assistants: ['claude', 'codex'],
+      create: true, 
+      action: 'keep-both' 
+    });
 
     const testDir = await createTestFixture('scenario1', async (dir) => {
       await createConfig(dir, ['claude', 'codex']);
@@ -26,7 +30,10 @@ test.describe('scenarios', { concurrency: 1 }, () => {
   });
 
   test('Integration: Scenario 2 - .codex folder exists should auto-create', async () => {
-    const promptStub = stubInquirer({ action: 'keep-both' });
+    const promptStub = stubInquirer({ 
+      assistants: ['claude', 'codex'],
+      action: 'keep-both' 
+    });
 
     const testDir = await createTestFixture('scenario2', async (dir) => {
       await createConfig(dir, ['claude', 'codex']);
@@ -68,7 +75,11 @@ test.describe('scenarios', { concurrency: 1 }, () => {
   });
 
   test('Integration: Bidirectional - sync from .codex to .claude', async () => {
-    const promptStub = stubInquirer({ create: true, action: 'keep-both' });
+    const promptStub = stubInquirer({ 
+      assistants: ['claude', 'codex'],
+      create: true, 
+      action: 'keep-both' 
+    });
 
     const testDir = await createTestFixture('bidirectional', async (dir) => {
       await createConfig(dir, ['claude', 'codex']);
@@ -86,7 +97,10 @@ test.describe('scenarios', { concurrency: 1 }, () => {
   });
 
   test('Integration: Scenario 5 - common-only skills should get platform references', async () => {
-    const promptStub = stubInquirer({ action: 'keep-both' });
+    const promptStub = stubInquirer({ 
+      assistants: ['claude'],
+      action: 'keep-both' 
+    });
 
     const testDir = await createTestFixture('scenario5', async (dir) => {
       // Set up config with claude enabled
@@ -114,7 +128,10 @@ test.describe('scenarios', { concurrency: 1 }, () => {
   });
 
   test('Integration: Scenario 5 - common-only skills should sync to multiple platforms', async () => {
-    const promptStub = stubInquirer({ create: true, action: 'keep-both' });
+    const promptStub = stubInquirer({
+      assistants: ['claude', 'codex'],
+      action: 'keep-both'
+    });
 
     const testDir = await createTestFixture('scenario5-multi', async (dir) => {
       // Set up config with both claude and codex enabled

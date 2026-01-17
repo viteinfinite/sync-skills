@@ -1,10 +1,19 @@
-import { test, describe, it } from 'node:test';
+import { test, describe, it, afterEach } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { run } from '../src/index.js';
 import { promises as fs } from 'fs';
-import { createTestFixture, cleanupTestFixture } from './helpers/test-setup.js';
+import { createTestFixture, cleanupTestFixture, stubInquirer } from './helpers/test-setup.js';
 
 describe('run', () => {
+  let promptStub: ReturnType<typeof stubInquirer> | undefined;
+
+  afterEach(() => {
+    if (promptStub) {
+      promptStub.restore();
+      promptStub = undefined;
+    }
+  });
+
   it('should refactor skills without @ references', async () => {
     const testDir = await createTestFixture('index-integration', async (dir) => {
       await fs.mkdir(`${dir}/.claude/skills/test-skill`, { recursive: true });
@@ -19,6 +28,8 @@ name: test-skill
 
 Content`);
     });
+
+    promptStub = stubInquirer({ assistants: ['claude', 'codex'] });
 
     const claudePath = `${testDir}/.claude/skills/test-skill/SKILL.md`;
 

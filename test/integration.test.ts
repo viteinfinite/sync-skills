@@ -10,12 +10,16 @@ let promptStub: sinon.SinonStub;
 
 function stubPrompt(responses: Record<string, unknown>): void {
   promptStub.callsFake(async (questions: unknown) => {
-    const question = questions as Array<{ name: string }>;
-    const q = question[0];
-    if (q && q.name in responses) {
-      return { [q.name]: responses[q.name] };
+    const qs = (Array.isArray(questions) ? questions : [questions]) as Array<{ name: string }>;
+    const result: Record<string, unknown> = {};
+    for (const q of qs) {
+      if (q.name in responses) {
+        result[q.name] = responses[q.name];
+      } else {
+        throw new Error(`No stub response for question: ${q.name}`);
+      }
     }
-    throw new Error(`No stub response for question: ${q?.name}`);
+    return result;
   });
 }
 
