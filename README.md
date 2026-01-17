@@ -38,12 +38,7 @@ Different assistants may need different configurations for the same skill:
 name: my-skill
 description: A useful skill
 # Assistant-specific model selection:
-claude:
-  model: claude-sonnet-4-5
-codex:
-  model: gpt-4o
-windsurf:
-  model: deepseek-coder-v2
+model: claude-sonnet-4-5 # ← Claude-specific. With sync-skills, this will not get copied to other assistants
 ---
 ```
 
@@ -51,7 +46,7 @@ With symlinks, all assistants would share the same frontmatter. sync-skills main
 
 **2. Bring-your-own-assistant (BYOA) policies**
 
-Many companies have policies requiring developers to use specific AI assistants. With sync-skills:
+Many companies have policies allowing developers to use their preferred AI assistants. With sync-skills:
 
 - Each developer can run with their own assistant set: `sync-skills --reconfigure`
 - Skills sync across all configured assistants automatically
@@ -63,11 +58,6 @@ Many companies have policies requiring developers to use specific AI assistants.
 - Hash-based conflict detection when dependent files change
 - Interactive prompts before creating new directories
 - Dry-run mode to preview changes
-- Safe rollback if something goes wrong
-
-**4. Dependent file management**
-
-Scripts, configs, and docs in skill folders are automatically consolidated to the common directory, with platform folders containing only lightweight `@` references. Symlinks would either duplicate these files or break the reference structure.
 
 ---
 
