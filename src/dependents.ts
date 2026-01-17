@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs';
-import { join, relative } from 'path';
+import { join } from 'path';
 import { createHash } from 'crypto';
 import matter from 'gray-matter';
 import type {

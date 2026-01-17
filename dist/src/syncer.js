@@ -16,7 +16,6 @@ export async function refactorSkill(sourcePath) {
     const sourceDir = dirname(absSourcePath);
     const skillName = basename(sourceDir);
     // Navigate from the source directory to find the project root
-    let currentDir = sourceDir;
     let projectRoot = resolve('.'); // Default to current working directory
     // Extract all assistant directory names
     const assistantDirs = Object.values(ASSISTANT_MAP).map(config => {

@@ -4,7 +4,6 @@ import { createHash } from 'crypto';
 import matter from 'gray-matter';
 import { CORE_FIELDS } from './constants.js';
 import { ASSISTANT_MAP } from './types.js';
-import type { SkillFile } from './types.js';
 
 export async function refactorSkill(sourcePath: string): Promise<string | null> {
   const content = await fs.readFile(sourcePath, 'utf8');
@@ -21,7 +20,6 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
   const skillName = basename(sourceDir);
 
   // Navigate from the source directory to find the project root
-  let currentDir = sourceDir;
   let projectRoot = resolve('.'); // Default to current working directory
 
   // Extract all assistant directory names

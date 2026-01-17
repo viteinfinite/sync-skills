@@ -18,14 +18,5 @@ interface ScanResult {
  * @returns ScanResult with platform skills map and common skills
  */
 export declare function scanSkills(baseDir?: string, assistantConfigs?: AssistantConfig[]): Promise<ScanResult>;
-/**
- * Legacy compatibility function - extracts claude/codex from platforms map
- * @deprecated Use scanSkills(baseDir, assistantConfigs) instead
- */
-export declare function scanSkillsLegacy(baseDir?: string): Promise<{
-    claude: WalkDirResult[];
-    codex: WalkDirResult[];
-    common: WalkDirResult[];
-}>;
 export {};
 //# sourceMappingURL=scanner.d.ts.map

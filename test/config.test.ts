@@ -8,20 +8,22 @@ import sinon from 'sinon';
 import { readConfig, writeConfig, detectAvailableAssistants, ensureConfig, reconfigure, CONFIG_PATH } from '../src/config.js';
 import { getAssistantConfigs, ASSISTANT_MAP } from '../src/types.js';
 
-const TEST_DIR = 'test/fixtures/config-test';
+import { test, describe, it } from 'node:test';
+import { strict as assert } from 'assert';
+import { promises as fs } from 'fs';
+import { join } from 'path';
+import inquirer from 'inquirer';
+import sinon from 'sinon';
+import { readConfig, writeConfig, detectAvailableAssistants, ensureConfig, reconfigure, CONFIG_PATH } from '../src/config.js';
+import { getAssistantConfigs, ASSISTANT_MAP } from '../src/types.js';
+import { createTestFixture, cleanupTestFixture } from './helpers/test-setup.js';
 
 describe('config', () => {
-  beforeEach(async () => {
-    await fs.rm(TEST_DIR, { recursive: true, force: true });
-    await fs.mkdir(TEST_DIR, { recursive: true });
-  });
-
-  afterEach(async () => {
-    await fs.rm(TEST_DIR, { recursive: true, force: true });
-  });
+  let TEST_DIR: string;
 
   describe('readConfig', () => {
     it('should read existing config file', async () => {
+      TEST_DIR = await createTestFixture('read-config');
       const testConfig = { version: 1, assistants: ['claude', 'codex'] };
       await fs.mkdir(join(TEST_DIR, '.agents-common'), { recursive: true });
       await fs.writeFile(join(TEST_DIR, CONFIG_PATH), JSON.stringify(testConfig));
@@ -29,16 +31,20 @@ describe('config', () => {
       const result = await readConfig(TEST_DIR);
 
       assert.deepEqual(result, testConfig);
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should return null when config does not exist', async () => {
+      TEST_DIR = await createTestFixture('read-config-null');
       const result = await readConfig(TEST_DIR);
       assert.strictEqual(result, null);
+      await cleanupTestFixture(TEST_DIR);
     });
   });
 
   describe('writeConfig', () => {
     it('should write config file and create directory', async () => {
+      TEST_DIR = await createTestFixture('write-config');
       const testConfig = { version: 1, assistants: ['claude'] };
 
       await writeConfig(TEST_DIR, testConfig);
@@ -48,27 +54,33 @@ describe('config', () => {
       const result = JSON.parse(content);
 
       assert.deepEqual(result, testConfig);
+      await cleanupTestFixture(TEST_DIR);
     });
   });
 
   describe('detectAvailableAssistants', () => {
     it('should detect existing assistant folders', async () => {
+      TEST_DIR = await createTestFixture('detect-assistants');
       await fs.mkdir(join(TEST_DIR, '.claude'), { recursive: true });
 
       const result = await detectAvailableAssistants(TEST_DIR);
 
       assert.deepEqual(result, ['claude']);
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should return empty array when no folders exist', async () => {
+      TEST_DIR = await createTestFixture('detect-none');
       const result = await detectAvailableAssistants(TEST_DIR);
 
       assert.deepEqual(result, []);
+      await cleanupTestFixture(TEST_DIR);
     });
   });
 
   describe('ensureConfig', () => {
     it('should prompt with detected assistants preselected', async () => {
+      TEST_DIR = await createTestFixture('ensure-config');
       await fs.mkdir(join(TEST_DIR, '.claude'), { recursive: true });
 
       const promptStub = sinon.stub(inquirer, 'prompt').callsFake(async (questions: unknown) => {
@@ -87,12 +99,14 @@ describe('config', () => {
         assert.deepEqual(config.assistants, ['claude']);
       } finally {
         promptStub.restore();
+        await cleanupTestFixture(TEST_DIR);
       }
     });
   });
 
   describe('reconfigure', () => {
     it('should preselect detected assistants when reconfiguring', async () => {
+      TEST_DIR = await createTestFixture('reconfigure-test');
       await fs.mkdir(join(TEST_DIR, '.codex'), { recursive: true });
 
       const promptStub = sinon.stub(inquirer, 'prompt').callsFake(async (questions: unknown) => {
@@ -114,6 +128,7 @@ describe('config', () => {
 
       const config = await readConfig(TEST_DIR);
       assert.deepEqual(config?.assistants, ['codex']);
+      await cleanupTestFixture(TEST_DIR);
     });
   });
 });
@@ -156,7 +171,7 @@ test('getAssistantConfigs - supports non-standard skill folder names', () => {
 });
 
 test('detectAvailableAssistants - detects by folder name not skills path', async () => {
-  const testDir = './test/fixtures/detect-test';
+  const testDir = await createTestFixture('detect-test');
 
   // Create .claude folder (no skills subfolder needed for detection)
   await fs.mkdir(join(testDir, '.claude'), { recursive: true });
@@ -167,5 +182,5 @@ test('detectAvailableAssistants - detects by folder name not skills path', async
   assert.ok(!detected.includes('codex'));
 
   // Cleanup
-  await fs.rm(testDir, { recursive: true, force: true });
+  await cleanupTestFixture(testDir);
 });

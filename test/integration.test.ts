@@ -4,9 +4,8 @@ import { promises as fs } from 'fs';
 import { resolve, join } from 'path';
 import sinon from 'sinon';
 import inquirer from 'inquirer';
+import { createTestFixture, cleanupTestFixture } from './helpers/test-setup.js';
 
-const fakeSkillsDir = resolve('./test/fixtures/fake-skills');
-const backupDir = resolve('./test/fixtures/fake-skills-backup');
 let promptStub: sinon.SinonStub;
 
 function stubPrompt(responses: Record<string, unknown>): void {
@@ -21,10 +20,6 @@ function stubPrompt(responses: Record<string, unknown>): void {
 }
 
 test.beforeEach(async () => {
-  // Backup original files
-  await fs.cp(fakeSkillsDir, backupDir, { recursive: true })
-    .catch(() => {}); // Ignore if backup source doesn't exist
-
   // Stub inquirer.prompt to avoid interactive prompts
   promptStub = sinon.stub(inquirer, 'prompt');
 });
@@ -32,28 +27,26 @@ test.beforeEach(async () => {
 test.afterEach(async () => {
   // Restore stub
   promptStub.restore();
-
-  // Restore original files
-  await fs.rm(fakeSkillsDir, { recursive: true, force: true });
-  await fs.cp(backupDir, fakeSkillsDir, { recursive: true })
-    .catch(() => {}); // Ignore if restore source doesn't exist
-  await fs.rm(backupDir, { recursive: true, force: true });
-  await fs.rm(resolve('.agents-common'), { recursive: true, force: true });
 });
 
 test('Integration: Full Sync Workflow - should refactor skills and detect conflicts', async () => {
+  const fakeSkillsSource = resolve('./test/fixtures/fake-skills');
+  const testDir = await createTestFixture('sync-workflow', async (dir) => {
+    await fs.cp(fakeSkillsSource, dir, { recursive: true });
+  });
+
   stubPrompt({
     assistants: ['claude', 'codex'],
     action: 'keep-both'
   });
 
-  const claudePrPath = join(fakeSkillsDir, '.claude/skills/pr-review/SKILL.md');
-  const codexPrPath = join(fakeSkillsDir, '.codex/skills/pr-review/SKILL.md');
-  const claudeCommitPath = join(fakeSkillsDir, '.claude/skills/commit-message/SKILL.md');
+  const claudePrPath = join(testDir, '.claude/skills/pr-review/SKILL.md');
+  const codexPrPath = join(testDir, '.codex/skills/pr-review/SKILL.md');
+  const claudeCommitPath = join(testDir, '.claude/skills/commit-message/SKILL.md');
 
   // Import after stubbing to ensure stub is used
   const { run } = await import('../src/index.js');
-  await run({ baseDir: fakeSkillsDir, failOnConflict: false, dryRun: false });
+  await run({ baseDir: testDir, failOnConflict: false, dryRun: false });
 
   // Check that claude pr-review was refactored
   const claudePrContent = await fs.readFile(claudePrPath, 'utf8');
@@ -61,7 +54,7 @@ test('Integration: Full Sync Workflow - should refactor skills and detect confli
   assert.ok(claudePrContent.includes('managed-by: sync-skills'));
 
   // Check that .agents-common file was created with frontmatter
-  const commonPrPath = join(fakeSkillsDir, '.agents-common/skills/pr-review/SKILL.md');
+  const commonPrPath = join(testDir, '.agents-common/skills/pr-review/SKILL.md');
   const commonPrContent = await fs.readFile(commonPrPath, 'utf8');
   assert.ok(commonPrContent.includes('Different instructions'));
   assert.ok(commonPrContent.includes('---'));
@@ -74,20 +67,17 @@ test('Integration: Full Sync Workflow - should refactor skills and detect confli
   // Check that commit-message was refactored
   const claudeCommitContent = await fs.readFile(claudeCommitPath, 'utf8');
   assert.ok(claudeCommitContent.includes('@.agents-common/skills/commit-message/SKILL.md'));
+
+  await cleanupTestFixture(testDir);
 });
 
 // Scenario 1: .claude/skills exists, .codex folder exists → auto-sync skills
 test('Integration: Test Scenario 1 - should auto-sync skills when both folders exist', async () => {
-  const testDir = resolve('./test/fixtures/scenario1');
-
-  // Clean up first
-  await fs.rm(testDir, { recursive: true, force: true });
-  await fs.rm(resolve(testDir, '.agents-common'), { recursive: true, force: true });
-
-  // Create scenario 1 setup: .claude/skills/my-skill exists, .codex folder exists
-  await fs.mkdir(join(testDir, '.claude/skills/my-skill'), { recursive: true });
-  await fs.mkdir(join(testDir, '.codex'), { recursive: true });
-  await fs.writeFile(join(testDir, '.claude/skills/my-skill/SKILL.md'), `---
+  const testDir = await createTestFixture('scenario1', async (dir) => {
+    // Create scenario 1 setup: .claude/skills/my-skill exists, .codex folder exists
+    await fs.mkdir(join(dir, '.claude/skills/my-skill'), { recursive: true });
+    await fs.mkdir(join(dir, '.codex'), { recursive: true });
+    await fs.writeFile(join(dir, '.claude/skills/my-skill/SKILL.md'), `---
 name: my-skill
 description: A test skill
 ---
@@ -95,6 +85,7 @@ description: A test skill
 # My Skill
 
 This is the content of my skill.`);
+  });
 
   // Stub inquirer.prompt (should not be called for auto-sync create prompt)
   stubPrompt({
@@ -124,18 +115,16 @@ This is the content of my skill.`);
   const claudeContent = await fs.readFile(claudeSkillPath, 'utf8');
   assert.ok(claudeContent.includes('@.agents-common/skills/my-skill/SKILL.md'));
 
-  // Cleanup
-  await fs.rm(testDir, { recursive: true, force: true });
+  await cleanupTestFixture(testDir);
 });
 
 // Scenario 2: .claude/skills exists, .codex folder exists → auto-create without prompt
 test('Integration: Test Scenario 2 - should automatically create .codex/skills when .codex folder already exists', async () => {
-  const testDir = resolve('./test/fixtures/scenario2');
-
-  // Create scenario 2 setup: .claude/skills/my-skill exists, .codex folder exists
-  await fs.mkdir(join(testDir, '.claude/skills/my-skill'), { recursive: true });
-  await fs.mkdir(join(testDir, '.codex'), { recursive: true });
-  await fs.writeFile(join(testDir, '.claude/skills/my-skill/SKILL.md'), `---
+  const testDir = await createTestFixture('scenario2', async (dir) => {
+    // Create scenario 2 setup: .claude/skills/my-skill exists, .codex folder exists
+    await fs.mkdir(join(dir, '.claude/skills/my-skill'), { recursive: true });
+    await fs.mkdir(join(dir, '.codex'), { recursive: true });
+    await fs.writeFile(join(dir, '.claude/skills/my-skill/SKILL.md'), `---
 name: my-skill
 description: A test skill
 ---
@@ -143,6 +132,7 @@ description: A test skill
 # My Skill
 
 This is the content of my skill.`);
+  });
 
   // Stub to handle any prompts
   stubPrompt({
@@ -167,16 +157,12 @@ This is the content of my skill.`);
   const codexContent = await fs.readFile(codexSkillPath, 'utf8');
   assert.ok(codexContent.includes('@.agents-common/skills/my-skill/SKILL.md'));
 
-  // Cleanup
-  await fs.rm(testDir, { recursive: true, force: true });
+  await cleanupTestFixture(testDir);
 });
 
 // Scenario 3: No skills exist anywhere → exit silently
 test('Integration: Test Scenario 3 - should exit silently when no skills exist', async () => {
-  const testDir = resolve('./test/fixtures/scenario3');
-
-  // Create scenario 3 setup: No skills exist anywhere
-  await fs.mkdir(testDir, { recursive: true });
+  const testDir = await createTestFixture('scenario3');
 
   stubPrompt({ assistants: ['claude', 'codex'] });
 
@@ -188,20 +174,15 @@ test('Integration: Test Scenario 3 - should exit silently when no skills exist',
   assert.ok(!codexExists);
   assert.ok(!claudeExists);
 
-  // Cleanup
-  await fs.rm(testDir, { recursive: true, force: true });
+  await cleanupTestFixture(testDir);
 });
 
 // Scenario 4: .codex/skills exists, .claude folder doesn't exist → prompt user
 test('Integration: Test Scenario 4 - should not create .claude when user declines', async () => {
-  const testDir = resolve('./test/fixtures/scenario4');
-
-  // Clean up first
-  await fs.rm(testDir, { recursive: true, force: true });
-
-  // Create scenario 4 setup: .codex/skills/my-skill exists, no .claude folder
-  await fs.mkdir(join(testDir, '.codex/skills/my-skill'), { recursive: true });
-  await fs.writeFile(join(testDir, '.codex/skills/my-skill/SKILL.md'), `---
+  const testDir = await createTestFixture('scenario4', async (dir) => {
+    // Create scenario 4 setup: .codex/skills/my-skill exists, no .claude folder
+    await fs.mkdir(join(dir, '.codex/skills/my-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.codex/skills/my-skill/SKILL.md'), `---
 name: my-skill
 description: A test skill
 ---
@@ -209,9 +190,9 @@ description: A test skill
 @.agents-common/skills/my-skill/SKILL.md
 `);
 
-  // Also create the common skill
-  await fs.mkdir(join(testDir, '.agents-common/skills/my-skill'), { recursive: true });
-  await fs.writeFile(join(testDir, '.agents-common/skills/my-skill/SKILL.md'), `---
+    // Also create the common skill
+    await fs.mkdir(join(dir, '.agents-common/skills/my-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.agents-common/skills/my-skill/SKILL.md'), `---
 name: my-skill
 description: A test skill
 ---
@@ -219,6 +200,7 @@ description: A test skill
 # My Skill
 
 This is the content of my skill.`);
+  });
 
   // Stub inquirer.prompt - user says NO to creating .claude/skills
   stubPrompt({
@@ -232,18 +214,16 @@ This is the content of my skill.`);
   const claudeExists = await fs.access(join(testDir, '.claude')).then(() => true).catch(() => false);
   assert.ok(!claudeExists);
 
-  // Cleanup
-  await fs.rm(testDir, { recursive: true, force: true });
+  await cleanupTestFixture(testDir);
 });
 
 // Scenario 5: .codex/skills exists, .claude folder exists → auto-create without prompt
 test('Integration: Test Scenario 5 - should automatically create .claude/skills when .codex has skills and .claude folder exists', async () => {
-  const testDir = resolve('./test/fixtures/scenario5');
-
-  // Create scenario 5 setup: .codex/skills/my-skill exists, .claude folder exists
-  await fs.mkdir(join(testDir, '.codex/skills/my-skill'), { recursive: true });
-  await fs.mkdir(join(testDir, '.claude'), { recursive: true });
-  await fs.writeFile(join(testDir, '.codex/skills/my-skill/SKILL.md'), `---
+  const testDir = await createTestFixture('scenario5', async (dir) => {
+    // Create scenario 5 setup: .codex/skills/my-skill exists, .claude folder exists
+    await fs.mkdir(join(dir, '.codex/skills/my-skill'), { recursive: true });
+    await fs.mkdir(join(dir, '.claude'), { recursive: true });
+    await fs.writeFile(join(dir, '.codex/skills/my-skill/SKILL.md'), `---
 name: my-skill
 description: A test skill
 ---
@@ -251,9 +231,9 @@ description: A test skill
 @.agents-common/skills/my-skill/SKILL.md
 `);
 
-  // Also create the common skill
-  await fs.mkdir(join(testDir, '.agents-common/skills/my-skill'), { recursive: true });
-  await fs.writeFile(join(testDir, '.agents-common/skills/my-skill/SKILL.md'), `---
+    // Also create the common skill
+    await fs.mkdir(join(dir, '.agents-common/skills/my-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.agents-common/skills/my-skill/SKILL.md'), `---
 name: my-skill
 description: A test skill
 ---
@@ -261,6 +241,7 @@ description: A test skill
 # My Skill
 
 This is the content of my skill.`);
+  });
 
   // Stub to handle any prompts
   stubPrompt({
@@ -285,8 +266,7 @@ This is the content of my skill.`);
   const claudeContent = await fs.readFile(claudeSkillPath, 'utf8');
   assert.ok(claudeContent.includes('@.agents-common/skills/my-skill/SKILL.md'));
 
-  // Cleanup
-  await fs.rm(testDir, { recursive: true, force: true });
+  await cleanupTestFixture(testDir);
 });
 
 // Helper function to run the test with a fresh module import
@@ -298,14 +278,11 @@ async function runTest(baseDir: string) {
 
 // Auto-configuration test
 test('Integration: Auto-configuration - should prompt and create config when folders exist', async () => {
-  const testDir = resolve('./test/fixtures/auto-config');
-
-  // Cleanup first
-  await fs.rm(testDir, { recursive: true, force: true });
-
-  // Create .claude folder with skills
-  await fs.mkdir(join(testDir, '.claude/skills/test'), { recursive: true });
-  await fs.writeFile(join(testDir, '.claude/skills/test/SKILL.md'), '@test');
+  const testDir = await createTestFixture('auto-config', async (dir) => {
+    // Create .claude folder with skills
+    await fs.mkdir(join(dir, '.claude/skills/test'), { recursive: true });
+    await fs.writeFile(join(dir, '.claude/skills/test/SKILL.md'), '@test');
+  });
 
   // Import after setup to ensure fresh module
   const { run } = await import('../src/index.js');
@@ -322,6 +299,5 @@ test('Integration: Auto-configuration - should prompt and create config when fol
   assert.ok(config);
   assert.deepEqual(config?.assistants, ['claude']);
 
-  // Cleanup
-  await fs.rm(testDir, { recursive: true, force: true });
+  await cleanupTestFixture(testDir);
 });

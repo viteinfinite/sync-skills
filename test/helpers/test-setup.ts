@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import { resolve, join } from 'path';
+import { tmpdir } from 'os';
 import sinon from 'sinon';
 import inquirer from 'inquirer';
 
@@ -16,10 +17,7 @@ export async function createTestFixture(
   name: string,
   setup?: (dir: string) => Promise<void>
 ): Promise<string> {
-  const testDir = resolve(`./test/fixtures/${name}`);
-
-  // Clean up any existing fixture
-  await fs.rm(testDir, { recursive: true, force: true });
+  const testDir = join(tmpdir(), `sync-skills-test-${name}-${Math.random().toString(36).slice(2, 7)}`);
 
   // Create the directory
   await fs.mkdir(testDir, { recursive: true });

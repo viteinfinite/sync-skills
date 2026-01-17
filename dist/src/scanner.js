@@ -1,8 +1,5 @@
 import { promises as fs } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { join } from 'path';
 async function* walkDir(dir, agent, baseDir, originalBaseDir) {
     try {
         const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -62,17 +59,5 @@ export async function scanSkills(baseDir = process.cwd(), assistantConfigs) {
         common.push(skill);
     }
     return { platforms, common };
-}
-/**
- * Legacy compatibility function - extracts claude/codex from platforms map
- * @deprecated Use scanSkills(baseDir, assistantConfigs) instead
- */
-export async function scanSkillsLegacy(baseDir = process.cwd()) {
-    const result = await scanSkills(baseDir);
-    return {
-        claude: result.platforms.claude || [],
-        codex: result.platforms.codex || [],
-        common: result.common
-    };
 }
 //# sourceMappingURL=scanner.js.map

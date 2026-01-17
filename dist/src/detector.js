@@ -60,10 +60,6 @@ function sortObjectKeys(obj) {
     }
     return sorted;
 }
-async function hashFile(filePath) {
-    const content = await fs.readFile(filePath, 'utf8');
-    return createHash('sha256').update(content).digest('hex');
-}
 /**
  * Compute hash of normalized content (order-independent frontmatter)
  */

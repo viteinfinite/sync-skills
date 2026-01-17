@@ -2,7 +2,6 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import matter from 'gray-matter';
 import { formatDiff } from './detector.js';
-import { diffLines } from 'diff';
 import type { Conflict, ConflictResolution, DependentConflict, DependentConflictResolution } from './types.js';
 
 type InquirerImpl = typeof inquirer;

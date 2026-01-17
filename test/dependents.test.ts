@@ -14,20 +14,28 @@ import {
   cleanupPlatformDependentFiles
 } from '../src/dependents.js';
 
-const TEST_DIR = 'test/fixtures/dependents-test';
+import { test, describe, it } from 'node:test';
+import { strict as assert } from 'assert';
+import { promises as fs } from 'fs';
+import { join } from 'path';
+import {
+  computeFileHash,
+  hashMatches,
+  hashChanged,
+  detectDependentFiles,
+  getStoredHashes,
+  storeFileHashesInFrontmatter,
+  consolidateDependentsToCommon,
+  cleanupPlatformDependentFiles
+} from '../src/dependents.js';
+import { createTestFixture, cleanupTestFixture } from './helpers/test-setup.js';
 
 describe('dependents', () => {
-  beforeEach(async () => {
-    await fs.rm(TEST_DIR, { recursive: true, force: true });
-    await fs.mkdir(TEST_DIR, { recursive: true });
-  });
-
-  afterEach(async () => {
-    await fs.rm(TEST_DIR, { recursive: true, force: true });
-  });
+  let TEST_DIR: string;
 
   describe('computeFileHash', () => {
     it('should return consistent hash for same content', async () => {
+      TEST_DIR = await createTestFixture('hash-consistent');
       const testFile = join(TEST_DIR, 'test.txt');
       await fs.writeFile(testFile, 'hello world');
 
@@ -36,9 +44,11 @@ describe('dependents', () => {
 
       assert.strictEqual(hash1, hash2);
       assert.ok(hash1.startsWith('sha256-'));
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should return different hashes for different content', async () => {
+      TEST_DIR = await createTestFixture('hash-different');
       const file1 = join(TEST_DIR, 'file1.txt');
       const file2 = join(TEST_DIR, 'file2.txt');
 
@@ -49,9 +59,11 @@ describe('dependents', () => {
       const hash2 = await computeFileHash(file2);
 
       assert.notStrictEqual(hash1, hash2);
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should handle empty files', async () => {
+      TEST_DIR = await createTestFixture('hash-empty');
       const testFile = join(TEST_DIR, 'empty.txt');
       await fs.writeFile(testFile, '');
 
@@ -59,6 +71,7 @@ describe('dependents', () => {
 
       assert.ok(hash.startsWith('sha256-'));
       assert.ok(hash.length > 8);
+      await cleanupTestFixture(TEST_DIR);
     });
   });
 
@@ -92,6 +105,7 @@ describe('dependents', () => {
 
   describe('detectDependentFiles', () => {
     it('should return empty array for folder with only SKILL.md', async () => {
+      TEST_DIR = await createTestFixture('detect-empty');
       const skillPath = join(TEST_DIR, 'test-skill');
       await fs.mkdir(skillPath, { recursive: true });
       await fs.writeFile(join(skillPath, 'SKILL.md'), '---\nname: test\n---\ncontent');
@@ -99,9 +113,11 @@ describe('dependents', () => {
       const result = await detectDependentFiles(skillPath);
 
       assert.strictEqual(result.length, 0);
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should return single file', async () => {
+      TEST_DIR = await createTestFixture('detect-single');
       const skillPath = join(TEST_DIR, 'test-skill');
       await fs.mkdir(skillPath, { recursive: true });
       await fs.writeFile(join(skillPath, 'SKILL.md'), '---\nname: test\n---\ncontent');
@@ -112,9 +128,11 @@ describe('dependents', () => {
       assert.strictEqual(result.length, 1);
       assert.strictEqual(result[0].relativePath, 'util.js');
       assert.ok(result[0].hash.startsWith('sha256-'));
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should return nested files', async () => {
+      TEST_DIR = await createTestFixture('detect-nested');
       const skillPath = join(TEST_DIR, 'test-skill');
       await fs.mkdir(skillPath, { recursive: true });
       await fs.writeFile(join(skillPath, 'SKILL.md'), '---\nname: test\n---\ncontent');
@@ -125,9 +143,11 @@ describe('dependents', () => {
 
       assert.strictEqual(result.length, 1);
       assert.strictEqual(result[0].relativePath, 'scripts' + '/' + 'util.js'); // Use forward slash for cross-platform
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should ignore node_modules', async () => {
+      TEST_DIR = await createTestFixture('detect-ignore');
       const skillPath = join(TEST_DIR, 'test-skill');
       await fs.mkdir(skillPath, { recursive: true });
       await fs.writeFile(join(skillPath, 'SKILL.md'), '---\nname: test\n---\ncontent');
@@ -137,9 +157,11 @@ describe('dependents', () => {
       const result = await detectDependentFiles(skillPath);
 
       assert.strictEqual(result.length, 0);
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should return multiple files at different levels', async () => {
+      TEST_DIR = await createTestFixture('detect-multi');
       const skillPath = join(TEST_DIR, 'test-skill');
       await fs.mkdir(skillPath, { recursive: true });
       await fs.writeFile(join(skillPath, 'SKILL.md'), '---\nname: test\n---\ncontent');
@@ -156,20 +178,24 @@ describe('dependents', () => {
       assert.ok(paths.includes('README.md'));
       assert.ok(paths.includes('docs' + '/' + 'guide.md') || paths.includes('docs\\guide.md'));
       assert.ok(paths.includes('scripts' + '/' + 'util.js') || paths.includes('scripts\\util.js'));
+      await cleanupTestFixture(TEST_DIR);
     });
   });
 
   describe('getStoredHashes', () => {
     it('should return empty object when SKILL.md does not exist', async () => {
+      TEST_DIR = await createTestFixture('stored-none');
       const skillPath = join(TEST_DIR, 'test-skill');
       await fs.mkdir(skillPath, { recursive: true });
 
       const result = await getStoredHashes(skillPath);
 
       assert.deepStrictEqual(result, {});
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should return empty object when no sync metadata exists', async () => {
+      TEST_DIR = await createTestFixture('stored-no-meta');
       const skillPath = join(TEST_DIR, 'test-skill');
       await fs.mkdir(skillPath, { recursive: true });
       await fs.writeFile(
@@ -180,9 +206,11 @@ describe('dependents', () => {
       const result = await getStoredHashes(skillPath);
 
       assert.deepStrictEqual(result, {});
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should return stored hashes from frontmatter', async () => {
+      TEST_DIR = await createTestFixture('stored-meta');
       const skillPath = join(TEST_DIR, 'test-skill');
       await fs.mkdir(skillPath, { recursive: true });
       await fs.writeFile(
@@ -193,11 +221,13 @@ describe('dependents', () => {
       const result = await getStoredHashes(skillPath);
 
       assert.deepStrictEqual(result, { 'util.js': 'sha256-abc123' });
+      await cleanupTestFixture(TEST_DIR);
     });
   });
 
   describe('storeFileHashesInFrontmatter', () => {
     it('should add sync metadata to existing frontmatter', async () => {
+      TEST_DIR = await createTestFixture('store-meta');
       const skillPath = join(TEST_DIR, 'test-skill');
       await fs.mkdir(skillPath, { recursive: true });
       await fs.writeFile(
@@ -213,9 +243,11 @@ describe('dependents', () => {
       assert.ok(content.includes('sync:'));
       assert.ok(content.includes('sha256-abc123'));
       assert.ok(content.includes('sha256-def456'));
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should update existing sync metadata', async () => {
+      TEST_DIR = await createTestFixture('store-update');
       const skillPath = join(TEST_DIR, 'test-skill');
       await fs.mkdir(skillPath, { recursive: true });
       await fs.writeFile(
@@ -228,9 +260,11 @@ describe('dependents', () => {
 
       const result = await getStoredHashes(skillPath);
       assert.deepStrictEqual(result, { 'new.js': 'sha256-new456' });
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should preserve existing frontmatter fields', async () => {
+      TEST_DIR = await createTestFixture('store-preserve');
       const skillPath = join(TEST_DIR, 'test-skill');
       await fs.mkdir(skillPath, { recursive: true });
       await fs.writeFile(
@@ -243,11 +277,13 @@ describe('dependents', () => {
       const content = await fs.readFile(join(skillPath, 'SKILL.md'), 'utf-8');
       assert.ok(content.includes('name: test'));
       assert.ok(content.includes('description: a test skill'));
+      await cleanupTestFixture(TEST_DIR);
     });
   });
 
   describe('consolidateDependentsToCommon', () => {
     it('should copy single source to common', async () => {
+      TEST_DIR = await createTestFixture('consolidate-single');
       const commonPath = join(TEST_DIR, '.agents-common', 'skills');
       await fs.mkdir(commonPath, { recursive: true });
 
@@ -271,9 +307,11 @@ describe('dependents', () => {
       const commonFilePath = join(commonPath, 'test-skill', 'util.js');
       const exists = await fs.access(commonFilePath).then(() => true).catch(() => false);
       assert.ok(exists);
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should detect conflict when hashes differ', async () => {
+      TEST_DIR = await createTestFixture('consolidate-conflict');
       const commonPath = join(TEST_DIR, '.agents-common', 'skills');
       await fs.mkdir(commonPath, { recursive: true });
 
@@ -304,11 +342,13 @@ describe('dependents', () => {
       // Should have a conflict since hashes differ
       assert.ok(result.conflicts.length > 0);
       assert.strictEqual(result.conflicts[0].relativePath, 'util.js');
+      await cleanupTestFixture(TEST_DIR);
     });
   });
 
   describe('cleanupPlatformDependentFiles', () => {
     it('should remove dependent files', async () => {
+      TEST_DIR = await createTestFixture('cleanup-files');
       const platformPath = join(TEST_DIR, '.claude', 'skills');
       await fs.mkdir(platformPath, { recursive: true });
 
@@ -324,9 +364,11 @@ describe('dependents', () => {
 
       const skillMdExists = await fs.access(join(skillPath, 'SKILL.md')).then(() => true).catch(() => false);
       assert.ok(skillMdExists);
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should remove empty directories', async () => {
+      TEST_DIR = await createTestFixture('cleanup-dirs');
       const platformPath = join(TEST_DIR, '.claude', 'skills');
       await fs.mkdir(platformPath, { recursive: true });
 
@@ -347,9 +389,11 @@ describe('dependents', () => {
       // The scripts directory should be removed since it's now empty
       const scriptsExists = await fs.access(scriptsPath).then(() => true).catch(() => false);
       assert.ok(!scriptsExists);
+      await cleanupTestFixture(TEST_DIR);
     });
 
     it('should preserve SKILL.md', async () => {
+      TEST_DIR = await createTestFixture('cleanup-preserve');
       const platformPath = join(TEST_DIR, '.claude', 'skills');
       await fs.mkdir(platformPath, { recursive: true });
 
@@ -361,6 +405,7 @@ describe('dependents', () => {
 
       const skillMdExists = await fs.access(join(skillPath, 'SKILL.md')).then(() => true).catch(() => false);
       assert.ok(skillMdExists);
+      await cleanupTestFixture(TEST_DIR);
     });
   });
 });

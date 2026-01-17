@@ -1,15 +1,17 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { promises as fs } from 'fs';
-import { join, resolve } from 'path';
+import { join } from 'path';
 import { run } from '../../src/index.js';
 import { createTestFixture, createSkillFile, cleanupTestFixture, stubInquirer } from '../helpers/test-setup.js';
 
-let promptStub: ReturnType<typeof stubInquirer>;
+let promptStub: ReturnType<typeof stubInquirer> | undefined;
 
 test.afterEach(async () => {
-  promptStub.restore();
-  await fs.rm(resolve('.agents-common'), { recursive: true, force: true });
+  if (promptStub) {
+    promptStub.restore();
+    promptStub = undefined;
+  }
 });
 
 test('Integration: Auto-configuration - should prompt and create config when folders exist', async () => {

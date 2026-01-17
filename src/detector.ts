@@ -74,11 +74,6 @@ function sortObjectKeys(obj: unknown): unknown {
   return sorted;
 }
 
-async function hashFile(filePath: string): Promise<string> {
-  const content = await fs.readFile(filePath, 'utf8');
-  return createHash('sha256').update(content).digest('hex');
-}
-
 /**
  * Compute hash of normalized content (order-independent frontmatter)
  */

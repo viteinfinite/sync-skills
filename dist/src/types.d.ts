@@ -54,10 +54,6 @@ export interface SyncPair {
     target: AssistantState;
 }
 /**
- * User action for sync prompt
- */
-export type SyncAction = 'abort' | 'create' | 'skip';
-/**
  * Options for the main run function
  */
 export interface RunOptions {
@@ -151,13 +147,6 @@ export interface DependentFile {
  */
 export interface DependentFileHashes {
     [relativePath: string]: string;
-}
-/**
- * Sync metadata stored in SKILL.md frontmatter
- */
-export interface SyncMetadata {
-    version: number;
-    files: DependentFileHashes;
 }
 /**
  * Conflict between dependent file versions
