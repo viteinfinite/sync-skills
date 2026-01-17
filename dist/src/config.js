@@ -145,8 +145,7 @@ export async function reconfigure(baseDir) {
     }
     catch (error) {
         // User cancelled (Ctrl+C)
-        console.log('\nConfiguration cancelled.');
-        process.exit(0);
+        throw new Error('Configuration cancelled.');
     }
     try {
         // Write new config
@@ -198,8 +197,7 @@ export async function ensureConfig(baseDir) {
     }
     catch (error) {
         // User cancelled (Ctrl+C)
-        console.log('\nConfiguration cancelled.');
-        process.exit(0);
+        throw new Error('Configuration cancelled.');
     }
     // Create and save config
     const config = { version: 1, assistants: selected };

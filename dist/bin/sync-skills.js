@@ -39,13 +39,20 @@ Examples:
   `);
     process.exit(0);
 }
-await run({
-    failOnConflict: argv['fail-on-conflict'],
-    dryRun: argv['dry-run'],
-    verbose: argv.verbose,
-    watch: argv.watch,
-    homeMode: argv.home,
-    reconfigure: argv.reconfigure,
-    targets: argv.targets ? argv.targets.split(',') : ['claude', 'codex']
-});
+try {
+    await run({
+        failOnConflict: argv['fail-on-conflict'],
+        dryRun: argv['dry-run'],
+        verbose: argv.verbose,
+        watch: argv.watch,
+        homeMode: argv.home,
+        reconfigure: argv.reconfigure,
+        targets: argv.targets ? argv.targets.split(',') : ['claude', 'codex']
+    });
+}
+catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`Error: ${errorMessage}`);
+    process.exit(1);
+}
 //# sourceMappingURL=sync-skills.js.map

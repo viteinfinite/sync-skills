@@ -16,8 +16,7 @@ export async function run(options = {}) {
     // Handle --home flag
     if (homeMode) {
         if (!process.env.HOME) {
-            console.error('Error: HOME environment variable not set');
-            process.exit(1);
+            throw new Error('HOME environment variable not set');
         }
         baseDir = process.env.HOME;
         console.log(`Using home directory: ${baseDir}`);
@@ -73,15 +72,13 @@ export async function run(options = {}) {
     const conflicts = await detectConflicts(platforms[platformA] || [], platforms[platformB] || [], platformA, platformB);
     if (conflicts.length > 0) {
         if (failOnConflict) {
-            console.error(`Conflict detected in: ${conflicts.map(c => c.skillName).join(', ')}`);
-            process.exit(1);
+            throw new Error(`Conflict detected in: ${conflicts.map(c => c.skillName).join(', ')}`);
         }
         // Interactive resolution
         for (const conflict of conflicts) {
             const resolution = await resolveConflict(conflict);
             if (resolution.action === 'abort') {
-                console.log('Aborted');
-                process.exit(0);
+                throw new Error('Sync aborted');
             }
             if (resolution.action === 'use-a' && !dryRun) {
                 await copySkill(conflict.pathA, conflict.pathB);
@@ -145,16 +142,14 @@ export async function run(options = {}) {
             // Resolve conflicts if any
             if (conflicts.length > 0) {
                 if (failOnConflict) {
-                    console.error(`Dependent file conflict in: ${skillName}`);
-                    process.exit(1);
+                    throw new Error(`Dependent file conflict in: ${skillName}`);
                 }
                 // Interactive resolution
                 const resolutions = await resolveDependentConflicts(conflicts);
                 // Check if user aborted
                 const hasAbort = Array.from(resolutions.values()).some(r => r.action === 'abort');
                 if (hasAbort) {
-                    console.log('Aborted');
-                    process.exit(0);
+                    throw new Error('Sync aborted');
                 }
                 // Apply resolutions and get final hashes
                 const resolvedHashes = await applyConflictResolutions(conflicts, resolutions, commonSkillsPath);
