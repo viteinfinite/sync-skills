@@ -63,12 +63,6 @@ export interface RunOptions {
     failOnConflict?: boolean;
     /** Dry run - don't make any changes (default: false) */
     dryRun?: boolean;
-    /** Verbose output (default: false) */
-    verbose?: boolean;
-    /** Watch mode (default: false) */
-    watch?: boolean;
-    /** Target assistants to sync (default: ['claude', 'codex']) */
-    targets?: string[];
     /** Use home directory instead of cwd (default: false) */
     homeMode?: boolean;
     /** Run reconfiguration flow (default: false) */

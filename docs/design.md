@@ -77,16 +77,6 @@ npx sync-skills --fail-on-conflict
 # Dry run (show what would change)
 npx sync-skills --dry-run
 
-# Specific targets only
-npx sync-skills --targets claude
-npx sync-skills --targets claude,codex
-
-# Watch mode
-npx sync-skills --watch
-
-# Verbose output
-npx sync-skills --verbose
-
 # Help
 npx sync-skills --help
 ```
