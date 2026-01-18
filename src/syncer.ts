@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import { join, dirname, resolve, basename } from 'path';
 import { createHash } from 'crypto';
 import matter from 'gray-matter';
-import { CORE_FIELDS } from './constants.js';
+import { normalizeBodyContent, pickCoreFrontmatter } from './frontmatter.js';
 import { ASSISTANT_MAP } from './types.js';
 
 export async function refactorSkill(sourcePath: string): Promise<string | null> {
@@ -51,15 +51,10 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
   await fs.mkdir(dirname(commonPath), { recursive: true });
 
   // Extract core frontmatter fields to copy to common
-  const coreFrontmatter: Record<string, unknown> = {};
-  for (const field of CORE_FIELDS) {
-    if (parsed.data[field]) {
-      coreFrontmatter[field] = parsed.data[field];
-    }
-  }
+  const coreFrontmatter = pickCoreFrontmatter(parsed.data as Record<string, unknown>);
 
   // Write frontmatter + body to .agents-common (strip leading newline added by gray-matter)
-  const bodyContent = parsed.content.startsWith('\n') ? parsed.content.slice(1) : parsed.content;
+  const bodyContent = normalizeBodyContent(parsed.content);
 
   // Compute hash of the new common skill (no dependents yet)
   const skillHash = computeSkillHash(coreFrontmatter, bodyContent, []);

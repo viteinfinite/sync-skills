@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 import inquirer from 'inquirer';
 import matter from 'gray-matter';
-import { CORE_FIELDS } from './constants.js';
+import { pickCoreFrontmatter } from './frontmatter.js';
 import type {
   AssistantConfig,
   AssistantState,
@@ -139,12 +139,7 @@ export async function cloneAssistantSkills(
     const parsed = matter(content);
 
     // Extract only core frontmatter fields
-    const coreFrontmatter: Record<string, unknown> = {};
-    for (const field of CORE_FIELDS) {
-      if (parsed.data[field]) {
-        coreFrontmatter[field] = parsed.data[field];
-      }
-    }
+    const coreFrontmatter = pickCoreFrontmatter(parsed.data as Record<string, unknown>);
 
     // Get the @ reference from the content (if it exists)
     // Or create a new reference to common skills
@@ -246,12 +241,7 @@ export async function syncCommonOnlySkills(
       const commonHash = commonSync?.hash;
 
       // Extract only core frontmatter fields
-      const coreFrontmatter: Record<string, unknown> = {};
-      for (const field of CORE_FIELDS) {
-        if (parsed.data[field]) {
-          coreFrontmatter[field] = parsed.data[field];
-        }
-      }
+      const coreFrontmatter = pickCoreFrontmatter(parsed.data as Record<string, unknown>);
 
       // Remove metadata from coreFrontmatter since we'll create our own with only sync.hash
       const { metadata, ...coreWithoutMetadata } = coreFrontmatter;

@@ -1,7 +1,6 @@
 import { promises as fs } from 'fs';
 import matter from 'gray-matter';
 import { parseSkillFile } from './parser.js';
-import { CORE_FIELDS } from './constants.js';
 
 const SKIP_FIELDS = ['sync'];
 const LIST_MERGE_FIELDS = ['allowed-tools'];

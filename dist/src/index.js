@@ -9,7 +9,7 @@ import { refactorSkill, copySkill, computeSkillHash, updateMainHash } from './sy
 import { propagateFrontmatter } from './propagator.js';
 import { discoverAssistants, findSyncPairs, processSyncPairs, syncCommonOnlySkills } from './assistants.js';
 import { ensureConfig, reconfigure as runReconfigure, getEnabledAssistants } from './config.js';
-import { CORE_FIELDS } from './constants.js';
+import { normalizeBodyContent, pickCoreFrontmatter } from './frontmatter.js';
 import { collectDependentFilesFromPlatforms, consolidateDependentsToCommon, cleanupPlatformDependentFiles, getStoredHashes, storeFileHashesInFrontmatter, applyConflictResolutions } from './dependents.js';
 export async function run(options = {}) {
     let { baseDir = process.cwd(), failOnConflict = false, dryRun = false, homeMode = false, reconfigure = false } = options;
@@ -178,16 +178,9 @@ export async function run(options = {}) {
                 const commonContent = await fs.readFile(commonFilePath, 'utf8');
                 const commonParsed = matter(commonContent);
                 // Extract core frontmatter fields
-                const coreFrontmatter = {};
-                for (const field of CORE_FIELDS) {
-                    if (commonParsed.data[field]) {
-                        coreFrontmatter[field] = commonParsed.data[field];
-                    }
-                }
+                const coreFrontmatter = pickCoreFrontmatter(commonParsed.data);
                 // Normalize body content (strip leading newline like in refactorSkill)
-                const bodyContent = commonParsed.content.startsWith('\n')
-                    ? commonParsed.content.slice(1)
-                    : commonParsed.content;
+                const bodyContent = normalizeBodyContent(commonParsed.content);
                 // Build dependent files array from finalHashes
                 const dependentFiles = Object.entries(finalHashes).map(([path, hash]) => ({ path, hash: hash }));
                 // Recompute hash with new dependent files

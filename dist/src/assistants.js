@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 import inquirer from 'inquirer';
 import matter from 'gray-matter';
-import { CORE_FIELDS } from './constants.js';
+import { pickCoreFrontmatter } from './frontmatter.js';
 import { getAssistantConfigs } from './types.js';
 /**
  * Discover the state of configured assistants
@@ -113,12 +113,7 @@ export async function cloneAssistantSkills(baseDir, sourceSkills, targetConfig) 
         const content = await fs.readFile(skill.path, 'utf-8');
         const parsed = matter(content);
         // Extract only core frontmatter fields
-        const coreFrontmatter = {};
-        for (const field of CORE_FIELDS) {
-            if (parsed.data[field]) {
-                coreFrontmatter[field] = parsed.data[field];
-            }
-        }
+        const coreFrontmatter = pickCoreFrontmatter(parsed.data);
         // Get the @ reference from the content (if it exists)
         // Or create a new reference to common skills
         let atReference = parsed.content.trim();
@@ -198,12 +193,7 @@ export async function syncCommonOnlySkills(baseDir, commonSkills, enabledConfigs
                 : undefined;
             const commonHash = commonSync?.hash;
             // Extract only core frontmatter fields
-            const coreFrontmatter = {};
-            for (const field of CORE_FIELDS) {
-                if (parsed.data[field]) {
-                    coreFrontmatter[field] = parsed.data[field];
-                }
-            }
+            const coreFrontmatter = pickCoreFrontmatter(parsed.data);
             // Remove metadata from coreFrontmatter since we'll create our own with only sync.hash
             const { metadata, ...coreWithoutMetadata } = coreFrontmatter;
             // Create @ reference to common skill
