@@ -1,16 +1,22 @@
 #!/usr/bin/env node
 import minimist from 'minimist';
 import { run } from '../src/index.js';
+import { VERSION } from '../src/version.js';
 const argv = minimist(process.argv.slice(2), {
-    boolean: ['fail-on-conflict', 'dry-run', 'help', 'home', 'reconfigure'],
+    boolean: ['fail-on-conflict', 'dry-run', 'help', 'home', 'reconfigure', 'version'],
     alias: {
         'fail-on-conflict': 'f',
         'dry-run': 'd',
         'help': 'h',
         'home': 'H',
-        'reconfigure': 'r'
+        'reconfigure': 'r',
+        'version': 'v'
     }
 });
+if (argv.version) {
+    console.log(VERSION);
+    process.exit(0);
+}
 if (argv.help) {
     console.log(`
 sync-skills - Synchronize agent skills
@@ -23,6 +29,7 @@ Options:
   --dry-run, -d             Show changes without applying
   --home, -H                Use home directory configuration
   --reconfigure, -r         Reconfigure settings
+  --version, -v             Show version
   --help, -h                Show this help
 
 Examples:
@@ -31,6 +38,7 @@ Examples:
   sync-skills --dry-run                    # Preview changes
   sync-skills --home                       # Use home config
   sync-skills --reconfigure                # Reconfigure settings
+  sync-skills --version                    # Show version
   `);
     process.exit(0);
 }
