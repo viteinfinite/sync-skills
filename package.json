@@ -7,7 +7,7 @@
     "sync-skills": "./dist/bin/sync-skills.js"
   },
   "scripts": {
-    "build": "./node_modules/.bin/tsc",
+    "build": "node ./scripts/generate-version.mjs && ./node_modules/.bin/tsc",
     "prepare": "test -f ./node_modules/.bin/tsc && npm run build || echo 'Skipping build (tsc not available)'",
     "test": "tsx --test test/*.test.ts",
     "test:integration": "tsx --test test/integration/*.test.ts",
