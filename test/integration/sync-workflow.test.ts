@@ -8,9 +8,10 @@ import { createTestFixture, createSkillFile, readSkillFile, cleanupTestFixture, 
 let promptStub: ReturnType<typeof stubInquirer>;
 
 test.beforeEach(() => {
-  promptStub = stubInquirer({ 
+  promptStub = stubInquirer({
     assistants: ['claude', 'codex'],
-    action: 'keep-both' 
+    action: 'keep-both',
+    outOfSyncAction: 'no' // Discard platform edits for out-of-sync skills
   });
 });
 
