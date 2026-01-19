@@ -108,10 +108,12 @@ When no configuration exists:
 
 1. **Phase 1 - Discovery:** Detect which assistants have skills
 2. **Phase 2 - Bidirectional Sync:** Create missing assistant folders
-3. **Phase 3 - Refactoring:** Move skills without `@` references to `.agents-common`
-4. **Phase 4 - Conflict Resolution:** Detect and resolve skill conflicts
-5. **Phase 5 - Frontmatter Propagation:** Sync frontmatter from common to targets
-6. **Phase 6 - Dependent Files Sync:** Centralize non-SKILL.md files in `.agents-common`
+3. **Phase 2.5 - Common-Only Sync:** Create @ references in platform folders for skills that only exist in `.agents-common`
+4. **Phase 2.75 - Out-of-Sync Detection:** Detect platform skills modified outside of sync-skills
+5. **Phase 3 - Refactoring:** Move skills without `@` references to `.agents-common`
+6. **Phase 4 - Conflict Resolution:** Detect and resolve skill conflicts
+7. **Phase 5 - Frontmatter Propagation:** Sync frontmatter from common to targets
+8. **Phase 6 - Dependent Files Sync:** Centralize non-SKILL.md files in `.agents-common`
 
 ## Dependent Files Sync
 
@@ -163,14 +165,14 @@ Excluded from sync:
 - Hash-based conflict resolution detects different content
 - User prompted to resolve conflict
 - Resolved file stored in common
-- Hash stored in `metadata.sync.files` field
+- Main hash (includes all files) stored in `metadata.sync.hash`
 
 #### Scenario 3: Existing Common + Platforms
 
 - Platform files compared vs common files (hash)
 - Common files compared vs stored hashes (in frontmatter)
 - Conflicts detected when hashes differ
-- After resolution, `metadata.sync.files` updated
+- After resolution, `metadata.sync.hash` recomputed (includes all files)
 
 #### Scenario 4: Common Only, Both Platforms
 
@@ -218,9 +220,7 @@ description: My skill
 metadata:
   sync:
     version: 1
-    files:
-      util.js: sha256-abc123...
-      scripts/helper.js: sha256-def456...
+    hash: sha256-abc123... # Includes frontmatter + body + all dependent files
 ---
 ```
 
@@ -275,7 +275,7 @@ echo 'console.log("codex");' > .codex/skills/conflict-skill/util.js
 # Run sync - should prompt for resolution
 npx tsx bin/sync-skills.ts
 
-# Verify hash stored in frontmatter
+# Verify hash stored in frontmatter (includes all files)
 grep -A5 'metadata:' .agents-common/skills/conflict-skill/SKILL.md
 ```
 
@@ -302,26 +302,29 @@ name: hash-test
 metadata:
   sync:
     version: 1
-    files:
-      util.js: sha256-original-hash
+    hash: sha256-abc123... # Main hash includes all files
 ---
 # Hash Test
 EOF
 
 echo 'original content' > .agents-common/skills/hash-test/util.js
 
-# Modify platform version - should detect conflict
+# Modify platform version - should detect out-of-sync
 mkdir -p .claude/skills/hash-test
 cat > .claude/skills/hash-test/SKILL.md << 'EOF'
 ---
 name: hash-test
+metadata:
+  sync:
+    hash: sha256-abc123...
 ---
 # Hash Test
 EOF
 
-echo 'modified content' > .claude/skills/hash-test/util.js
+# Modify the content to trigger out-of-sync detection
+echo 'modified content' > .claude/skills/hash-test/SKILL.md
 
-# Run sync - conflict detected (hash != stored hash)
+# Run sync - out-of-sync detected (content hash != stored hash)
 npx tsx bin/sync-skills.ts
 ```
 

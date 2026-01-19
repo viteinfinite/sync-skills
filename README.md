@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Node](https://img.shields.io/badge/Node-20+-green.svg)](https://nodejs.org/)
-[![Tests](https://img.shields.io/badge/Tests-35%2F35-brightgreen.svg)](https://github.com/viteinfinite/sync-skills/actions)
+[![Tests](https://img.shields.io/badge/Tests-46%2F46-brightgreen.svg)](https://github.com/viteinfinite/sync-skills/actions)
 
 </div>
 
@@ -275,8 +275,7 @@ Configuration is stored in `.agents-common/config.json`:
 **How it works:**
 1. Dependent files are centralized in `.agents-common/skills/{skill}/`
 2. Platform folders contain only `SKILL.md` (with `@` references)
-3. Hash-based conflict resolution detects changes
-4. File hashes stored in `metadata.sync.files` frontmatter
+3. Hash-based conflict resolution detects changes (main hash includes all files)
 
 ---
 
