@@ -285,7 +285,7 @@ After running dependent files sync, verify:
 
 - [ ] Dependent files exist only in `.agents-common/skills/{skill}/`
 - [ ] Platform folders contain only `SKILL.md` (@ reference)
-- [ ] Hashes stored in `metadata.sync.files` field
+- [ ] Main hash stored in `metadata.sync.hash` field (includes frontmatter + body + all dependent files)
 - [ ] Conflicts detected when file hashes differ
 - [ ] Cleanup removed platform dependent files
 - [ ] Empty directories removed from platform folders

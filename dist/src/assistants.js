@@ -88,13 +88,13 @@ export function findSyncPairs(states) {
 /**
  * Check if a sync pair needs user prompt (target dir doesn't exist)
  */
-export function needsPrompt(pair) {
+function needsPrompt(pair) {
     return !pair.target.hasDir;
 }
 /**
  * Prompt user for sync permission
  */
-export async function promptForSync(targetName) {
+async function promptForSync(targetName) {
     const answer = await inquirer.prompt([
         {
             type: 'confirm',
@@ -108,7 +108,7 @@ export async function promptForSync(targetName) {
 /**
  * Clone skills from source assistant to target assistant
  */
-export async function cloneAssistantSkills(baseDir, sourceSkills, targetConfig) {
+async function cloneAssistantSkills(baseDir, sourceSkills, targetConfig) {
     for (const skill of sourceSkills) {
         const content = await fs.readFile(skill.path, 'utf-8');
         const parsed = matter(content);

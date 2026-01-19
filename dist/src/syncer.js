@@ -84,6 +84,25 @@ export async function copySkill(sourcePath, targetPath) {
  * @returns Hash in format "sha256-{hex}"
  */
 export function computeSkillHash(coreFrontmatter, bodyContent, dependentFiles = []) {
+    // Stable stringification for deterministic hashing - sorts object keys recursively
+    function stableStringify(obj) {
+        if (obj === null)
+            return 'null';
+        if (obj === undefined)
+            return 'undefined';
+        if (typeof obj === 'string')
+            return '"' + obj.replace(/"/g, '\\"') + '"';
+        if (typeof obj === 'number' || typeof obj === 'boolean')
+            return String(obj);
+        if (Array.isArray(obj))
+            return '[' + obj.map(v => stableStringify(v)).join(',') + ']';
+        if (typeof obj === 'object') {
+            const sortedKeys = Object.keys(obj).sort();
+            const pairs = sortedKeys.map(key => `"${key}":${stableStringify(obj[key])}`);
+            return '{' + pairs.join(',') + '}';
+        }
+        return '';
+    }
     const hash = createHash('sha256');
     // 1. Hash core frontmatter (deterministic JSON)
     const frontmatterStr = stableStringify(coreFrontmatter);
@@ -122,36 +141,5 @@ export async function updateMainHash(skillPath, newHash) {
     };
     const newContent = matter.stringify(content, newData);
     await fs.writeFile(skillPath, newContent);
-}
-/**
- * Stable stringification for deterministic hashing
- * Sorts object keys recursively
- */
-function stableStringify(obj) {
-    // Handle null and undefined explicitly with markers
-    if (obj === null)
-        return 'null';
-    if (obj === undefined)
-        return 'undefined';
-    // Helper to escape strings
-    const jsonStringify = (s) => '"' + s.replace(/"/g, '\\"') + '"';
-    if (typeof obj === 'string') {
-        return jsonStringify(obj);
-    }
-    if (typeof obj === 'number' || typeof obj === 'boolean') {
-        return String(obj);
-    }
-    if (Array.isArray(obj)) {
-        return '[' + obj.map(v => stableStringify(v)).join(',') + ']';
-    }
-    if (typeof obj === 'object') {
-        const sortedKeys = Object.keys(obj).sort();
-        const pairs = sortedKeys.map(key => {
-            const value = obj[key];
-            return `"${key}":${stableStringify(value)}`;
-        });
-        return '{' + pairs.join(',') + '}';
-    }
-    return '';
 }
 //# sourceMappingURL=syncer.js.map

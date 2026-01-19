@@ -107,14 +107,14 @@ export function findSyncPairs(states: AssistantState[]): SyncPair[] {
 /**
  * Check if a sync pair needs user prompt (target dir doesn't exist)
  */
-export function needsPrompt(pair: SyncPair): boolean {
+function needsPrompt(pair: SyncPair): boolean {
   return !pair.target.hasDir;
 }
 
 /**
  * Prompt user for sync permission
  */
-export async function promptForSync(targetName: string): Promise<boolean> {
+async function promptForSync(targetName: string): Promise<boolean> {
   const answer = await inquirer.prompt([
     {
       type: 'confirm',
@@ -129,7 +129,7 @@ export async function promptForSync(targetName: string): Promise<boolean> {
 /**
  * Clone skills from source assistant to target assistant
  */
-export async function cloneAssistantSkills(
+async function cloneAssistantSkills(
   baseDir: string,
   sourceSkills: SkillFile[],
   targetConfig: AssistantConfig

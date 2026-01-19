@@ -108,6 +108,21 @@ export function computeSkillHash(
   bodyContent: string,
   dependentFiles: Array<{ path: string; hash: string }> = []
 ): string {
+  // Stable stringification for deterministic hashing - sorts object keys recursively
+  function stableStringify(obj: unknown): string {
+    if (obj === null) return 'null';
+    if (obj === undefined) return 'undefined';
+    if (typeof obj === 'string') return '"' + obj.replace(/"/g, '\\"') + '"';
+    if (typeof obj === 'number' || typeof obj === 'boolean') return String(obj);
+    if (Array.isArray(obj)) return '[' + obj.map(v => stableStringify(v)).join(',') + ']';
+    if (typeof obj === 'object') {
+      const sortedKeys = Object.keys(obj).sort();
+      const pairs = sortedKeys.map(key => `"${key}":${stableStringify((obj as Record<string, unknown>)[key])}`);
+      return '{' + pairs.join(',') + '}';
+    }
+    return '';
+  }
+
   const hash = createHash('sha256');
 
   // 1. Hash core frontmatter (deterministic JSON)
@@ -154,36 +169,4 @@ export async function updateMainHash(skillPath: string, newHash: string): Promis
 
   const newContent = matter.stringify(content, newData);
   await fs.writeFile(skillPath, newContent);
-}
-
-/**
- * Stable stringification for deterministic hashing
- * Sorts object keys recursively
- */
-function stableStringify(obj: unknown): string {
-  // Handle null and undefined explicitly with markers
-  if (obj === null) return 'null';
-  if (obj === undefined) return 'undefined';
-
-  // Helper to escape strings
-  const jsonStringify = (s: string): string => '"' + s.replace(/"/g, '\\"') + '"';
-
-  if (typeof obj === 'string') {
-    return jsonStringify(obj);
-  }
-  if (typeof obj === 'number' || typeof obj === 'boolean') {
-    return String(obj);
-  }
-  if (Array.isArray(obj)) {
-    return '[' + obj.map(v => stableStringify(v)).join(',') + ']';
-  }
-  if (typeof obj === 'object') {
-    const sortedKeys = Object.keys(obj).sort();
-    const pairs = sortedKeys.map(key => {
-      const value = (obj as Record<string, unknown>)[key];
-      return `"${key}":${stableStringify(value)}`;
-    });
-    return '{' + pairs.join(',') + '}';
-  }
-  return '';
 }
