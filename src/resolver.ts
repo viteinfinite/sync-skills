@@ -2,6 +2,7 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import matter from 'gray-matter';
 import { formatDiff } from './detector.js';
+import type { OutOfSyncSkill } from './detector.js';
 import type { Conflict, ConflictResolution, DependentConflict, DependentConflictResolution } from './types.js';
 
 type InquirerImpl = typeof inquirer;
@@ -95,13 +96,6 @@ function formatDependentConflictDetails(conflict: DependentConflict): string {
 
     lines.push(chalk.magenta(`\nCommon hash:`));
     lines.push(chalk.gray(`  ${conflict.commonHash}`));
-  } else if (conflict.storedHash && conflict.platformHash !== conflict.storedHash) {
-    lines.push(chalk.yellow(`\nConflict: File has changed since last sync`));
-    lines.push(chalk.cyan(`\nCurrent hash:`));
-    lines.push(chalk.gray(`  ${conflict.platformHash}`));
-
-    lines.push(chalk.magenta(`\nStored hash (from frontmatter):`));
-    lines.push(chalk.gray(`  ${conflict.storedHash}`));
   } else {
     lines.push(chalk.yellow(`\nConflict: Multiple versions exist with different content`));
     lines.push(chalk.cyan(`\n${conflict.platform} hash:`));
@@ -162,6 +156,83 @@ export async function resolveDependentConflicts(
 
     if (resolution.action === 'abort') {
       break;
+    }
+  }
+
+  return resolutions;
+}
+
+/**
+ * User resolution for an out-of-sync skill
+ */
+export interface OutOfSyncResolution {
+  action: 'yes' | 'no' | 'skip';
+}
+
+/**
+ * Format details for an out-of-sync skill
+ */
+function formatOutOfSyncDetails(skill: OutOfSyncSkill): string {
+  const lines: string[] = [];
+
+  lines.push(chalk.bold.yellow(`\n⚠️  Skill modified outside of sync-skills: ${skill.skillName}`));
+  lines.push(chalk.yellow(`\nPlatform: ${skill.platform}`));
+  lines.push(chalk.gray(`Path: ${skill.platformPath}`));
+  lines.push(chalk.yellow(`\nThe skill has been modified directly, causing a hash mismatch:`));
+  lines.push(chalk.cyan(`\nCurrent hash:`));
+  lines.push(chalk.gray(`  ${skill.currentHash}`));
+  lines.push(chalk.magenta(`\nStored hash:`));
+  lines.push(chalk.gray(`  ${skill.storedHash}`));
+  lines.push('');
+  return lines.join('\n');
+}
+
+/**
+ * Resolve an out-of-sync skill through user interaction
+ * @param skill - The out-of-sync skill to resolve
+ * @param inquirerImpl - Inquirer implementation (for testing)
+ * @returns Resolution action
+ */
+export async function resolveOutOfSyncSkill(
+  skill: OutOfSyncSkill,
+  inquirerImpl: InquirerImpl = inquirer
+): Promise<OutOfSyncResolution> {
+  console.log(formatOutOfSyncDetails(skill));
+
+  const { outOfSyncAction } = await inquirerImpl.prompt([
+    {
+      type: 'list',
+      name: 'outOfSyncAction',
+      message: 'Do you want to apply these edits to the common skill?',
+      choices: [
+        { name: 'Yes - Copy platform edits to common skill', value: 'yes' },
+        { name: 'No - Use common skill content (discard platform edits)', value: 'no' },
+        { name: 'Skip - Leave this skill as-is and continue', value: 'skip' }
+      ]
+    }
+  ]);
+
+  return { action: outOfSyncAction };
+}
+
+/**
+ * Batch resolve multiple out-of-sync skills
+ * @param skills - Array of out-of-sync skills
+ * @param inquirerImpl - Inquirer implementation (for testing)
+ * @returns Map of skill names to their resolutions
+ */
+export async function resolveOutOfSyncSkills(
+  skills: OutOfSyncSkill[],
+  inquirerImpl: InquirerImpl = inquirer
+): Promise<Map<string, OutOfSyncResolution>> {
+  const resolutions = new Map<string, OutOfSyncResolution>();
+
+  for (const skill of skills) {
+    const resolution = await resolveOutOfSyncSkill(skill, inquirerImpl);
+    resolutions.set(skill.skillName, resolution);
+
+    if (resolution.action === 'skip') {
+      continue;
     }
   }
 

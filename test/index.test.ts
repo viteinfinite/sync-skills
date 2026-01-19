@@ -18,7 +18,7 @@ describe('run', () => {
     const testDir = await createTestFixture('index-integration', async (dir) => {
       await fs.mkdir(`${dir}/.claude/skills/test-skill`, { recursive: true });
       await fs.mkdir(`${dir}/.codex/skills/test-skill`, { recursive: true });
-      
+
       const claudePath = `${dir}/.claude/skills/test-skill/SKILL.md`;
       await fs.writeFile(claudePath, `---
 name: test-skill
@@ -29,7 +29,10 @@ name: test-skill
 Content`);
     });
 
-    promptStub = stubInquirer({ assistants: ['claude', 'codex'] });
+    promptStub = stubInquirer({
+      assistants: ['claude', 'codex'],
+      outOfSyncAction: 'no' // For out-of-sync detection - discard platform edits
+    });
 
     const claudePath = `${testDir}/.claude/skills/test-skill/SKILL.md`;
 

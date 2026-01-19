@@ -1,4 +1,4 @@
-import type { DependentFile, DependentFileHashes, DependentConflict, DependentConflictResolution } from './types.js';
+import type { DependentFile, DependentConflict, DependentConflictResolution } from './types.js';
 /**
  * Compute sha256 hash of a file's content
  * @param filePath - Absolute path to the file
@@ -36,28 +36,15 @@ export declare function collectDependentFilesFromPlatforms(skillName: string, pl
     path: string;
 }>): Promise<Map<string, DependentFile[]>>;
 /**
- * Get stored file hashes from SKILL.md frontmatter
- * @param skillPath - Path to the skill folder (containing SKILL.md)
- * @returns Map of file paths to stored hashes
- */
-export declare function getStoredHashes(skillPath: string): Promise<DependentFileHashes>;
-/**
- * Store file hashes in SKILL.md frontmatter
- * @param skillPath - Path to the skill folder (containing SKILL.md)
- * @param hashes - Map of file paths to hashes
- */
-export declare function storeFileHashesInFrontmatter(skillPath: string, hashes: DependentFileHashes): Promise<void>;
-/**
  * Consolidate dependent files to common folder
  * @param skillName - Name of the skill
  * @param platformFiles - Map of platform names to their dependent files
  * @param commonPath - Path to the common skills folder
- * @param storedHashes - Previously stored hashes from frontmatter
- * @returns Object containing conflicts and final hashes
+ * @returns Object containing conflicts and list of consolidated files
  */
-export declare function consolidateDependentsToCommon(skillName: string, platformFiles: Map<string, DependentFile[]>, commonPath: string, storedHashes?: DependentFileHashes): Promise<{
+export declare function consolidateDependentsToCommon(skillName: string, platformFiles: Map<string, DependentFile[]>, commonPath: string): Promise<{
     conflicts: DependentConflict[];
-    hashes: DependentFileHashes;
+    files: string[];
 }>;
 /**
  * Clean up dependent files from a platform folder
@@ -71,7 +58,7 @@ export declare function cleanupPlatformDependentFiles(platformPath: string, skil
  * @param conflicts - Array of conflicts to resolve
  * @param resolutions - Map of conflict keys to resolutions
  * @param commonPath - Path to the common skills folder
- * @returns Object containing final hashes
+ * @returns Array of resolved file paths
  */
-export declare function applyConflictResolutions(conflicts: DependentConflict[], resolutions: Map<string, DependentConflictResolution>, commonPath: string): Promise<DependentFileHashes>;
+export declare function applyConflictResolutions(conflicts: DependentConflict[], resolutions: Map<string, DependentConflictResolution>, commonPath: string): Promise<string[]>;
 //# sourceMappingURL=dependents.d.ts.map

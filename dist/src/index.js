@@ -3,14 +3,14 @@ import { join } from 'path';
 import matter from 'gray-matter';
 import { scanSkills } from './scanner.js';
 import { parseSkillFile } from './parser.js';
-import { detectConflicts } from './detector.js';
-import { resolveConflict, resolveDependentConflicts } from './resolver.js';
+import { detectConflicts, detectOutOfSyncSkills } from './detector.js';
+import { resolveConflict, resolveDependentConflicts, resolveOutOfSyncSkills } from './resolver.js';
 import { refactorSkill, copySkill, computeSkillHash, updateMainHash } from './syncer.js';
 import { propagateFrontmatter } from './propagator.js';
 import { discoverAssistants, findSyncPairs, processSyncPairs, syncCommonOnlySkills } from './assistants.js';
 import { ensureConfig, reconfigure as runReconfigure, getEnabledAssistants } from './config.js';
 import { normalizeBodyContent, pickCoreFrontmatter } from './frontmatter.js';
-import { collectDependentFilesFromPlatforms, consolidateDependentsToCommon, cleanupPlatformDependentFiles, getStoredHashes, storeFileHashesInFrontmatter, applyConflictResolutions } from './dependents.js';
+import { collectDependentFilesFromPlatforms, consolidateDependentsToCommon, cleanupPlatformDependentFiles, applyConflictResolutions } from './dependents.js';
 export async function run(options = {}) {
     let { baseDir = process.cwd(), failOnConflict = false, dryRun = false, homeMode = false, reconfigure = false } = options;
     // Handle --home flag
@@ -65,6 +65,86 @@ export async function run(options = {}) {
     }
     // Re-scan after refactor to capture new common skills and updated platform state
     ({ platforms, common } = await scanSkills(baseDir, enabledConfigs));
+    // Phase 2.75: Detect out-of-sync platform skills
+    if (!dryRun) {
+        // Collect all platform skills to check for out-of-sync
+        const allPlatformSkills = [];
+        for (const config of enabledConfigs) {
+            const platformSkills = platforms[config.name] || [];
+            allPlatformSkills.push(...platformSkills);
+        }
+        // Detect out-of-sync skills
+        const outOfSyncSkills = await detectOutOfSyncSkills(allPlatformSkills);
+        if (outOfSyncSkills.length > 0) {
+            // Interactive resolution
+            const resolutions = await resolveOutOfSyncSkills(outOfSyncSkills);
+            // Process each resolution
+            for (const [skillName, resolution] of resolutions) {
+                if (resolution.action === 'skip') {
+                    // Leave this skill as-is
+                    continue;
+                }
+                // Find the out-of-sync skill
+                const outOfSyncSkill = outOfSyncSkills.find(s => s.skillName === skillName);
+                if (!outOfSyncSkill) {
+                    continue;
+                }
+                // Find corresponding common skill
+                const commonSkill = common.find(c => c.skillName === skillName);
+                if (!commonSkill) {
+                    console.warn(`Warning: Common skill not found for ${skillName}`);
+                    continue;
+                }
+                if (resolution.action === 'yes') {
+                    // Copy platform edits to common skill
+                    const platformContent = await fs.readFile(outOfSyncSkill.platformPath, 'utf8');
+                    const platformParsed = matter(platformContent);
+                    // Read common skill
+                    const commonContent = await fs.readFile(commonSkill.path, 'utf8');
+                    const commonParsed = matter(commonContent);
+                    // Extract core frontmatter from platform
+                    const coreFrontmatter = pickCoreFrontmatter(platformParsed.data);
+                    // Use platform's body content (the user's edits)
+                    const platformBody = normalizeBodyContent(platformParsed.content);
+                    // Recompute hash with platform's content
+                    const newHash = computeSkillHash(coreFrontmatter, platformBody, []);
+                    // Update common skill with platform's content
+                    const newCommonFrontmatter = {
+                        ...coreFrontmatter,
+                        metadata: {
+                            ...(coreFrontmatter.metadata || {}),
+                            sync: {
+                                hash: newHash
+                            }
+                        }
+                    };
+                    const newCommonContent = matter.stringify(platformBody, newCommonFrontmatter);
+                    await fs.writeFile(commonSkill.path, newCommonContent);
+                    console.log(`Applied platform edits to common skill: ${skillName}`);
+                    // Propagate updated common skill to all platforms
+                    const platformPaths = [];
+                    for (const config of enabledConfigs) {
+                        const platformSkillPath = join(baseDir, config.skillsDir, skillName, 'SKILL.md');
+                        try {
+                            await fs.access(platformSkillPath);
+                            platformPaths.push(platformSkillPath);
+                        }
+                        catch {
+                            // Platform skill doesn't exist, skip
+                        }
+                    }
+                    if (platformPaths.length > 0) {
+                        await propagateFrontmatter(commonSkill.path, platformPaths, { failOnConflict, dryRun: false });
+                    }
+                }
+                else if (resolution.action === 'no') {
+                    // Use common skill content (overwrite platform edits)
+                    // This will happen naturally in Phase 5 when we propagate frontmatter
+                    console.log(`Discarded platform edits for ${skillName}`);
+                }
+            }
+        }
+    }
     // Phase 4: Detect and resolve conflicts (between first two platforms for now)
     const platformNames = Object.keys(platforms);
     const platformA = platformNames[0] || 'claude';
@@ -133,12 +213,9 @@ export async function run(options = {}) {
                 // No dependent files to sync
                 continue;
             }
-            // Get stored hashes from common skill
-            const commonSkillPath = join(commonSkillsPath, skillName);
-            const storedHashes = await getStoredHashes(commonSkillPath);
             // Consolidate dependent files to common (detects conflicts)
-            const { conflicts, hashes: initialHashes } = await consolidateDependentsToCommon(skillName, platformFiles, commonSkillsPath, storedHashes);
-            let finalHashes = initialHashes;
+            const { conflicts, files: initialFiles } = await consolidateDependentsToCommon(skillName, platformFiles, commonSkillsPath);
+            let finalFiles = initialFiles;
             // Resolve conflicts if any
             if (conflicts.length > 0) {
                 if (failOnConflict) {
@@ -151,29 +228,18 @@ export async function run(options = {}) {
                 if (hasAbort) {
                     throw new Error('Sync aborted');
                 }
-                // Apply resolutions and get final hashes
-                const resolvedHashes = await applyConflictResolutions(conflicts, resolutions, commonSkillsPath);
-                // Merge resolved hashes with initial hashes
-                finalHashes = { ...initialHashes, ...resolvedHashes };
-            }
-            // Update frontmatter with final hashes
-            if (Object.keys(finalHashes).length > 0) {
-                // Ensure SKILL.md exists in common (it should from earlier phases)
-                try {
-                    await fs.access(join(commonSkillPath, 'SKILL.md'));
-                    await storeFileHashesInFrontmatter(commonSkillPath, finalHashes);
-                }
-                catch {
-                    // SKILL.md doesn't exist in common - this shouldn't happen if earlier phases worked
-                    console.warn(`Warning: SKILL.md not found in common for ${skillName}, skipping hash storage`);
-                }
+                // Apply resolutions and get final files
+                const resolvedFiles = await applyConflictResolutions(conflicts, resolutions, commonSkillsPath);
+                // Merge resolved files with initial files
+                finalFiles = [...new Set([...initialFiles, ...resolvedFiles])];
             }
             // Recompute main hash with new dependent files and propagate to all platforms
             try {
                 // Skip hash recomputation if no dependent files (hash won't change)
-                if (Object.keys(finalHashes).length === 0) {
+                if (finalFiles.length === 0) {
                     continue;
                 }
+                const commonSkillPath = join(commonSkillsPath, skillName);
                 const commonFilePath = join(commonSkillPath, 'SKILL.md');
                 const commonContent = await fs.readFile(commonFilePath, 'utf8');
                 const commonParsed = matter(commonContent);
@@ -181,8 +247,20 @@ export async function run(options = {}) {
                 const coreFrontmatter = pickCoreFrontmatter(commonParsed.data);
                 // Normalize body content (strip leading newline like in refactorSkill)
                 const bodyContent = normalizeBodyContent(commonParsed.content);
-                // Build dependent files array from finalHashes
-                const dependentFiles = Object.entries(finalHashes).map(([path, hash]) => ({ path, hash: hash }));
+                // Scan common folder for dependent files and compute their hashes
+                const dependentFiles = [];
+                for (const relativePath of finalFiles) {
+                    const absolutePath = join(commonSkillPath, relativePath);
+                    try {
+                        const { computeFileHash } = await import('./dependents.js');
+                        const hash = await computeFileHash(absolutePath);
+                        dependentFiles.push({ path: relativePath, hash });
+                    }
+                    catch (error) {
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        console.warn(`Warning: Failed to compute hash for ${relativePath}: ${errorMessage}`);
+                    }
+                }
                 // Recompute hash with new dependent files
                 const newHash = computeSkillHash(coreFrontmatter, bodyContent, dependentFiles);
                 // Update hash in common file
@@ -202,24 +280,28 @@ export async function run(options = {}) {
                 if (platformPaths.length > 0) {
                     await propagateFrontmatter(commonFilePath, platformPaths, { failOnConflict, dryRun: false });
                 }
+                // Clean up dependent files from platform folders
+                // Only cleanup from platforms that originally had those files
+                for (const [platformName, files] of platformFiles.entries()) {
+                    const filesToCleanup = files.map(f => f.relativePath);
+                    if (filesToCleanup.length > 0) {
+                        const platformConfig = enabledConfigs.find(c => c.name === platformName);
+                        if (platformConfig) {
+                            const platformSkillsPath = join(baseDir, platformConfig.skillsDir);
+                            try {
+                                await cleanupPlatformDependentFiles(platformSkillsPath, skillName, filesToCleanup);
+                            }
+                            catch (error) {
+                                const errorMessage = error instanceof Error ? error.message : String(error);
+                                console.warn(`Warning: Failed to cleanup ${platformConfig.name} dependent files for ${skillName}: ${errorMessage}`);
+                            }
+                        }
+                    }
+                }
             }
             catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 console.warn(`Warning: Failed to recompute and propagate hash for ${skillName}: ${errorMessage}`);
-            }
-            // Clean up dependent files from platform folders
-            const filesToCleanup = Object.keys(finalHashes);
-            if (filesToCleanup.length > 0) {
-                for (const config of enabledConfigs) {
-                    const platformSkillsPath = join(baseDir, config.skillsDir);
-                    try {
-                        await cleanupPlatformDependentFiles(platformSkillsPath, skillName, filesToCleanup);
-                    }
-                    catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : String(error);
-                        console.warn(`Warning: Failed to cleanup ${config.name} dependent files for ${skillName}: ${errorMessage}`);
-                    }
-                }
             }
         }
     }

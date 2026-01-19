@@ -51,7 +51,6 @@ export async function refactorSkill(sourcePath) {
         metadata: {
             sync: {
                 version: 2,
-                files: {},
                 hash: skillHash
             }
         }

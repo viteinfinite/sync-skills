@@ -137,12 +137,6 @@ export interface DependentFile {
     hash: string;
 }
 /**
- * Map of relative file paths to their hashes
- */
-export interface DependentFileHashes {
-    [relativePath: string]: string;
-}
-/**
  * Conflict between dependent file versions
  */
 export interface DependentConflict {
@@ -164,8 +158,6 @@ export interface DependentConflict {
     platformContent?: string;
     /** Common file content for diff display */
     commonContent?: string;
-    /** Stored hash from frontmatter (if exists) */
-    storedHash?: string;
 }
 /**
  * User resolution for a dependent file conflict

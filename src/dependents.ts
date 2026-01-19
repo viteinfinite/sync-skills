@@ -4,7 +4,6 @@ import { createHash } from 'crypto';
 import matter from 'gray-matter';
 import type {
   DependentFile,
-  DependentFileHashes,
   DependentConflict,
   DependentConflictResolution,
   AssistantConfig
@@ -149,86 +148,19 @@ export async function collectDependentFilesFromPlatforms(
 }
 
 /**
- * Get stored file hashes from SKILL.md frontmatter
- * @param skillPath - Path to the skill folder (containing SKILL.md)
- * @returns Map of file paths to stored hashes
- */
-export async function getStoredHashes(skillPath: string): Promise<DependentFileHashes> {
-  const skillMdPath = join(skillPath, 'SKILL.md');
-
-  try {
-    const content = await fs.readFile(skillMdPath, 'utf8');
-    const parsed = matter(content);
-
-    // Extract metadata.sync.files if it exists
-    const metadata = parsed.data as { metadata?: { sync?: { files?: DependentFileHashes } } };
-
-    if (metadata?.metadata?.sync?.files) {
-      return metadata.metadata.sync.files;
-    }
-
-    return {};
-  } catch {
-    // File doesn't exist or can't be parsed
-    return {};
-  }
-}
-
-/**
- * Store file hashes in SKILL.md frontmatter
- * @param skillPath - Path to the skill folder (containing SKILL.md)
- * @param hashes - Map of file paths to hashes
- */
-export async function storeFileHashesInFrontmatter(
-  skillPath: string,
-  hashes: DependentFileHashes
-): Promise<void> {
-  const skillMdPath = join(skillPath, 'SKILL.md');
-
-  try {
-    const content = await fs.readFile(skillMdPath, 'utf8');
-    const parsed = matter(content);
-
-    // Merge existing data with new sync metadata
-    const existingData = parsed.data || {};
-    const existingMetadata = (existingData as { metadata?: Record<string, unknown> }).metadata || {};
-
-    const newData = {
-      ...existingData,
-      metadata: {
-        ...existingMetadata,
-        sync: {
-          version: 1,
-          files: hashes
-        }
-      }
-    };
-
-    // Reconstruct file with updated frontmatter
-    const newContent = matter.stringify(content, newData);
-    await fs.writeFile(skillMdPath, newContent, 'utf8');
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to update frontmatter in ${skillMdPath}: ${errorMessage}`);
-  }
-}
-
-/**
  * Consolidate dependent files to common folder
  * @param skillName - Name of the skill
  * @param platformFiles - Map of platform names to their dependent files
  * @param commonPath - Path to the common skills folder
- * @param storedHashes - Previously stored hashes from frontmatter
- * @returns Object containing conflicts and final hashes
+ * @returns Object containing conflicts and list of consolidated files
  */
 export async function consolidateDependentsToCommon(
   skillName: string,
   platformFiles: Map<string, DependentFile[]>,
-  commonPath: string,
-  storedHashes: DependentFileHashes = {}
-): Promise<{ conflicts: DependentConflict[]; hashes: DependentFileHashes }> {
+  commonPath: string
+): Promise<{ conflicts: DependentConflict[]; files: string[] }> {
   const conflicts: DependentConflict[] = [];
-  const finalHashes: DependentFileHashes = {};
+  const consolidatedFiles: string[] = [];
   const commonSkillPath = join(commonPath, skillName);
 
   // Collect all unique file paths across all platforms
@@ -263,8 +195,7 @@ export async function consolidateDependentsToCommon(
       skillName,
       relativePath,
       fileVersions,
-      commonSkillPath,
-      storedHashes[relativePath]
+      commonSkillPath
     );
 
     if (selectedVersion.conflict) {
@@ -285,7 +216,7 @@ export async function consolidateDependentsToCommon(
         platformPath: fileVersions[0].file.absolutePath,
         platformHash: fileVersions[0].file.hash
       });
-      return { conflicts, hashes: finalHashes };
+      return { conflicts, files: consolidatedFiles };
     }
 
     // Copy the selected file to common
@@ -296,11 +227,11 @@ export async function consolidateDependentsToCommon(
     await fs.mkdir(join(targetPath, '..'), { recursive: true });
     await fs.copyFile(sourcePath, targetPath);
 
-    // Store the final hash
-    finalHashes[relativePath] = selectedVersion.hash;
+    // Track the consolidated file
+    consolidatedFiles.push(relativePath);
   }
 
-  return { conflicts, hashes: finalHashes };
+  return { conflicts, files: consolidatedFiles };
 }
 
 /**
@@ -309,15 +240,13 @@ export async function consolidateDependentsToCommon(
  * @param relativePath - Relative path to the file
  * @param versions - All versions of this file from different platforms
  * @param commonPath - Path to the common skill folder
- * @param storedHash - Previously stored hash (if exists)
  * @returns Selection result with source path, hash, and any conflict
  */
 async function selectFileVersion(
   skillName: string,
   relativePath: string,
   versions: Array<{ platform: string; file: DependentFile }>,
-  commonPath: string,
-  storedHash?: string
+  commonPath: string
 ): Promise<{
   action: 'copy' | 'skip' | 'abort';
   sourcePath: string;
@@ -341,9 +270,9 @@ async function selectFileVersion(
   if (versions.length === 1) {
     const version = versions[0];
 
-    // Check for conflict with stored hash
-    if (storedHash && !hashMatches(version.file.hash, storedHash)) {
-      // Conflict: file changed since last sync
+    // Check for conflict with common version
+    if (commonExists && commonHash && !hashMatches(version.file.hash, commonHash)) {
+      // Conflict: platform file differs from common file
       return {
         action: 'skip',
         sourcePath: version.file.absolutePath,
@@ -355,8 +284,7 @@ async function selectFileVersion(
           platformPath: version.file.absolutePath,
           platformHash: version.file.hash,
           commonPath: commonExists ? commonFilePath : undefined,
-          commonHash,
-          storedHash
+          commonHash
         }
       };
     }
@@ -373,9 +301,9 @@ async function selectFileVersion(
   const allMatch = versions.every(v => hashMatches(v.file.hash, firstHash));
 
   if (allMatch) {
-    // All platforms have the same content - check against stored hash
-    if (storedHash && !hashMatches(firstHash, storedHash)) {
-      // Conflict: file changed since last sync
+    // All platforms have the same content - check against common version
+    if (commonExists && commonHash && !hashMatches(firstHash, commonHash)) {
+      // Conflict: platform files differ from common file
       return {
         action: 'skip',
         sourcePath: versions[0].file.absolutePath,
@@ -387,8 +315,7 @@ async function selectFileVersion(
           platformPath: versions[0].file.absolutePath,
           platformHash: firstHash,
           commonPath: commonExists ? commonFilePath : undefined,
-          commonHash,
-          storedHash
+          commonHash
         }
       };
     }
@@ -413,8 +340,7 @@ async function selectFileVersion(
       platformPath: versions[0].file.absolutePath,
       platformHash: versions[0].file.hash,
       commonPath: commonExists ? commonFilePath : undefined,
-      commonHash,
-      storedHash
+      commonHash
     }
   };
 }
@@ -453,21 +379,21 @@ export async function cleanupPlatformDependentFiles(
  * @param conflicts - Array of conflicts to resolve
  * @param resolutions - Map of conflict keys to resolutions
  * @param commonPath - Path to the common skills folder
- * @returns Object containing final hashes
+ * @returns Array of resolved file paths
  */
 export async function applyConflictResolutions(
   conflicts: DependentConflict[],
   resolutions: Map<string, DependentConflictResolution>,
   commonPath: string
-): Promise<DependentFileHashes> {
-  const finalHashes: DependentFileHashes = {};
+): Promise<string[]> {
+  const resolvedFiles: string[] = [];
 
   for (const conflict of conflicts) {
     const key = `${conflict.skillName}/${conflict.relativePath}`;
     const resolution = resolutions.get(key);
 
     if (!resolution || resolution.action === 'skip') {
-      // Skip this file - don't include in final hashes
+      // Skip this file - don't include in resolved files
       continue;
     }
 
@@ -479,22 +405,20 @@ export async function applyConflictResolutions(
     const commonFilePath = join(commonSkillPath, conflict.relativePath);
 
     if (resolution.action === 'use-common') {
-      // Keep common version - compute its hash
+      // Keep common version - track it
       if (conflict.commonPath) {
-        const hash = await computeFileHash(conflict.commonPath);
-        finalHashes[conflict.relativePath] = hash;
+        resolvedFiles.push(conflict.relativePath);
       }
     } else if (resolution.action === 'use-platform') {
       // Copy platform version to common
       await fs.mkdir(join(commonFilePath, '..'), { recursive: true });
       await fs.copyFile(conflict.platformPath, commonFilePath);
 
-      const hash = await computeFileHash(conflict.platformPath);
-      finalHashes[conflict.relativePath] = hash;
+      resolvedFiles.push(conflict.relativePath);
     }
   }
 
-  return finalHashes;
+  return resolvedFiles;
 }
 
 /**

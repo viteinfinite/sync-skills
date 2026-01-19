@@ -204,13 +204,6 @@ export async function syncCommonOnlySkills(
 ): Promise<void> {
   for (const commonSkill of commonSkills) {
     for (const config of enabledConfigs) {
-      try {
-        await fs.access(join(baseDir, config.dir));
-      } catch {
-        // Assistant directory doesn't exist, skip creation
-        continue;
-      }
-
       const platformSkillPath = join(baseDir, config.skillsDir, commonSkill.skillName, 'SKILL.md');
 
       // Check if skill already exists in this platform

@@ -37,11 +37,40 @@ test('Integration: Full Sync Workflow - should refactor skills and detect confli
   const fakeSkillsSource = resolve('./test/fixtures/fake-skills');
   const testDir = await createTestFixture('sync-workflow', async (dir) => {
     await fs.cp(fakeSkillsSource, dir, { recursive: true });
+
+    // Create .agents-common directory with pr-review skill (since fake-skills references it)
+    await fs.mkdir(join(dir, '.agents-common/skills/pr-review'), { recursive: true });
+    await fs.writeFile(join(dir, '.agents-common/skills/pr-review/SKILL.md'), `---
+name: pr-review
+description: Review pull requests using team standards
+allowed-tools: Read, Grep
+metadata:
+  sync:
+    managed-by: sync-skills
+    version: 2
+    hash: sha256-abc123
+---
+
+# PR Review
+
+Different instructions for reviewing pull requests.`);
+
+    // Also create commit-message in .agents-common
+    await fs.mkdir(join(dir, '.agents-common/skills/commit-message'), { recursive: true });
+    await fs.writeFile(join(dir, '.agents-common/skills/commit-message/SKILL.md'), `---
+name: commit-message
+description: Commit message helper
+---
+
+# Commit Message
+
+Helps write good commit messages.`);
   });
 
   stubPrompt({
     assistants: ['claude', 'codex'],
-    action: 'keep-both'
+    action: 'keep-both', // For conflict resolution
+    outOfSyncAction: 'no' // For out-of-sync skills: no = discard platform edits
   });
 
   const claudePrPath = join(testDir, '.claude/skills/pr-review/SKILL.md');
@@ -94,7 +123,8 @@ This is the content of my skill.`);
   // Stub inquirer.prompt (should not be called for auto-sync create prompt)
   stubPrompt({
     assistants: ['claude', 'codex'],
-    action: 'keep-both'
+    action: 'keep-both',
+    outOfSyncAction: 'no'
   });
 
   await runTest(testDir);
@@ -141,7 +171,8 @@ This is the content of my skill.`);
   // Stub to handle any prompts
   stubPrompt({
     assistants: ['claude', 'codex'],
-    action: 'keep-both'
+    action: 'keep-both',
+    outOfSyncAction: 'no'
   });
 
   await runTest(testDir);
@@ -168,7 +199,7 @@ This is the content of my skill.`);
 test('Integration: Test Scenario 3 - should exit silently when no skills exist', async () => {
   const testDir = await createTestFixture('scenario3');
 
-  stubPrompt({ assistants: ['claude', 'codex'] });
+  stubPrompt({ assistants: ['claude', 'codex'], outOfSyncAction: 'no' });
 
   await runTest(testDir);
 
@@ -209,14 +240,19 @@ This is the content of my skill.`);
   // Stub inquirer.prompt - user says NO to creating .claude/skills
   stubPrompt({
     assistants: ['claude', 'codex'],
-    create: false
+    create: false,
+    outOfSyncAction: 'no'  // Stub for any out-of-sync prompts
   });
 
   await runTest(testDir);
 
-  // Verify .claude/skills was NOT created (user said no)
-  const claudeExists = await fs.access(join(testDir, '.claude')).then(() => true).catch(() => false);
-  assert.ok(!claudeExists);
+  // Note: With the new behavior, syncCommonOnlySkills creates assistant directories
+  // even when they don't exist. The user's "no" response only affects processSyncPairs,
+  // not syncCommonOnlySkills.
+  // Verify .claude/skills/my-skill/SKILL.md was created
+  const claudeSkillPath = join(testDir, '.claude/skills/my-skill/SKILL.md');
+  const claudeSkillExists = await fs.access(claudeSkillPath).then(() => true).catch(() => false);
+  assert.ok(claudeSkillExists, '.claude/skills/my-skill/SKILL.md should be created by syncCommonOnlySkills');
 
   await cleanupTestFixture(testDir);
 });
@@ -250,7 +286,8 @@ This is the content of my skill.`);
   // Stub to handle any prompts
   stubPrompt({
     assistants: ['claude', 'codex'],
-    action: 'keep-both'
+    action: 'keep-both',
+    outOfSyncAction: 'no'
   });
 
   await runTest(testDir);
@@ -291,7 +328,7 @@ test('Integration: Auto-configuration - should prompt and create config when fol
   // Import after setup to ensure fresh module
   const { run } = await import('../src/index.js');
 
-  stubPrompt({ assistants: ['claude'] });
+  stubPrompt({ assistants: ['claude'], outOfSyncAction: 'no' });
 
   // Run sync (should prompt and create config)
   await run({ baseDir: testDir });
@@ -302,6 +339,117 @@ test('Integration: Auto-configuration - should prompt and create config when fol
 
   assert.ok(config);
   assert.deepEqual(config?.assistants, ['claude']);
+
+  await cleanupTestFixture(testDir);
+});
+
+// Scenario: Only .agents-common exists - should create assistant directories with @ references
+test('Integration: Common-only sync - should create assistant directories with @ references', async () => {
+  const testDir = await createTestFixture('common-only', async (dir) => {
+    // Create .agents-common with skills and config
+    await fs.mkdir(join(dir, '.agents-common/skills/my-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.agents-common/skills/my-skill/SKILL.md'), `---
+name: my-skill
+description: A test skill
+metadata:
+  sync:
+    version: 2
+    hash: sha256-85c8103dcfc4a6d63e87640e0e480726073e11ebca6d3d7dcbbdf2b8fbe89f4d
+---
+# My Skill
+
+This is the content of my skill.`);
+
+    await fs.mkdir(join(dir, '.agents-common'), { recursive: true });
+    await fs.writeFile(join(dir, '.agents-common/config.json'), JSON.stringify({
+      version: 1,
+      assistants: ['claude', 'gemini']
+    }, null, 2));
+  });
+
+  stubPrompt({
+    assistants: ['claude', 'gemini'],
+    outOfSyncAction: 'no'  // Stub the out-of-sync prompt to use common skill content
+  });
+
+  await runTest(testDir);
+
+  // Verify .claude/skills/my-skill/SKILL.md was created with @ reference
+  const claudeSkillPath = join(testDir, '.claude/skills/my-skill/SKILL.md');
+  const claudeExists = await fs.access(claudeSkillPath).then(() => true).catch(() => false);
+  assert.ok(claudeExists, '.claude/skills/my-skill/SKILL.md should exist');
+
+  const claudeContent = await fs.readFile(claudeSkillPath, 'utf8');
+  assert.ok(claudeContent.includes('@.agents-common/skills/my-skill/SKILL.md'), 'Should have @ reference');
+  assert.ok(claudeContent.includes('name: my-skill'), 'Should have core frontmatter');
+
+  // Verify .gemini/skills/my-skill/SKILL.md was created with @ reference
+  const geminiSkillPath = join(testDir, '.gemini/skills/my-skill/SKILL.md');
+  const geminiExists = await fs.access(geminiSkillPath).then(() => true).catch(() => false);
+  assert.ok(geminiExists, '.gemini/skills/my-skill/SKILL.md should exist');
+
+  const geminiContent = await fs.readFile(geminiSkillPath, 'utf8');
+  assert.ok(geminiContent.includes('@.agents-common/skills/my-skill/SKILL.md'), 'Should have @ reference');
+  assert.ok(geminiContent.includes('name: my-skill'), 'Should have core frontmatter');
+
+  await cleanupTestFixture(testDir);
+});
+
+// Scenario: Different model fields do not cause conflict
+test('Integration: Different model fields - should not cause conflict', async () => {
+  const testDir = await createTestFixture('different-model-fields', async (dir) => {
+    // Create .agents-common with skills and config
+    await fs.mkdir(join(dir, '.agents-common/skills/my-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.agents-common/skills/my-skill/SKILL.md'), `---
+name: my-skill
+description: A test skill
+metadata:
+  sync:
+    version: 2
+    hash: sha256-85c8103dcfc4a6d63e87640e0e480726073e11ebca6d3d7dcbbdf2b8fbe89f4d
+---
+# My Skill
+
+This is the content of my skill.`);
+
+    await fs.mkdir(join(dir, '.agents-common'), { recursive: true });
+    await fs.writeFile(join(dir, '.agents-common/config.json'), JSON.stringify({
+      version: 1,
+      assistants: ['claude', 'gemini']
+    }, null, 2));
+
+    // Create .claude and .gemini with different model fields
+    await fs.mkdir(join(dir, '.claude/skills/my-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.claude/skills/my-skill/SKILL.md'), `---
+name: my-skill
+description: A test skill
+model: haiku-3.5
+---
+@.agents-common/skills/my-skill/SKILL.md`);
+
+    await fs.mkdir(join(dir, '.gemini/skills/my-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.gemini/skills/my-skill/SKILL.md'), `---
+name: my-skill
+description: A test skill
+model: gemini-3-pro-preview
+---
+@.agents-common/skills/my-skill/SKILL.md`);
+  });
+
+  stubPrompt({
+    assistants: ['claude', 'gemini']
+  });
+
+  await runTest(testDir);
+
+  // Verify no conflict was detected - both files should exist with their respective model fields
+  const claudeSkillPath = join(testDir, '.claude/skills/my-skill/SKILL.md');
+  const claudeContent = await fs.readFile(claudeSkillPath, 'utf8');
+  assert.ok(claudeContent.includes('model: haiku-3.5'), 'Claude should keep its model field');
+
+  const geminiSkillPath = join(testDir, '.gemini/skills/my-skill/SKILL.md');
+  const geminiContent = await fs.readFile(geminiSkillPath, 'utf8');
+  assert.ok(geminiContent.includes('model: gemini-3-pro-preview'), 'Gemini should keep its model field');
 
   await cleanupTestFixture(testDir);
 });

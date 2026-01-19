@@ -206,13 +206,6 @@ export interface DependentFile {
 }
 
 /**
- * Map of relative file paths to their hashes
- */
-export interface DependentFileHashes {
-  [relativePath: string]: string;  // "scripts/util.js": "sha256-abc123..."
-}
-
-/**
  * Conflict between dependent file versions
  */
 export interface DependentConflict {
@@ -234,8 +227,6 @@ export interface DependentConflict {
   platformContent?: string;
   /** Common file content for diff display */
   commonContent?: string;
-  /** Stored hash from frontmatter (if exists) */
-  storedHash?: string;
 }
 
 /**

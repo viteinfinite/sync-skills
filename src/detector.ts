@@ -3,18 +3,22 @@ import { createHash } from 'crypto';
 import matter from 'gray-matter';
 import { diffLines } from 'diff';
 import chalk from 'chalk';
+import { pickCoreFrontmatter } from './frontmatter.js';
 import type { Conflict, SkillFile } from './types.js';
 
 /**
- * Normalize frontmatter by sorting keys for consistent comparison
- * This ensures different field order is not treated as a conflict
+ * Normalize frontmatter by keeping only CORE_FIELDS for conflict detection
+ * This ensures platform-specific fields like `model` don't cause false conflicts
  */
 function normalizeFrontmatter(content: string): string {
   const parsed = matter(content);
   const normalizedContent = parsed.content.trim();
 
+  // Keep only core frontmatter fields for conflict comparison
+  const coreData = pickCoreFrontmatter(parsed.data as Record<string, unknown>);
+
   // Drop tool-managed sync metadata to avoid false conflicts
-  const cleanedData = stripSyncMetadata(parsed.data as Record<string, unknown>);
+  const cleanedData = stripSyncMetadata(coreData);
 
   // Sort object keys recursively for deterministic output
   const sortedData = sortObjectKeys(cleanedData) as Record<string, unknown>;
@@ -164,6 +168,67 @@ export async function detectConflicts(
   }
 
   return conflicts;
+}
+
+/**
+ * Out-of-sync skill information
+ */
+export interface OutOfSyncSkill {
+  /** Name of the skill */
+  skillName: string;
+  /** Platform name (e.g., 'claude') */
+  platform: string;
+  /** Path to the platform skill file */
+  platformPath: string;
+  /** Current hash of the platform skill */
+  currentHash: string;
+  /** Stored hash from metadata.sync.hash */
+  storedHash: string;
+}
+
+/**
+ * Detect platform skills that have been modified outside of sync-skills
+ * @param platformSkills - Array of platform skill files
+ * @returns Array of out-of-sync skills
+ */
+export async function detectOutOfSyncSkills(platformSkills: SkillFile[]): Promise<OutOfSyncSkill[]> {
+  const outOfSync: OutOfSyncSkill[] = [];
+
+  for (const skill of platformSkills) {
+    try {
+      const content = await fs.readFile(skill.path, 'utf8');
+      const parsed = matter(content);
+
+      // Extract stored hash from metadata.sync.hash
+      const metadata = parsed.data as { metadata?: { sync?: { hash?: string } } };
+      const storedHash = metadata?.metadata?.sync?.hash;
+
+      if (!storedHash) {
+        // No stored hash, skip this skill
+        continue;
+      }
+
+      // Compute current hash of the file
+      const currentHash = await hashNormalized(skill.path);
+
+      // Check if hashes match
+      if (currentHash !== storedHash.replace('sha256-', '')) {
+        outOfSync.push({
+          skillName: skill.skillName,
+          platform: skill.path.split('/').filter(Boolean).reverse()[2] || 'unknown', // Extract platform from path
+          platformPath: skill.path,
+          currentHash: `sha256-${currentHash}`,
+          storedHash
+        });
+      }
+    } catch (error) {
+      // Skip files that can't be read or parsed
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Warning: Could not check hash for ${skill.path}: ${errorMessage}`);
+    }
+  }
+
+  return outOfSync;
 }
 
 export { formatDiff };
