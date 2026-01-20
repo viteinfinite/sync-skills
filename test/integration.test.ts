@@ -397,6 +397,7 @@ This is the content of my skill.`);
 
   stubPrompt({
     assistants: ['claude', 'gemini'],
+    create: true,
     outOfSyncAction: 'use-common'  // Stub the out-of-sync prompt to use common skill content
   });
 

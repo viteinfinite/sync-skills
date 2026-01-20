@@ -39,7 +39,6 @@ export async function run(options: RunOptions = {}): Promise<void> {
   // Handle --reconfigure flag
   if (reconfigure) {
     await runReconfigure(baseDir);
-    return;
   }
 
   const preConfigScan = await scanSkills(baseDir, getAssistantConfigs(undefined, homeMode));
@@ -70,7 +69,8 @@ export async function run(options: RunOptions = {}): Promise<void> {
   await syncCommonOnlySkills(
     baseDir,
     common.map(c => ({ path: c.path, skillName: c.skillName })),
-    activeConfigs
+    activeConfigs,
+    blockedAssistants
   );
 
   // Phase 3: Refactor platform skills that don't have @ references

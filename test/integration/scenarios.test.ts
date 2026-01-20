@@ -164,7 +164,10 @@ test.describe('scenarios', { concurrency: 1 }, () => {
   });
 
   test('Scenario 6: Only .agents-common + config exist - creates assistant directories', async () => {
-    const promptStub = stubInquirer({ assistants: ['claude', 'codex'] });
+    const promptStub = stubInquirer({ 
+      assistants: ['claude', 'codex'],
+      create: true
+    });
 
     const testDir = await createTestFixture('scenario6', async (dir) => {
       await createConfig(dir, ['claude', 'codex']);

@@ -169,9 +169,17 @@ export async function processSyncPairs(
   pairs: SyncPair[]
 ): Promise<Set<string>> {
   const blockedAssistants = new Set<string>();
+  const approvedAssistants = new Set<string>();
 
   for (const pair of pairs) {
-    if (blockedAssistants.has(pair.target.config.name)) {
+    const targetName = pair.target.config.name;
+    if (blockedAssistants.has(targetName)) {
+      continue;
+    }
+
+    // Skip if already approved in a previous iteration
+    if (approvedAssistants.has(targetName)) {
+      await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config);
       continue;
     }
 
@@ -180,16 +188,17 @@ export async function processSyncPairs(
 
     if (shouldPrompt) {
       // Prompt user for permission
-      shouldSync = await promptForSync(pair.target.config.name);
+      shouldSync = await promptForSync(targetName);
     } else {
       // Auto-sync when target directory exists
       shouldSync = true;
     }
 
     if (shouldSync) {
+      approvedAssistants.add(targetName);
       await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config);
     } else {
-      blockedAssistants.add(pair.target.config.name);
+      blockedAssistants.add(targetName);
     }
   }
 
@@ -203,10 +212,19 @@ export async function processSyncPairs(
 export async function syncCommonOnlySkills(
   baseDir: string,
   commonSkills: SkillFile[],
-  enabledConfigs: AssistantConfig[]
+  enabledConfigs: AssistantConfig[],
+  blockedAssistants: Set<string> = new Set()
 ): Promise<void> {
+  const approvedAssistants = new Set<string>();
+  const assistantDirExists = new Map<string, boolean>();
+
   for (const commonSkill of commonSkills) {
     for (const config of enabledConfigs) {
+      const targetName = config.name;
+      if (blockedAssistants.has(targetName)) {
+        continue;
+      }
+
       const platformSkillPath = join(baseDir, config.skillsDir, commonSkill.skillName, 'SKILL.md');
 
       // Check if skill already exists in this platform
@@ -216,6 +234,33 @@ export async function syncCommonOnlySkills(
         continue;
       } catch {
         // Skill doesn't exist in platform, create it
+      }
+
+      // If we haven't checked/prompted for this assistant yet
+      if (!approvedAssistants.has(targetName)) {
+        let exists = assistantDirExists.get(targetName);
+        if (exists === undefined) {
+          const assistantDir = join(baseDir, config.dir);
+          try {
+            await fs.access(assistantDir);
+            exists = true;
+          } catch {
+            exists = false;
+          }
+          assistantDirExists.set(targetName, exists);
+        }
+
+        if (!exists) {
+          const shouldSync = await promptForSync(targetName);
+          if (shouldSync) {
+            approvedAssistants.add(targetName);
+          } else {
+            blockedAssistants.add(targetName);
+            continue;
+          }
+        } else {
+          approvedAssistants.add(targetName);
+        }
       }
 
       // Read the common skill to extract frontmatter and sync metadata

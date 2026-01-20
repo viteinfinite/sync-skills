@@ -1,12 +1,10 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { createHash } from 'crypto';
-import matter from 'gray-matter';
 import type {
   DependentFile,
   DependentConflict,
-  DependentConflictResolution,
-  AssistantConfig
+  DependentConflictResolution
 } from './types.js';
 
 // Directories to ignore when scanning for dependent files
@@ -354,12 +352,17 @@ async function selectFileVersion(
 export async function cleanupPlatformDependentFiles(
   platformPath: string,
   skillName: string,
-  filesToRemove: string[]
+  filesToRemove: string[],
+  attemptedRemovals?: Set<string>
 ): Promise<void> {
   const skillPath = join(platformPath, skillName);
+  const seenPaths = attemptedRemovals ?? new Set<string>();
 
   for (const relativePath of filesToRemove) {
     const filePath = join(skillPath, relativePath);
+    if (seenPaths.has(filePath)) {
+      continue;
+    }
 
     try {
       await fs.unlink(filePath);
@@ -367,6 +370,8 @@ export async function cleanupPlatformDependentFiles(
       // File doesn't exist or can't be deleted - log warning and continue
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.warn(`Warning: Could not delete ${filePath}: ${errorMessage}`);
+    } finally {
+      seenPaths.add(filePath);
     }
   }
 
