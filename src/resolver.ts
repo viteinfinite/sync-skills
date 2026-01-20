@@ -244,10 +244,11 @@ function getChoicesForMismatch(skill: OutOfSyncSkill): Array<{ name: string; val
     return parsed.content.trim().startsWith('@');
   })();
   const allowKeepPlatform = skill.allowKeepPlatform !== false;
+  const discardLabel = skill.platform === 'multiple' ? 'platform edits' : skill.platform;
 
   if (!allowKeepPlatform) {
     return [
-      { name: 'Keep common version (discard platform changes)', value: 'keep-common' },
+      { name: `Keep common version (discard ${discardLabel})`, value: 'keep-common' },
       { name: 'Abort sync', value: 'abort' }
     ];
   }
@@ -255,7 +256,7 @@ function getChoicesForMismatch(skill: OutOfSyncSkill): Array<{ name: string; val
   // Case 1: body out of sync with @ reference
   if (skill.mismatchType === 'body' && platformHasAtReference) {
     return [
-      { name: 'Keep common version (discard platform changes)', value: 'keep-common' },
+      { name: `Keep common version (discard ${discardLabel})`, value: 'keep-common' },
       { name: 'Abort sync', value: 'abort' }
     ];
   }
@@ -263,15 +264,15 @@ function getChoicesForMismatch(skill: OutOfSyncSkill): Array<{ name: string; val
   // Case 2: both mismatches with @ reference (stricter)
   if (skill.mismatchType === 'both' && platformHasAtReference) {
     return [
-      { name: 'Keep common version (discard platform changes)', value: 'keep-common' },
+      { name: `Keep common version (discard ${discardLabel})`, value: 'keep-common' },
       { name: 'Abort sync', value: 'abort' }
     ];
   }
 
   // Case 3: frontmatter mismatch or body without @ reference
   return [
-    { name: `Keep ${skill.platform} version (use platform changes)`, value: 'keep-platform' },
-    { name: 'Keep common version (discard platform changes)', value: 'keep-common' },
+    { name: `Keep ${skill.platform} version (use ${skill.platform})`, value: 'keep-platform' },
+    { name: `Keep common version (discard ${discardLabel})`, value: 'keep-common' },
     { name: 'Abort sync', value: 'abort' }
   ];
 }
