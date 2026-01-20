@@ -23,6 +23,13 @@ function stubPrompt(responses: Record<string, unknown>): void {
   });
 }
 
+// Helper function to run the test with a fresh module import
+async function runTest(baseDir: string) {
+  // Clear the module cache to ensure fresh imports
+  const { run } = await import('../src/index.js');
+  await run({ baseDir, failOnConflict: false, dryRun: false });
+}
+
 test.beforeEach(async () => {
   // Stub inquirer.prompt to avoid interactive prompts
   promptStub = sinon.stub(inquirer, 'prompt');
@@ -33,7 +40,7 @@ test.afterEach(async () => {
   promptStub.restore();
 });
 
-test('Integration: Full Sync Workflow - should refactor skills and detect conflicts', async () => {
+test('Integration: Scenario 1 - Full Sync Workflow - should refactor skills and detect conflicts', async () => {
   const fakeSkillsSource = resolve('./test/fixtures/fake-skills');
   const testDir = await createTestFixture('sync-workflow', async (dir) => {
     await fs.cp(fakeSkillsSource, dir, { recursive: true });
@@ -77,9 +84,7 @@ Helps write good commit messages.`);
   const codexPrPath = join(testDir, '.codex/skills/pr-review/SKILL.md');
   const claudeCommitPath = join(testDir, '.claude/skills/commit-message/SKILL.md');
 
-  // Import after stubbing to ensure stub is used
-  const { run } = await import('../src/index.js');
-  await run({ baseDir: testDir, failOnConflict: false, dryRun: false });
+  await runTest(testDir);
 
   // Check that claude pr-review was refactored
   const claudePrContent = await fs.readFile(claudePrPath, 'utf8');
@@ -104,8 +109,8 @@ Helps write good commit messages.`);
   await cleanupTestFixture(testDir);
 });
 
-// Scenario 1: .claude/skills exists, .codex folder exists → auto-sync skills
-test('Integration: Test Scenario 1 - should auto-sync skills when both folders exist', async () => {
+// Scenario 2: .claude/skills exists, .codex folder exists → auto-sync skills
+test('Integration: Scenario 2 - should auto-sync skills when both folders exist', async () => {
   const testDir = await createTestFixture('scenario1', async (dir) => {
     // Create scenario 1 setup: .claude/skills/my-skill exists, .codex folder exists
     await fs.mkdir(join(dir, '.claude/skills/my-skill'), { recursive: true });
@@ -152,8 +157,8 @@ This is the content of my skill.`);
   await cleanupTestFixture(testDir);
 });
 
-// Scenario 2: .claude/skills exists, .codex folder exists → auto-create without prompt
-test('Integration: Test Scenario 2 - should automatically create .codex/skills when .codex folder already exists', async () => {
+// Scenario 3: .claude/skills exists, .codex folder exists → auto-create without prompt
+test('Integration: Scenario 3 - should automatically create .codex/skills when .codex folder already exists', async () => {
   const testDir = await createTestFixture('scenario2', async (dir) => {
     // Create scenario 2 setup: .claude/skills/my-skill exists, .codex folder exists
     await fs.mkdir(join(dir, '.claude/skills/my-skill'), { recursive: true });
@@ -195,8 +200,8 @@ This is the content of my skill.`);
   await cleanupTestFixture(testDir);
 });
 
-// Scenario 3: No skills exist anywhere → exit silently
-test('Integration: Test Scenario 3 - should exit silently when no skills exist', async () => {
+// Scenario 4: No skills exist anywhere → exit silently
+test('Integration: Scenario 4 - should exit silently when no skills exist', async () => {
   const testDir = await createTestFixture('scenario3');
 
   stubPrompt({ assistants: ['claude', 'codex'], outOfSyncAction: 'no' });
@@ -212,8 +217,8 @@ test('Integration: Test Scenario 3 - should exit silently when no skills exist',
   await cleanupTestFixture(testDir);
 });
 
-// Scenario 4: .codex/skills exists, .claude folder doesn't exist → prompt user
-test('Integration: Test Scenario 4 - should not create .claude when user declines', async () => {
+// Scenario 5: .codex/skills exists, .claude folder doesn't exist → prompt user
+test('Integration: Scenario 5 - should not create .claude when user declines', async () => {
   const testDir = await createTestFixture('scenario4', async (dir) => {
     // Create scenario 4 setup: .codex/skills/my-skill exists, no .claude folder
     await fs.mkdir(join(dir, '.codex/skills/my-skill'), { recursive: true });
@@ -257,8 +262,8 @@ This is the content of my skill.`);
   await cleanupTestFixture(testDir);
 });
 
-// Scenario 5: .codex/skills exists, .claude folder exists → auto-create without prompt
-test('Integration: Test Scenario 5 - should automatically create .claude/skills when .codex has skills and .claude folder exists', async () => {
+// Scenario 6: .codex/skills exists, .claude folder exists → auto-create without prompt
+test('Integration: Scenario 6 - should automatically create .claude/skills when .codex has skills and .claude folder exists', async () => {
   const testDir = await createTestFixture('scenario5', async (dir) => {
     // Create scenario 5 setup: .codex/skills/my-skill exists, .claude folder exists
     await fs.mkdir(join(dir, '.codex/skills/my-skill'), { recursive: true });
@@ -310,28 +315,18 @@ This is the content of my skill.`);
   await cleanupTestFixture(testDir);
 });
 
-// Helper function to run the test with a fresh module import
-async function runTest(baseDir: string) {
-  // Clear the module cache to ensure fresh imports
-  const { run } = await import('../src/index.js');
-  await run({ baseDir, failOnConflict: false, dryRun: false });
-}
-
-// Auto-configuration test
-test('Integration: Auto-configuration - should prompt and create config when folders exist', async () => {
+// Scenario 7: Auto-configuration - should prompt and create config when folders exist
+test('Integration: Scenario 7 - Auto-configuration - should prompt and create config when folders exist', async () => {
   const testDir = await createTestFixture('auto-config', async (dir) => {
     // Create .claude folder with skills
     await fs.mkdir(join(dir, '.claude/skills/test'), { recursive: true });
     await fs.writeFile(join(dir, '.claude/skills/test/SKILL.md'), '@test');
   });
 
-  // Import after setup to ensure fresh module
-  const { run } = await import('../src/index.js');
-
   stubPrompt({ assistants: ['claude'], outOfSyncAction: 'no' });
 
   // Run sync (should prompt and create config)
-  await run({ baseDir: testDir });
+  await runTest(testDir);
 
   // Check config was created
   const { readConfig } = await import('../src/config.js');
@@ -343,8 +338,8 @@ test('Integration: Auto-configuration - should prompt and create config when fol
   await cleanupTestFixture(testDir);
 });
 
-// Scenario: Only .agents-common exists - should create assistant directories with @ references
-test('Integration: Common-only sync - should create assistant directories with @ references', async () => {
+// Scenario 8: Only .agents-common exists - should create assistant directories with @ references
+test('Integration: Scenario 8 - Common-only sync - should create assistant directories with @ references', async () => {
   const testDir = await createTestFixture('common-only', async (dir) => {
     // Create .agents-common with skills and config
     await fs.mkdir(join(dir, '.agents-common/skills/my-skill'), { recursive: true });
@@ -395,8 +390,8 @@ This is the content of my skill.`);
   await cleanupTestFixture(testDir);
 });
 
-// Scenario: Different model fields do not cause conflict
-test('Integration: Different model fields - should not cause conflict', async () => {
+// Scenario 9: Different model fields do not cause conflict
+test('Integration: Scenario 9 - Different model fields - should not cause conflict', async () => {
   const testDir = await createTestFixture('different-model-fields', async (dir) => {
     // Create .agents-common with skills and config
     await fs.mkdir(join(dir, '.agents-common/skills/my-skill'), { recursive: true });
