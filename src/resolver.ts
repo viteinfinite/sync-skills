@@ -136,7 +136,7 @@ function formatDependentConflictDetails(conflict: DependentConflict): string {
  * @param inquirerImpl - Inquirer implementation (for testing)
  * @returns Resolution action
  */
-export async function resolveDependentConflict(
+async function resolveDependentConflict(
   conflict: DependentConflict,
   inquirerImpl: InquirerImpl = inquirer
 ): Promise<DependentConflictResolution> {
