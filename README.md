@@ -57,7 +57,6 @@ Many companies have policies allowing developers to use their preferred AI assis
 
 - Hash-based conflict detection when dependent files change
 - Interactive prompts before creating new directories
-- Dry-run mode to preview changes
 
 ---
 
@@ -121,7 +120,7 @@ Then rebuild and reinstall:
 
 ```bash
 npm run build
-npm link  # or npm install -g .
+npm install -g .
 ```
 
 ---
@@ -180,16 +179,10 @@ Change which assistants to sync:
 sync-skills --reconfigure    # Interactive checkbox prompt
 ```
 
-### Preview Changes
-
-```bash
-sync-skills --dry-run        # Show what would change
-```
-
 ### Strict Mode
 
 ```bash
-sync-skills --fail-on-conflict    # Exit on conflicts (for CI/CD)
+sync-skills --fail-on-conflict    # Exit on conflicts without conflict resolution prompts
 ```
 
 ---

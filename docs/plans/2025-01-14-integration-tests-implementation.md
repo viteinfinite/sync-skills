@@ -276,7 +276,7 @@ description: A test skill
 Codex version`);
   });
 
-  await run({ baseDir: testDir, failOnConflict: false, dryRun: false });
+  await run({ baseDir: testDir, failOnConflict: false });
 
   // Verify .claude skill was refactored
   const claudeContent = await readSkillFile(testDir, '.claude', 'my-skill');

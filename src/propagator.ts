@@ -19,7 +19,6 @@ interface MergeResult {
 
 interface PropagateOptions {
   failOnConflict?: boolean;
-  dryRun?: boolean;
   resolver?: (conflict: FrontmatterConflict, targetPath: string) => Promise<string>;
 }
 
@@ -31,7 +30,7 @@ export async function propagateFrontmatter(
   targetPaths: string[],
   options: PropagateOptions = {}
 ): Promise<void> {
-  const { failOnConflict = false, dryRun = false, resolver = defaultResolver } = options;
+  const { failOnConflict = false, resolver = defaultResolver } = options;
 
   // Check if common file exists
   try {
@@ -86,13 +85,8 @@ export async function propagateFrontmatter(
     }
 
     // Write merged frontmatter back to target
-    if (!dryRun) {
-      const newContent = matter.stringify(targetParsed.content, merged);
-      await fs.writeFile(targetPath, newContent);
-    } else {
-      console.log(`[Dry-run] Would update ${targetPath}`);
-      console.log(`  Frontmatter:`, merged);
-    }
+    const newContent = matter.stringify(targetParsed.content, merged);
+    await fs.writeFile(targetPath, newContent);
   }
 }
 

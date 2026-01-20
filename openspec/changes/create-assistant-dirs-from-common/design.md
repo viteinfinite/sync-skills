@@ -59,11 +59,10 @@ So we simply need to remove the early `continue` that prevents execution.
 ## Edge Cases
 
 1. **User declines auto-create prompt**: This scenario already has a prompt for creating assistant directories. The change should respect that prompt.
-2. **Dry run mode**: Should log what would be created without actually creating.
-3. **Home mode**: Should work the same way when `--home` flag is used.
-4. **Dependent files cleanup for newly created platforms**: When a platform directory is created fresh (didn't exist before), the cleanup logic should not attempt to delete dependent files from that platform since they were never there.
-5. **Non-core frontmatter fields causing false conflicts**: Fields like `model` that are not in `CORE_FIELDS` should not trigger conflicts.
-6. **Platform skills modified outside of sync-skills**: When a user modifies a platform skill directly (e.g., edits `.claude/skills/my-skill/SKILL.md`), the hash will no longer match. The tool should detect this and prompt the user.
+2. **Home mode**: Should work the same way when `--home` flag is used.
+3. **Dependent files cleanup for newly created platforms**: When a platform directory is created fresh (didn't exist before), the cleanup logic should not attempt to delete dependent files from that platform since they were never there.
+4. **Non-core frontmatter fields causing false conflicts**: Fields like `model` that are not in `CORE_FIELDS` should not trigger conflicts.
+5. **Platform skills modified outside of sync-skills**: When a user modifies a platform skill directly (e.g., edits `.claude/skills/my-skill/SKILL.md`), the hash will no longer match. The tool should detect this and prompt the user.
 
 ## Individual File Hash Tracking (Redundant)
 

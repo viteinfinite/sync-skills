@@ -36,19 +36,6 @@ When `.agents-common` contains skills that are referenced in the config but the 
 - `~/.gemini/skills/my-skill/SKILL.md` SHALL be created with an @ reference to `~/.agents-common/skills/my-skill/SKILL.md`
 - Both created files SHALL include core frontmatter from the common skill
 
-#### Scenario: Dry run mode - only .agents-common exists
-
-**GIVEN**:
-- `.agents-common/skills/my-skill/SKILL.md` exists with content
-- `.agents-common/config.json` contains `{ "assistants": ["claude"] }`
-- `.claude/` directory does NOT exist
-
-**WHEN** the user runs `sync-skills --dry-run`
-
-**THEN**:
-- `.claude/skills/my-skill/SKILL.md` SHALL NOT be created
-- A message SHALL be logged indicating what would be created
-
 ### Requirement: Dependent files cleanup only for platforms that originally had files
 
 When cleaning up dependent files from platform folders, the tool SHALL only attempt to delete files from platforms that originally had those files. Platforms that were newly created during the sync should not have cleanup attempted on them.

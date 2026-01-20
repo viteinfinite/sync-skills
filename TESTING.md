@@ -39,9 +39,6 @@ node ../scripts/add-fake-skill.js codex another-skill
 From the test directory, test the sync functionality:
 
 ```bash
-# Dry-run to see what would happen
-npx tsx bin/sync-skills.ts --dry-run
-
 # Full sync
 npx tsx bin/sync-skills.ts
 
@@ -370,7 +367,6 @@ npx tsx --test test/integration.test.ts
 - [ ] Auto-config prompts when no folders exist
 - [ ] `--reconfigure` opens interactive prompt
 - [ ] `--home` uses `~/.claude`, `~/.codex`
-- [ ] `--dry-run` shows changes without applying
 - [ ] `--fail-on-conflict` exits with error on conflicts
 - [ ] Skills are properly refactored to `.agents-common`
 - [ ] Conflicts are detected and can be resolved

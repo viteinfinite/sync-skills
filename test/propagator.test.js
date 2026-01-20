@@ -195,38 +195,4 @@ name: test-skill
     expect(targetContent).to.include('name: test-skill');
   });
 
-  it('should handle dry-run mode', async () => {
-    // Create target file
-    const targetPath = join(testDir, 'target.md');
-    await fs.writeFile(targetPath, `---
-name: test-skill
----
-
-# Target content`);
-
-    // Create common file with additional field
-    const commonPath = join(testDir, 'common.md');
-    await fs.writeFile(commonPath, `---
-name: test-skill
-description: A test skill
----
-
-# Common content`);
-
-    // Capture console.log output
-    const logs = [];
-    const originalLog = console.log;
-    console.log = (...args) => logs.push(args.join(' '));
-
-    await propagateFrontmatter(commonPath, [targetPath], { dryRun: true });
-
-    console.log = originalLog;
-
-    // Target should be unchanged
-    const targetContent = await fs.readFile(targetPath, 'utf8');
-    expect(targetContent).to.not.include('description: A test skill');
-
-    // Should have logged the dry-run message
-    expect(logs.some(log => log.includes('Dry-run'))).to.be.true;
-  });
 });

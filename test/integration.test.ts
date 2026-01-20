@@ -57,13 +57,13 @@ function stubPrompt(responses: Record<string, unknown>): void {
 async function runTest(baseDir: string) {
   // Clear the module cache to ensure fresh imports
   const { run } = await import('../src/index.js');
-  await run({ baseDir, failOnConflict: false, dryRun: false });
+  await run({ baseDir, failOnConflict: false });
 }
 
 async function runTestFailOnConflict(baseDir: string) {
   // Clear the module cache to ensure fresh imports
   const { run } = await import('../src/index.js');
-  await run({ baseDir, failOnConflict: true, dryRun: false });
+  await run({ baseDir, failOnConflict: true });
 }
 
 test.beforeEach(async () => {

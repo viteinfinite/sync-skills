@@ -166,8 +166,7 @@ async function cloneAssistantSkills(
  */
 export async function processSyncPairs(
   baseDir: string,
-  pairs: SyncPair[],
-  dryRun: boolean
+  pairs: SyncPair[]
 ): Promise<Set<string>> {
   const blockedAssistants = new Set<string>();
 
@@ -178,11 +177,6 @@ export async function processSyncPairs(
 
     const shouldPrompt = needsPrompt(pair);
     let shouldSync = false;
-
-    if (dryRun) {
-      // In dry run mode, don't sync
-      continue;
-    }
 
     if (shouldPrompt) {
       // Prompt user for permission
@@ -209,8 +203,7 @@ export async function processSyncPairs(
 export async function syncCommonOnlySkills(
   baseDir: string,
   commonSkills: SkillFile[],
-  enabledConfigs: AssistantConfig[],
-  dryRun: boolean
+  enabledConfigs: AssistantConfig[]
 ): Promise<void> {
   for (const commonSkill of commonSkills) {
     for (const config of enabledConfigs) {
@@ -223,11 +216,6 @@ export async function syncCommonOnlySkills(
         continue;
       } catch {
         // Skill doesn't exist in platform, create it
-      }
-
-      if (dryRun) {
-        console.log(`Would create @ reference for ${commonSkill.skillName} in ${config.name}`);
-        continue;
       }
 
       // Read the common skill to extract frontmatter and sync metadata

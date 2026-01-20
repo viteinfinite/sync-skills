@@ -44,8 +44,6 @@
 
 - [ ] 2.2 Manual test: Same as above with `--home` flag
 
-- [ ] 2.3 Manual test: Verify dry-run mode logs correctly without creating files
+- [ ] 2.3 Manual test: Create `.claude/skills/my-skill/` with `model: haiku` and `.gemini/skills/my-skill/` with `model: gemini-3-pro-preview`, run `sync-skills`, verify no conflict is detected
 
-- [ ] 2.4 Manual test: Create `.claude/skills/my-skill/` with `model: haiku` and `.gemini/skills/my-skill/` with `model: gemini-3-pro-preview`, run `sync-skills`, verify no conflict is detected
-
-- [ ] 2.5 Manual test: Create a synced skill, then modify `.claude/skills/my-skill/SKILL.md` directly, run `sync-skills`, verify warning is displayed and prompt appears
+- [ ] 2.4 Manual test: Create a synced skill, then modify `.claude/skills/my-skill/SKILL.md` directly, run `sync-skills`, verify warning is displayed and prompt appears

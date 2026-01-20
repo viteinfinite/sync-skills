@@ -74,9 +74,6 @@ npx sync-skills
 # Non-interactive mode (fails on conflicts)
 npx sync-skills --fail-on-conflict
 
-# Dry run (show what would change)
-npx sync-skills --dry-run
-
 # Help
 npx sync-skills --help
 ```

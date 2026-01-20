@@ -357,7 +357,7 @@ for (const config of enabledConfigs) {
 }
 
 if (platformSkillPaths.length > 0) {
-  await propagateFrontmatter(join(commonSkillPath, 'SKILL.md'), platformSkillPaths, { failOnConflict, dryRun });
+  await propagateFrontmatter(join(commonSkillPath, 'SKILL.md'), platformSkillPaths, { failOnConflict });
 }
 ```
 
@@ -410,8 +410,8 @@ for (const config of enabledConfigs) {
   }
 }
 
-if (platformSkillPaths.length > 0 && !dryRun) {
-  await propagateFrontmatter(commonSkillMdPath, platformSkillPaths, { failOnConflict, dryRun });
+if (platformSkillPaths.length > 0) {
+  await propagateFrontmatter(commonSkillMdPath, platformSkillPaths, { failOnConflict });
 }
 ```
 
@@ -616,7 +616,7 @@ git commit -m "fix: resolve test failures and build errors"
 ```bash
 cd /tmp/test-sync-skills
 npm link /Users/civetta/Works/Personal/sync-skills
-sync-skills --dry-run
+sync-skills
 ```
 
 **Step 2: Verify sync metadata**

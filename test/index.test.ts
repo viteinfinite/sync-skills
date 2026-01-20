@@ -36,7 +36,7 @@ Content`);
 
     const claudePath = `${testDir}/.claude/skills/test-skill/SKILL.md`;
 
-    await run({ baseDir: testDir, failOnConflict: false, dryRun: false });
+    await run({ baseDir: testDir, failOnConflict: false });
 
     const content = await fs.readFile(claudePath, 'utf8');
     assert.ok(content.includes('@.agents-common/skills/test-skill/SKILL.md'));
@@ -77,7 +77,7 @@ Modified content`);
     });
 
     await assert.rejects(
-      () => run({ baseDir: testDir, failOnConflict: true, dryRun: false }),
+      () => run({ baseDir: testDir, failOnConflict: true }),
       /Out-of-sync skills detected: test-skill/
     );
 
