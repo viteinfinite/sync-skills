@@ -134,7 +134,11 @@ async function cloneAssistantSkills(baseDir, sourceSkills, targetConfig) {
  * Process all sync pairs with appropriate prompts
  */
 export async function processSyncPairs(baseDir, pairs, dryRun) {
+    const blockedAssistants = new Set();
     for (const pair of pairs) {
+        if (blockedAssistants.has(pair.target.config.name)) {
+            continue;
+        }
         const shouldPrompt = needsPrompt(pair);
         let shouldSync = false;
         if (dryRun) {
@@ -152,7 +156,11 @@ export async function processSyncPairs(baseDir, pairs, dryRun) {
         if (shouldSync) {
             await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config);
         }
+        else {
+            blockedAssistants.add(pair.target.config.name);
+        }
     }
+    return blockedAssistants;
 }
 /**
  * Sync skills that exist only in .agents-common to enabled platforms

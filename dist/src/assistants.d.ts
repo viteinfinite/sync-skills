@@ -12,7 +12,7 @@ export declare function findSyncPairs(states: AssistantState[]): SyncPair[];
 /**
  * Process all sync pairs with appropriate prompts
  */
-export declare function processSyncPairs(baseDir: string, pairs: SyncPair[], dryRun: boolean): Promise<void>;
+export declare function processSyncPairs(baseDir: string, pairs: SyncPair[], dryRun: boolean): Promise<Set<string>>;
 /**
  * Sync skills that exist only in .agents-common to enabled platforms
  * Creates @ references in platform folders for common-only skills
