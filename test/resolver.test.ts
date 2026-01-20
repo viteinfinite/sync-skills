@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { resolveOutOfSyncSkill, resolveConflict } from '../src/resolver.js';
-import type { OutOfSyncSkill } from '../src/detector.js';
+import { resolveOutOfSyncSkill, resolveOutOfSyncSkills, resolveConflict } from '../src/resolver.js';
+import type { OutOfSyncSkill, OutOfSyncResolution } from '../src/types.js';
 import type { Conflict } from '../src/types.js';
 
 // Mock inquirer implementation
@@ -18,89 +18,183 @@ function createMockInquirer(answer: Record<string, unknown>) {
 
 describe('resolver', () => {
   describe('resolveOutOfSyncSkill', () => {
-    it('should present choices for all modified platforms', async () => {
-      const skillName = 'test-skill';
-      const platforms: OutOfSyncSkill[] = [
-        {
-          skillName,
-          platform: 'claude',
-          platformPath: '/path/to/claude/skill',
-          currentHash: 'hash1',
-          storedHash: 'hash2'
-        },
-        {
-          skillName,
-          platform: 'cline',
-          platformPath: '/path/to/cline/skill',
-          currentHash: 'hash3',
-          storedHash: 'hash2'
-        }
-      ];
+    it('should present "keep-common" and "abort" choices for body mismatch with @ reference', async () => {
+      const skill: OutOfSyncSkill = {
+        skillName: 'test-skill',
+        platform: 'claude',
+        platformPath: '/path/to/claude/skill',
+        commonPath: '/path/to/common/skill',
+        mismatchType: 'body',
+        platformContent: '@.agents-common/skills/test-skill/SKILL.md',
+        commonContent: 'Common content'
+      };
 
-      const mockInquirer = createMockInquirer({ outOfSyncAction: 'skip' });
-      
-      // We pass the mock as the third argument (inquirerImpl)
-      await resolveOutOfSyncSkill(skillName, platforms, mockInquirer as any);
+      const mockInquirer = createMockInquirer({ action: 'keep-common' });
+
+      await resolveOutOfSyncSkill(skill, mockInquirer as any);
 
       const questions = mockInquirer.getCapturedQuestions();
-      assert.ok(questions, 'Questions should be captured');
-      assert.ok(Array.isArray(questions), 'Questions should be an array');
-      assert.strictEqual(questions.length, 1);
-
       const choices = questions[0].choices;
-      assert.ok(Array.isArray(choices), 'Choices should be an array');
 
-      // Verify specific platform choices exist
-      const claudeChoice = choices.find((c: any) => c.value === 'use-platform:claude');
-      assert.ok(claudeChoice, 'Should have choice for claude');
-      assert.ok(claudeChoice.name.includes('claude'), 'Claude choice should mention platform name');
-
-      const clineChoice = choices.find((c: any) => c.value === 'use-platform:cline');
-      assert.ok(clineChoice, 'Should have choice for cline');
-      assert.ok(clineChoice.name.includes('cline'), 'Cline choice should mention platform name');
-
-      // Verify common choice exists
-      const commonChoice = choices.find((c: any) => c.value === 'use-common');
-      assert.ok(commonChoice, 'Should have choice for common');
-
-      // Verify skip choice exists
-      const skipChoice = choices.find((c: any) => c.value === 'skip');
-      assert.ok(skipChoice, 'Should have choice for skip');
+      assert.ok(choices.find((c: any) => c.value === 'keep-common'), 'Should have keep-common');
+      assert.ok(choices.find((c: any) => c.value === 'abort'), 'Should have abort');
+      assert.ok(!choices.find((c: any) => c.value === 'keep-platform'), 'Should not have keep-platform');
     });
 
-    it('should return correct resolution when a platform is selected', async () => {
-      const skillName = 'test-skill';
-      const platforms: OutOfSyncSkill[] = [
+    it('should present "keep-platform", "keep-common", "abort" choices for frontmatter mismatch', async () => {
+      const skill: OutOfSyncSkill = {
+        skillName: 'test-skill',
+        platform: 'claude',
+        platformPath: '/path/to/claude/skill',
+        commonPath: '/path/to/common/skill',
+        mismatchType: 'frontmatter',
+        platformContent: '@.agents-common/skills/test-skill/SKILL.md',
+        commonContent: 'Common content'
+      };
+
+      const mockInquirer = createMockInquirer({ action: 'keep-platform' });
+
+      await resolveOutOfSyncSkill(skill, mockInquirer as any);
+
+      const questions = mockInquirer.getCapturedQuestions();
+      const choices = questions[0].choices;
+
+      assert.ok(choices.find((c: any) => c.value === 'keep-platform'), 'Should have keep-platform');
+      assert.ok(choices.find((c: any) => c.value === 'keep-common'), 'Should have keep-common');
+      assert.ok(choices.find((c: any) => c.value === 'abort'), 'Should have abort');
+    });
+
+    it('should present "keep-common" and "abort" choices for both mismatch', async () => {
+      const skill: OutOfSyncSkill = {
+        skillName: 'test-skill',
+        platform: 'claude',
+        platformPath: '/path/to/claude/skill',
+        commonPath: '/path/to/common/skill',
+        mismatchType: 'both',
+        platformContent: '@.agents-common/skills/test-skill/SKILL.md',
+        commonContent: 'Common content'
+      };
+
+      const mockInquirer = createMockInquirer({ action: 'keep-common' });
+
+      await resolveOutOfSyncSkill(skill, mockInquirer as any);
+
+      const questions = mockInquirer.getCapturedQuestions();
+      const choices = questions[0].choices;
+
+      assert.ok(choices.find((c: any) => c.value === 'keep-common'), 'Should have keep-common');
+      assert.ok(choices.find((c: any) => c.value === 'abort'), 'Should have abort');
+      assert.ok(!choices.find((c: any) => c.value === 'keep-platform'), 'Should not have keep-platform');
+    });
+
+    it('should return correct resolution when keep-platform is selected', async () => {
+      const skill: OutOfSyncSkill = {
+        skillName: 'test-skill',
+        platform: 'claude',
+        platformPath: '/path/to/claude/skill',
+        commonPath: '/path/to/common/skill',
+        mismatchType: 'frontmatter',
+        platformContent: '@.agents-common/skills/test-skill/SKILL.md',
+        commonContent: 'Common content'
+      };
+
+      const mockInquirer = createMockInquirer({ action: 'keep-platform' });
+
+      const resolution = await resolveOutOfSyncSkill(skill, mockInquirer as any);
+
+      assert.deepEqual(resolution, {
+        action: 'keep-platform'
+      });
+    });
+
+    it('should return correct resolution when keep-common is selected', async () => {
+      const skill: OutOfSyncSkill = {
+        skillName: 'test-skill',
+        platform: 'claude',
+        platformPath: '/path/to/claude/skill',
+        commonPath: '/path/to/common/skill',
+        mismatchType: 'body',
+        platformContent: 'Platform content',
+        commonContent: 'Common content'
+      };
+
+      const mockInquirer = createMockInquirer({ action: 'keep-common' });
+
+      const resolution = await resolveOutOfSyncSkill(skill, mockInquirer as any);
+
+      assert.deepEqual(resolution, {
+        action: 'keep-common'
+      });
+    });
+  });
+
+  describe('resolveOutOfSyncSkills', () => {
+    it('should resolve multiple out-of-sync skills in sequence', async () => {
+      const skills: OutOfSyncSkill[] = [
         {
-          skillName,
+          skillName: 'skill-1',
           platform: 'claude',
-          platformPath: '/path/to/claude/skill',
-          currentHash: 'hash1',
-          storedHash: 'hash2'
+          platformPath: '/path/to/claude/skill1',
+          commonPath: '/path/to/common/skill1',
+          mismatchType: 'frontmatter'
+        },
+        {
+          skillName: 'skill-2',
+          platform: 'claude',
+          platformPath: '/path/to/claude/skill2',
+          commonPath: '/path/to/common/skill2',
+          mismatchType: 'body'
         }
       ];
 
-      const mockInquirer = createMockInquirer({ outOfSyncAction: 'use-platform:claude' });
-      
-      const resolution = await resolveOutOfSyncSkill(skillName, platforms, mockInquirer as any);
+      let callCount = 0;
+      const mockInquirer = {
+        prompt: async (questions: any) => {
+          callCount++;
+          // First call returns keep-platform, second returns keep-common
+          return { action: callCount === 1 ? 'keep-platform' : 'keep-common' };
+        }
+      };
 
-      assert.deepEqual(resolution, {
-        action: 'use-platform',
-        platformName: 'claude'
-      });
+      const resolutions = await resolveOutOfSyncSkills(skills, mockInquirer as any);
+
+      assert.strictEqual(resolutions.length, 2);
+      assert.strictEqual(resolutions[0].action, 'keep-platform');
+      assert.strictEqual(resolutions[1].action, 'keep-common');
     });
 
-    it('should return correct resolution when common is selected', async () => {
-      const skillName = 'test-skill';
-      const platforms: OutOfSyncSkill[] = [];
+    it('should stop processing when abort is selected', async () => {
+      const skills: OutOfSyncSkill[] = [
+        {
+          skillName: 'skill-1',
+          platform: 'claude',
+          platformPath: '/path/to/claude/skill1',
+          commonPath: '/path/to/common/skill1',
+          mismatchType: 'body'
+        },
+        {
+          skillName: 'skill-2',
+          platform: 'claude',
+          platformPath: '/path/to/claude/skill2',
+          commonPath: '/path/to/common/skill2',
+          mismatchType: 'body'
+        }
+      ];
 
-      const mockInquirer = createMockInquirer({ outOfSyncAction: 'use-common' });
-      
-      const resolution = await resolveOutOfSyncSkill(skillName, platforms, mockInquirer as any);
+      let callCount = 0;
+      const mockInquirer = {
+        prompt: async (questions: any) => {
+          callCount++;
+          // First call returns abort
+          return { action: 'abort' };
+        }
+      };
 
-      assert.deepEqual(resolution, {
-        action: 'use-common'
-      });
+      const resolutions = await resolveOutOfSyncSkills(skills, mockInquirer as any);
+
+      assert.strictEqual(resolutions.length, 1);
+      assert.strictEqual(resolutions[0].action, 'abort');
+      assert.strictEqual(callCount, 1, 'Should only call prompt once');
     });
   });
 

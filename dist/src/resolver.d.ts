@@ -1,6 +1,6 @@
 import inquirer from 'inquirer';
-import type { OutOfSyncSkill } from './detector.js';
-import type { Conflict, ConflictResolution, DependentConflict, DependentConflictResolution } from './types.js';
+import type { OutOfSyncSkill } from './types.js';
+import type { Conflict, ConflictResolution, DependentConflict, DependentConflictResolution, OutOfSyncResolution } from './types.js';
 type InquirerImpl = typeof inquirer;
 export declare function resolveConflict(conflict: Conflict, inquirerImpl?: InquirerImpl, options?: {
     allowUseA?: boolean;
@@ -22,26 +22,18 @@ export declare function resolveDependentConflict(conflict: DependentConflict, in
  */
 export declare function resolveDependentConflicts(conflicts: DependentConflict[], inquirerImpl?: InquirerImpl): Promise<Map<string, DependentConflictResolution>>;
 /**
- * User resolution for an out-of-sync skill
- */
-export interface OutOfSyncResolution {
-    action: 'use-platform' | 'use-common' | 'skip';
-    platformName?: string;
-}
-/**
  * Resolve an out-of-sync skill through user interaction
- * @param skillName - The name of the skill
- * @param platforms - Array of out-of-sync occurrences for this skill
+ * @param skill - The out-of-sync skill to resolve
  * @param inquirerImpl - Inquirer implementation (for testing)
  * @returns Resolution action
  */
-export declare function resolveOutOfSyncSkill(skillName: string, platforms: OutOfSyncSkill[], inquirerImpl?: InquirerImpl): Promise<OutOfSyncResolution>;
+export declare function resolveOutOfSyncSkill(skill: OutOfSyncSkill, inquirerImpl?: InquirerImpl): Promise<OutOfSyncResolution>;
 /**
  * Batch resolve multiple out-of-sync skills
  * @param skills - Array of out-of-sync skills
  * @param inquirerImpl - Inquirer implementation (for testing)
- * @returns Map of skill names to their resolutions
+ * @returns Array of resolutions in the same order as input skills
  */
-export declare function resolveOutOfSyncSkills(skills: OutOfSyncSkill[], inquirerImpl?: InquirerImpl): Promise<Map<string, OutOfSyncResolution>>;
+export declare function resolveOutOfSyncSkills(skills: OutOfSyncSkill[], inquirerImpl?: InquirerImpl): Promise<OutOfSyncResolution[]>;
 export {};
 //# sourceMappingURL=resolver.d.ts.map

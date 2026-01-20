@@ -4,7 +4,7 @@ import matter from 'gray-matter';
 import { diffLines } from 'diff';
 import chalk from 'chalk';
 import { pickCoreFrontmatter } from './frontmatter.js';
-import type { Conflict, SkillFile } from './types.js';
+import type { Conflict, SkillFile, OutOfSyncSkill, SyncMismatchType } from './types.js';
 
 /**
  * Normalize frontmatter by keeping only CORE_FIELDS for conflict detection
@@ -171,75 +171,159 @@ export async function detectConflicts(
 }
 
 /**
- * Out-of-sync skill information
- */
-export interface OutOfSyncSkill {
-  /** Name of the skill */
-  skillName: string;
-  /** Platform name (e.g., 'claude') */
-  platform: string;
-  /** Path to the platform skill file */
-  platformPath: string;
-  /** Current hash of the platform skill */
-  currentHash: string;
-  /** Stored hash from metadata.sync.hash */
-  storedHash: string;
-}
-
-/**
- * Detect platform skills that have been modified outside of sync-skills
+ * Detect platform skills that are out of sync with their common skills
  * @param platformSkills - Array of platform skill files
+ * @param commonSkills - Array of common skill files
+ * @param platformName - Name of the platform (e.g., 'claude')
  * @returns Array of out-of-sync skills
  */
-export async function detectOutOfSyncSkills(platformSkills: SkillFile[]): Promise<OutOfSyncSkill[]> {
+export async function detectOutOfSyncSkills(
+  platformSkills: SkillFile[],
+  commonSkills: SkillFile[],
+  platformName: string
+): Promise<OutOfSyncSkill[]> {
   const outOfSync: OutOfSyncSkill[] = [];
 
-  for (const skill of platformSkills) {
+  for (const platformSkill of platformSkills) {
     try {
-      const content = await fs.readFile(skill.path, 'utf8');
-      const parsed = matter(content);
+      const platformContent = await fs.readFile(platformSkill.path, 'utf8');
+      const platformParsed = matter(platformContent);
 
-      // Skip reference files - they point to common skills so their content hash
-      // (which is just the reference string) will never match the stored sync hash
-      // (which is the hash of the actual common skill content)
-      if (parsed.content.trim().startsWith('@')) {
+      // Find the corresponding common skill
+      const commonSkill = commonSkills.find(c => c.skillName === platformSkill.skillName);
+      if (!commonSkill) {
+        // No common skill exists, skip
         continue;
       }
 
-      // Extract stored hash from metadata.sync.hash
-      const metadata = parsed.data as { metadata?: { sync?: { hash?: string } } };
-      const storedHash = metadata?.metadata?.sync?.hash;
+      const commonContent = await fs.readFile(commonSkill.path, 'utf8');
+      const commonParsed = matter(commonContent);
 
-      if (!storedHash) {
-        // No stored hash, skip this skill
+      // Extract common hash from metadata
+      const commonMetadata =
+        commonParsed.data?.metadata &&
+        typeof commonParsed.data.metadata === 'object' &&
+        !Array.isArray(commonParsed.data.metadata)
+          ? (commonParsed.data.metadata as Record<string, unknown>)
+          : undefined;
+      const commonSync =
+        commonMetadata?.sync && typeof commonMetadata.sync === 'object' && !Array.isArray(commonMetadata.sync)
+          ? (commonMetadata.sync as Record<string, unknown>)
+          : undefined;
+      const storedCommonHash = commonSync?.hash as string | undefined;
+
+      if (!storedCommonHash) {
+        // Common skill has no hash, skip
         continue;
       }
 
-      // Compute current hash of the file
-      const currentHash = await hashNormalized(skill.path);
+      // Detect mismatches
+      const mismatchType: SyncMismatchType | null = detectSyncMismatch(platformParsed, commonParsed);
 
-      // Check if hashes match
-      if (currentHash !== storedHash.replace('sha256-', '')) {
-        const pathParts = skill.path.split('/').filter(Boolean).reverse();
-        const platformFolder = pathParts[3] || 'unknown';
-        const platform = platformFolder.startsWith('.') ? platformFolder.slice(1) : platformFolder;
-
+      if (mismatchType) {
         outOfSync.push({
-          skillName: skill.skillName,
-          platform,
-          platformPath: skill.path,
-          currentHash: `sha256-${currentHash}`,
-          storedHash
+          skillName: platformSkill.skillName,
+          platform: platformName,
+          platformPath: platformSkill.path,
+          commonPath: commonSkill.path,
+          mismatchType,
+          platformContent,
+          commonContent
         });
       }
     } catch (error) {
       // Skip files that can't be read or parsed
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn(`Warning: Could not check hash for ${skill.path}: ${errorMessage}`);
+      console.warn(`Warning: Could not check sync for ${platformSkill.path}: ${errorMessage}`);
     }
   }
 
   return outOfSync;
+}
+
+/**
+ * Detect what type of sync mismatch exists between platform and common
+ * @param platformParsed - Parsed platform skill
+ * @param commonParsed - Parsed common skill
+ * @returns The type of mismatch, or null if in sync
+ */
+function detectSyncMismatch(
+  platformParsed: matter.GrayMatterFile<string>,
+  commonParsed: matter.GrayMatterFile<string>
+): SyncMismatchType | null {
+  const platformBody = platformParsed.content.trim();
+  const commonBody = commonParsed.content.trim();
+
+  // Check if platform has @ reference
+  const platformHasReference = platformBody.startsWith('@');
+  const platformReference = extractReference(platformBody);
+  const expectedRef = `.agents-common/skills/${commonParsed.data.name}/SKILL.md`;
+
+  // Check body mismatch
+  let bodyMismatch = false;
+  if (platformHasReference) {
+    // Platform has @ reference - check if it points to the correct common skill
+    if (platformReference !== expectedRef) {
+      bodyMismatch = true;
+    }
+  } else {
+    // Platform has actual content - compare with common body
+    if (platformBody !== commonBody) {
+      bodyMismatch = true;
+    }
+  }
+
+  // Check frontmatter mismatch by comparing core fields without sync metadata
+  const platformData = platformParsed.data as Record<string, unknown>;
+  const commonData = commonParsed.data as Record<string, unknown>;
+
+  // Build comparison objects without sync metadata
+  const platformCompare: Record<string, unknown> = {};
+  const commonCompare: Record<string, unknown> = {};
+
+  // Copy all CORE_FIELDS except metadata.sync
+  for (const key of ['name', 'description', 'license', 'compatibility', 'allowed-tools'] as const) {
+    if (platformData[key] !== undefined) platformCompare[key] = platformData[key];
+    if (commonData[key] !== undefined) commonCompare[key] = commonData[key];
+  }
+
+  // Handle metadata field: copy all except sync
+  if (platformData.metadata) {
+    const platformMetadata = { ...(platformData.metadata as Record<string, unknown>) };
+    delete platformMetadata.sync;
+    if (Object.keys(platformMetadata).length > 0) {
+      platformCompare.metadata = platformMetadata;
+    }
+  }
+  if (commonData.metadata) {
+    const commonMetadata = { ...(commonData.metadata as Record<string, unknown>) };
+    delete commonMetadata.sync;
+    if (Object.keys(commonMetadata).length > 0) {
+      commonCompare.metadata = commonMetadata;
+    }
+  }
+
+  const platformHash = JSON.stringify(platformCompare);
+  const commonHash = JSON.stringify(commonCompare);
+  const frontmatterMismatch = platformHash !== commonHash;
+
+  // Determine mismatch type based on the rules:
+  // - If body is out of sync AND platform has @ reference: treat as body or both
+  // - If frontmatter is out of sync only: frontmatter mismatch
+  // - If both are out of sync: treat as both
+  if (bodyMismatch && frontmatterMismatch) {
+    return 'both';
+  }
+
+  if (bodyMismatch) {
+    return 'body';
+  }
+
+  if (frontmatterMismatch) {
+    return 'frontmatter';
+  }
+
+  return null;
 }
 
 export { formatDiff };

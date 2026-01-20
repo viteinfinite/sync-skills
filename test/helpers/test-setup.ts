@@ -49,10 +49,25 @@ export function stubInquirer(responses: Record<string, unknown>): sinon.SinonStu
   sandbox.restore();
 
   return sandbox.stub(inquirer, 'prompt').callsFake(async (questions: unknown) => {
-    const qs = (Array.isArray(questions) ? questions : [questions]) as Array<{ name: string }>;
+    const qs = (Array.isArray(questions) ? questions : [questions]) as Array<{ name: string; message?: string }>;
     const result: Record<string, unknown> = {};
     for (const q of qs) {
-      if (q.name in responses) {
+      // Handle out-of-sync prompts (distinguish by message content)
+      if (q.name === 'action' && q.message && q.message.includes('out-of-sync')) {
+        const outOfSyncAction = responses['outOfSyncAction'] as string | undefined;
+        // Map old outOfSyncAction values to new action values
+        if (outOfSyncAction === 'use-common' || outOfSyncAction === 'keep-common') {
+          result[q.name] = 'keep-common';
+        } else if (outOfSyncAction === 'skip') {
+          result[q.name] = 'keep-common'; // skip now means keep common
+        } else if (outOfSyncAction === 'use-platform') {
+          result[q.name] = 'keep-platform';
+        } else if (outOfSyncAction === 'abort') {
+          result[q.name] = 'abort';
+        } else {
+          result[q.name] = responses['action'] ?? 'keep-common';
+        }
+      } else if (q.name in responses) {
         result[q.name] = responses[q.name];
       } else {
         throw new Error(`No stub response for question: ${q.name}`);

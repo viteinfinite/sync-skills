@@ -165,4 +165,33 @@ export interface DependentConflict {
 export interface DependentConflictResolution {
     action: 'use-common' | 'use-platform' | 'skip' | 'abort';
 }
+/**
+ * Types of sync mismatches for out-of-sync detection
+ */
+export type SyncMismatchType = 'body' | 'frontmatter' | 'both';
+/**
+ * User resolution for an out-of-sync skill
+ */
+export interface OutOfSyncResolution {
+    action: 'keep-platform' | 'keep-common' | 'abort';
+}
+/**
+ * Out-of-sync skill information (pairwise platform vs common)
+ */
+export interface OutOfSyncSkill {
+    /** Name of the skill */
+    skillName: string;
+    /** Platform name (e.g., 'claude') */
+    platform: string;
+    /** Path to the platform skill file */
+    platformPath: string;
+    /** Path to the common skill file */
+    commonPath: string;
+    /** Type of mismatch detected */
+    mismatchType: SyncMismatchType;
+    /** Platform content (for display) */
+    platformContent?: string;
+    /** Common content (for display) */
+    commonContent?: string;
+}
 //# sourceMappingURL=types.d.ts.map

@@ -140,72 +140,96 @@ export async function resolveDependentConflicts(conflicts, inquirerImpl = inquir
     return resolutions;
 }
 /**
- * Format details for out-of-sync skills (grouped by name)
+ * Format details for an out-of-sync skill (pairwise comparison)
  */
-function formatOutOfSyncDetails(skillName, platforms) {
+function formatOutOfSyncDetails(skill) {
     const lines = [];
-    lines.push(chalk.bold.yellow(`\n⚠️  Skill modified outside of sync-skills: ${skillName}`));
-    lines.push(chalk.yellow(`\nModified in ${platforms.length} platform(s):`));
-    for (const p of platforms) {
-        lines.push(chalk.cyan(`\n  ${p.platform}`));
-        lines.push(chalk.gray(`  Path: ${p.platformPath}`));
-        lines.push(chalk.gray(`  Current hash: ${p.currentHash}`));
-        lines.push(chalk.gray(`  Stored hash:  ${p.storedHash}`));
+    const mismatchDescription = {
+        'body': 'Body content is out of sync',
+        'frontmatter': 'Frontmatter (metadata) is out of sync',
+        'both': 'Both body and frontmatter are out of sync'
+    };
+    lines.push(chalk.bold.yellow(`\n⚠️  Skill out of sync: ${skill.skillName}`));
+    lines.push(chalk.yellow(`\nPlatform: ${skill.platform}`));
+    lines.push(chalk.gray(`Platform path: ${skill.platformPath}`));
+    lines.push(chalk.gray(`Common path: ${skill.commonPath}`));
+    lines.push(chalk.yellow(`\nMismatch type: ${mismatchDescription[skill.mismatchType]}`));
+    // Show platform content if available
+    if (skill.platformContent) {
+        const platformParsed = matter(skill.platformContent);
+        lines.push(chalk.cyan(`\nPlatform content:`));
+        if (platformParsed.content.trim().startsWith('@')) {
+            lines.push(chalk.gray(`  ${platformParsed.content.trim()}`));
+        }
+        else {
+            const preview = platformParsed.content.split('\n').slice(0, 3).join('\n');
+            lines.push(chalk.gray(`  ${preview}${platformParsed.content.split('\n').length > 3 ? '...' : ''}`));
+        }
+    }
+    // Show common content if available
+    if (skill.commonContent) {
+        const commonParsed = matter(skill.commonContent);
+        lines.push(chalk.magenta(`\nCommon content:`));
+        const preview = commonParsed.content.split('\n').slice(0, 3).join('\n');
+        lines.push(chalk.gray(`  ${preview}${commonParsed.content.split('\n').length > 3 ? '...' : ''}`));
     }
     lines.push('');
     return lines.join('\n');
 }
 /**
+ * Get available choices based on mismatch type
+ * Case 1: body out of sync AND platform has @ reference -> only "abort" and "keep common"
+ * Case 2: frontmatter out of sync only -> "keep platform", "keep common", "abort"
+ * Case 3: both out of sync -> treat as case 1 (stricter)
+ */
+function getChoicesForMismatch(skill) {
+    const platformHasAtReference = skill.platformContent?.trim().startsWith('@');
+    // Case 1 & 3: body out of sync (with @ reference) or both
+    if (skill.mismatchType === 'both' || (skill.mismatchType === 'body' && platformHasAtReference)) {
+        return [
+            { name: 'Keep common version (discard platform changes)', value: 'keep-common' },
+            { name: 'Abort sync', value: 'abort' }
+        ];
+    }
+    // Case 2: frontmatter only or body without @ reference
+    return [
+        { name: `Keep ${skill.platform} version (use platform frontmatter)`, value: 'keep-platform' },
+        { name: 'Keep common version (discard platform changes)', value: 'keep-common' },
+        { name: 'Abort sync', value: 'abort' }
+    ];
+}
+/**
  * Resolve an out-of-sync skill through user interaction
- * @param skillName - The name of the skill
- * @param platforms - Array of out-of-sync occurrences for this skill
+ * @param skill - The out-of-sync skill to resolve
  * @param inquirerImpl - Inquirer implementation (for testing)
  * @returns Resolution action
  */
-export async function resolveOutOfSyncSkill(skillName, platforms, inquirerImpl = inquirer) {
-    console.log(formatOutOfSyncDetails(skillName, platforms));
-    const choices = platforms.map(p => ({
-        name: `Use modified ${p.platform} version (updates common skill)`,
-        value: `use-platform:${p.platform}`
-    }));
-    choices.push({ name: 'Use common version (discards all platform edits)', value: 'use-common' });
-    choices.push({ name: 'Skip - Leave this skill as-is and continue', value: 'skip' });
-    const { outOfSyncAction } = await inquirerImpl.prompt([
+export async function resolveOutOfSyncSkill(skill, inquirerImpl = inquirer) {
+    console.log(formatOutOfSyncDetails(skill));
+    const choices = getChoicesForMismatch(skill);
+    const { action } = await inquirerImpl.prompt([
         {
             type: 'list',
-            name: 'outOfSyncAction',
+            name: 'action',
             message: 'How would you like to resolve this out-of-sync skill?',
             choices
         }
     ]);
-    if (outOfSyncAction.startsWith('use-platform:')) {
-        return {
-            action: 'use-platform',
-            platformName: outOfSyncAction.split(':')[1]
-        };
-    }
-    return { action: outOfSyncAction };
+    return { action: action };
 }
 /**
  * Batch resolve multiple out-of-sync skills
  * @param skills - Array of out-of-sync skills
  * @param inquirerImpl - Inquirer implementation (for testing)
- * @returns Map of skill names to their resolutions
+ * @returns Array of resolutions in the same order as input skills
  */
 export async function resolveOutOfSyncSkills(skills, inquirerImpl = inquirer) {
-    const resolutions = new Map();
-    // Group by skill name
-    const grouped = new Map();
+    const resolutions = [];
     for (const skill of skills) {
-        const existing = grouped.get(skill.skillName) || [];
-        existing.push(skill);
-        grouped.set(skill.skillName, existing);
-    }
-    for (const [skillName, platforms] of grouped.entries()) {
-        const resolution = await resolveOutOfSyncSkill(skillName, platforms, inquirerImpl);
-        resolutions.set(skillName, resolution);
-        if (resolution.action === 'skip') {
-            continue;
+        const resolution = await resolveOutOfSyncSkill(skill, inquirerImpl);
+        resolutions.push(resolution);
+        if (resolution.action === 'abort') {
+            break;
         }
     }
     return resolutions;
