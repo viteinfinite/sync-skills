@@ -8,7 +8,7 @@ const OBJECT_MERGE_FIELDS = ['metadata', 'hooks'];
  * Propagate frontmatter from common skill to target skills
  */
 export async function propagateFrontmatter(commonPath, targetPaths, options = {}) {
-    const { failOnConflict = false, dryRun = false, resolver = defaultResolver } = options;
+    const { failOnConflict = false, resolver = defaultResolver } = options;
     // Check if common file exists
     try {
         await fs.access(commonPath);
@@ -58,14 +58,8 @@ export async function propagateFrontmatter(commonPath, targetPaths, options = {}
             }
         }
         // Write merged frontmatter back to target
-        if (!dryRun) {
-            const newContent = matter.stringify(targetParsed.content, merged);
-            await fs.writeFile(targetPath, newContent);
-        }
-        else {
-            console.log(`[Dry-run] Would update ${targetPath}`);
-            console.log(`  Frontmatter:`, merged);
-        }
+        const newContent = matter.stringify(targetParsed.content, merged);
+        await fs.writeFile(targetPath, newContent);
     }
 }
 /**

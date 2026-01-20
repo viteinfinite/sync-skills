@@ -52,7 +52,7 @@ export declare function consolidateDependentsToCommon(skillName: string, platfor
  * @param skillName - Name of the skill
  * @param filesToRemove - Array of relative paths to remove
  */
-export declare function cleanupPlatformDependentFiles(platformPath: string, skillName: string, filesToRemove: string[]): Promise<void>;
+export declare function cleanupPlatformDependentFiles(platformPath: string, skillName: string, filesToRemove: string[], attemptedRemovals?: Set<string>): Promise<void>;
 /**
  * Apply conflict resolutions for dependent files
  * @param conflicts - Array of conflicts to resolve

@@ -5,7 +5,6 @@ interface FrontmatterConflict {
 }
 interface PropagateOptions {
     failOnConflict?: boolean;
-    dryRun?: boolean;
     resolver?: (conflict: FrontmatterConflict, targetPath: string) => Promise<string>;
 }
 /**

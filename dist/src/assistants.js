@@ -133,31 +133,35 @@ async function cloneAssistantSkills(baseDir, sourceSkills, targetConfig) {
 /**
  * Process all sync pairs with appropriate prompts
  */
-export async function processSyncPairs(baseDir, pairs, dryRun) {
+export async function processSyncPairs(baseDir, pairs) {
     const blockedAssistants = new Set();
+    const approvedAssistants = new Set();
     for (const pair of pairs) {
-        if (blockedAssistants.has(pair.target.config.name)) {
+        const targetName = pair.target.config.name;
+        if (blockedAssistants.has(targetName)) {
+            continue;
+        }
+        // Skip if already approved in a previous iteration
+        if (approvedAssistants.has(targetName)) {
+            await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config);
             continue;
         }
         const shouldPrompt = needsPrompt(pair);
         let shouldSync = false;
-        if (dryRun) {
-            // In dry run mode, don't sync
-            continue;
-        }
         if (shouldPrompt) {
             // Prompt user for permission
-            shouldSync = await promptForSync(pair.target.config.name);
+            shouldSync = await promptForSync(targetName);
         }
         else {
             // Auto-sync when target directory exists
             shouldSync = true;
         }
         if (shouldSync) {
+            approvedAssistants.add(targetName);
             await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config);
         }
         else {
-            blockedAssistants.add(pair.target.config.name);
+            blockedAssistants.add(targetName);
         }
     }
     return blockedAssistants;
@@ -166,9 +170,15 @@ export async function processSyncPairs(baseDir, pairs, dryRun) {
  * Sync skills that exist only in .agents-common to enabled platforms
  * Creates @ references in platform folders for common-only skills
  */
-export async function syncCommonOnlySkills(baseDir, commonSkills, enabledConfigs, dryRun) {
+export async function syncCommonOnlySkills(baseDir, commonSkills, enabledConfigs, blockedAssistants = new Set()) {
+    const approvedAssistants = new Set();
+    const assistantDirExists = new Map();
     for (const commonSkill of commonSkills) {
         for (const config of enabledConfigs) {
+            const targetName = config.name;
+            if (blockedAssistants.has(targetName)) {
+                continue;
+            }
             const platformSkillPath = join(baseDir, config.skillsDir, commonSkill.skillName, 'SKILL.md');
             // Check if skill already exists in this platform
             try {
@@ -179,9 +189,33 @@ export async function syncCommonOnlySkills(baseDir, commonSkills, enabledConfigs
             catch {
                 // Skill doesn't exist in platform, create it
             }
-            if (dryRun) {
-                console.log(`Would create @ reference for ${commonSkill.skillName} in ${config.name}`);
-                continue;
+            // If we haven't checked/prompted for this assistant yet
+            if (!approvedAssistants.has(targetName)) {
+                let exists = assistantDirExists.get(targetName);
+                if (exists === undefined) {
+                    const assistantDir = join(baseDir, config.dir);
+                    try {
+                        await fs.access(assistantDir);
+                        exists = true;
+                    }
+                    catch {
+                        exists = false;
+                    }
+                    assistantDirExists.set(targetName, exists);
+                }
+                if (!exists) {
+                    const shouldSync = await promptForSync(targetName);
+                    if (shouldSync) {
+                        approvedAssistants.add(targetName);
+                    }
+                    else {
+                        blockedAssistants.add(targetName);
+                        continue;
+                    }
+                }
+                else {
+                    approvedAssistants.add(targetName);
+                }
             }
             // Read the common skill to extract frontmatter and sync metadata
             const content = await fs.readFile(commonSkill.path, 'utf-8');

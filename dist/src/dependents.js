@@ -289,10 +289,14 @@ async function selectFileVersion(skillName, relativePath, versions, commonPath) 
  * @param skillName - Name of the skill
  * @param filesToRemove - Array of relative paths to remove
  */
-export async function cleanupPlatformDependentFiles(platformPath, skillName, filesToRemove) {
+export async function cleanupPlatformDependentFiles(platformPath, skillName, filesToRemove, attemptedRemovals) {
     const skillPath = join(platformPath, skillName);
+    const seenPaths = attemptedRemovals ?? new Set();
     for (const relativePath of filesToRemove) {
         const filePath = join(skillPath, relativePath);
+        if (seenPaths.has(filePath)) {
+            continue;
+        }
         try {
             await fs.unlink(filePath);
         }
@@ -300,6 +304,9 @@ export async function cleanupPlatformDependentFiles(platformPath, skillName, fil
             // File doesn't exist or can't be deleted - log warning and continue
             const errorMessage = error instanceof Error ? error.message : String(error);
             console.warn(`Warning: Could not delete ${filePath}: ${errorMessage}`);
+        }
+        finally {
+            seenPaths.add(filePath);
         }
     }
     // Clean up empty directories

@@ -158,13 +158,13 @@ function formatOutOfSyncDetails(skill) {
     // Show platform content if available
     if (showPreview && skill.platformContent) {
         const platformParsed = matter(skill.platformContent);
-        lines.push(chalk.cyan(`\nPlatform content:`));
+        lines.push(chalk.cyan(`\n${skill.platform} content:`));
         if (platformParsed.content.trim().startsWith('@')) {
-            lines.push(chalk.gray(`  ${platformParsed.content.trim()}`));
+            lines.push(chalk.gray(`${platformParsed.content.trim()}`));
         }
         else {
             const preview = platformParsed.content.split('\n').slice(0, 3).join('\n');
-            lines.push(chalk.gray(`  ${preview}${platformParsed.content.split('\n').length > 3 ? '...' : ''}`));
+            lines.push(chalk.gray(`${preview}${platformParsed.content.split('\n').length > 3 ? '...' : ''}`));
         }
     }
     // Show common content if available
@@ -172,7 +172,7 @@ function formatOutOfSyncDetails(skill) {
         const commonParsed = matter(skill.commonContent);
         lines.push(chalk.magenta(`\nCommon content:`));
         const preview = commonParsed.content.split('\n').slice(0, 3).join('\n');
-        lines.push(chalk.gray(`  ${preview}${commonParsed.content.split('\n').length > 3 ? '...' : ''}`));
+        lines.push(chalk.gray(`${preview}${commonParsed.content.split('\n').length > 3 ? '...' : ''}`));
     }
     lines.push('');
     return lines.join('\n');

@@ -61,8 +61,6 @@ export interface RunOptions {
     baseDir?: string;
     /** Exit with error code 1 on conflict (default: false) */
     failOnConflict?: boolean;
-    /** Dry run - don't make any changes (default: false) */
-    dryRun?: boolean;
     /** Use home directory instead of cwd (default: false) */
     homeMode?: boolean;
     /** Run reconfiguration flow (default: false) */
