@@ -103,7 +103,7 @@ function formatDependentConflictDetails(conflict) {
  * @param inquirerImpl - Inquirer implementation (for testing)
  * @returns Resolution action
  */
-export async function resolveDependentConflict(conflict, inquirerImpl = inquirer) {
+async function resolveDependentConflict(conflict, inquirerImpl = inquirer) {
     console.log(formatDependentConflictDetails(conflict));
     const choices = [
         { name: 'Keep common version', value: 'use-common' },
@@ -160,11 +160,11 @@ function formatOutOfSyncDetails(skill) {
         const platformParsed = matter(skill.platformContent);
         lines.push(chalk.cyan(`\nPlatform content:`));
         if (platformParsed.content.trim().startsWith('@')) {
-            lines.push(chalk.gray(`${platformParsed.content.trim()}`));
+            lines.push(chalk.gray(`  ${platformParsed.content.trim()}`));
         }
         else {
             const preview = platformParsed.content.split('\n').slice(0, 3).join('\n');
-            lines.push(chalk.gray(`${preview}${platformParsed.content.split('\n').length > 3 ? '...' : ''}`));
+            lines.push(chalk.gray(`  ${preview}${platformParsed.content.split('\n').length > 3 ? '...' : ''}`));
         }
     }
     // Show common content if available
@@ -172,7 +172,7 @@ function formatOutOfSyncDetails(skill) {
         const commonParsed = matter(skill.commonContent);
         lines.push(chalk.magenta(`\nCommon content:`));
         const preview = commonParsed.content.split('\n').slice(0, 3).join('\n');
-        lines.push(chalk.gray(`${preview}${commonParsed.content.split('\n').length > 3 ? '...' : ''}`));
+        lines.push(chalk.gray(`  ${preview}${commonParsed.content.split('\n').length > 3 ? '...' : ''}`));
     }
     lines.push('');
     return lines.join('\n');
