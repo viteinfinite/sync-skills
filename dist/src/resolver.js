@@ -160,11 +160,11 @@ function formatOutOfSyncDetails(skill) {
         const platformParsed = matter(skill.platformContent);
         lines.push(chalk.cyan(`\nPlatform content:`));
         if (platformParsed.content.trim().startsWith('@')) {
-            lines.push(chalk.gray(`  ${platformParsed.content.trim()}`));
+            lines.push(chalk.gray(`${platformParsed.content.trim()}`));
         }
         else {
             const preview = platformParsed.content.split('\n').slice(0, 3).join('\n');
-            lines.push(chalk.gray(`  ${preview}${platformParsed.content.split('\n').length > 3 ? '...' : ''}`));
+            lines.push(chalk.gray(`${preview}${platformParsed.content.split('\n').length > 3 ? '...' : ''}`));
         }
     }
     // Show common content if available
@@ -172,7 +172,7 @@ function formatOutOfSyncDetails(skill) {
         const commonParsed = matter(skill.commonContent);
         lines.push(chalk.magenta(`\nCommon content:`));
         const preview = commonParsed.content.split('\n').slice(0, 3).join('\n');
-        lines.push(chalk.gray(`  ${preview}${commonParsed.content.split('\n').length > 3 ? '...' : ''}`));
+        lines.push(chalk.gray(`${preview}${commonParsed.content.split('\n').length > 3 ? '...' : ''}`));
     }
     lines.push('');
     return lines.join('\n');
@@ -192,30 +192,31 @@ function getChoicesForMismatch(skill) {
         return parsed.content.trim().startsWith('@');
     })();
     const allowKeepPlatform = skill.allowKeepPlatform !== false;
+    const discardLabel = skill.platform === 'multiple' ? 'platform edits' : skill.platform;
     if (!allowKeepPlatform) {
         return [
-            { name: 'Keep common version (discard platform changes)', value: 'keep-common' },
+            { name: `Keep common version (discard ${discardLabel})`, value: 'keep-common' },
             { name: 'Abort sync', value: 'abort' }
         ];
     }
     // Case 1: body out of sync with @ reference
     if (skill.mismatchType === 'body' && platformHasAtReference) {
         return [
-            { name: 'Keep common version (discard platform changes)', value: 'keep-common' },
+            { name: `Keep common version (discard ${discardLabel})`, value: 'keep-common' },
             { name: 'Abort sync', value: 'abort' }
         ];
     }
     // Case 2: both mismatches with @ reference (stricter)
     if (skill.mismatchType === 'both' && platformHasAtReference) {
         return [
-            { name: 'Keep common version (discard platform changes)', value: 'keep-common' },
+            { name: `Keep common version (discard ${discardLabel})`, value: 'keep-common' },
             { name: 'Abort sync', value: 'abort' }
         ];
     }
     // Case 3: frontmatter mismatch or body without @ reference
     return [
-        { name: `Keep ${skill.platform} version (use platform changes)`, value: 'keep-platform' },
-        { name: 'Keep common version (discard platform changes)', value: 'keep-common' },
+        { name: `Keep ${skill.platform} version (use ${skill.platform})`, value: 'keep-platform' },
+        { name: `Keep common version (discard ${discardLabel})`, value: 'keep-common' },
         { name: 'Abort sync', value: 'abort' }
     ];
 }
