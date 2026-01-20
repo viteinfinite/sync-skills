@@ -266,4 +266,6 @@ export interface OutOfSyncSkill {
   platformContent?: string;
   /** Common content (for display) */
   commonContent?: string;
+  /** Whether to allow keeping platform edits */
+  allowKeepPlatform?: boolean;
 }

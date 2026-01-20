@@ -287,13 +287,10 @@ This is the content of my skill.`);
 
   await runTest(testDir);
 
-  // Note: With the new behavior, syncCommonOnlySkills creates assistant directories
-  // even when they don't exist. The user's "no" response only affects processSyncPairs,
-  // not syncCommonOnlySkills.
-  // Verify .claude/skills/my-skill/SKILL.md was created
+  // Verify .claude/skills was NOT created
   const claudeSkillPath = join(testDir, '.claude/skills/my-skill/SKILL.md');
   const claudeSkillExists = await fs.access(claudeSkillPath).then(() => true).catch(() => false);
-  assert.ok(claudeSkillExists, '.claude/skills/my-skill/SKILL.md should be created by syncCommonOnlySkills');
+  assert.ok(!claudeSkillExists, '.claude/skills/my-skill/SKILL.md should not be created when user declines');
 
   await cleanupTestFixture(testDir);
 });

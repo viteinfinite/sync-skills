@@ -191,6 +191,7 @@ export async function resolveDependentConflicts(
  */
 function formatOutOfSyncDetails(skill: OutOfSyncSkill): string {
   const lines: string[] = [];
+  const showPreview = skill.platform !== 'multiple';
 
   const mismatchDescription: Record<SyncMismatchType, string> = {
     'body': 'Body content is out of sync',
@@ -205,7 +206,7 @@ function formatOutOfSyncDetails(skill: OutOfSyncSkill): string {
   lines.push(chalk.yellow(`\nMismatch type: ${mismatchDescription[skill.mismatchType]}`));
 
   // Show platform content if available
-  if (skill.platformContent) {
+  if (showPreview && skill.platformContent) {
     const platformParsed = matter(skill.platformContent);
     lines.push(chalk.cyan(`\nPlatform content:`));
     if (platformParsed.content.trim().startsWith('@')) {
@@ -217,7 +218,7 @@ function formatOutOfSyncDetails(skill: OutOfSyncSkill): string {
   }
 
   // Show common content if available
-  if (skill.commonContent) {
+  if (showPreview && skill.commonContent) {
     const commonParsed = matter(skill.commonContent);
     lines.push(chalk.magenta(`\nCommon content:`));
     const preview = commonParsed.content.split('\n').slice(0, 3).join('\n');
@@ -235,19 +236,41 @@ function formatOutOfSyncDetails(skill: OutOfSyncSkill): string {
  * Case 3: both out of sync -> treat as case 1 (stricter)
  */
 function getChoicesForMismatch(skill: OutOfSyncSkill): Array<{ name: string; value: string }> {
-  const platformHasAtReference = skill.platformContent?.trim().startsWith('@');
+  const platformHasAtReference = (() => {
+    if (!skill.platformContent) {
+      return false;
+    }
+    const parsed = matter(skill.platformContent);
+    return parsed.content.trim().startsWith('@');
+  })();
+  const allowKeepPlatform = skill.allowKeepPlatform !== false;
 
-  // Case 1 & 3: body out of sync (with @ reference) or both
-  if (skill.mismatchType === 'both' || (skill.mismatchType === 'body' && platformHasAtReference)) {
+  if (!allowKeepPlatform) {
     return [
       { name: 'Keep common version (discard platform changes)', value: 'keep-common' },
       { name: 'Abort sync', value: 'abort' }
     ];
   }
 
-  // Case 2: frontmatter only or body without @ reference
+  // Case 1: body out of sync with @ reference
+  if (skill.mismatchType === 'body' && platformHasAtReference) {
+    return [
+      { name: 'Keep common version (discard platform changes)', value: 'keep-common' },
+      { name: 'Abort sync', value: 'abort' }
+    ];
+  }
+
+  // Case 2: both mismatches with @ reference (stricter)
+  if (skill.mismatchType === 'both' && platformHasAtReference) {
+    return [
+      { name: 'Keep common version (discard platform changes)', value: 'keep-common' },
+      { name: 'Abort sync', value: 'abort' }
+    ];
+  }
+
+  // Case 3: frontmatter mismatch or body without @ reference
   return [
-    { name: `Keep ${skill.platform} version (use platform frontmatter)`, value: 'keep-platform' },
+    { name: `Keep ${skill.platform} version (use platform changes)`, value: 'keep-platform' },
     { name: 'Keep common version (discard platform changes)', value: 'keep-common' },
     { name: 'Abort sync', value: 'abort' }
   ];

@@ -64,7 +64,7 @@ describe('resolver', () => {
       assert.ok(choices.find((c: any) => c.value === 'abort'), 'Should have abort');
     });
 
-    it('should present "keep-common" and "abort" choices for both mismatch', async () => {
+    it('should present "keep-common" and "abort" choices for both mismatch with @ reference', async () => {
       const skill: OutOfSyncSkill = {
         skillName: 'test-skill',
         platform: 'claude',
@@ -85,6 +85,29 @@ describe('resolver', () => {
       assert.ok(choices.find((c: any) => c.value === 'keep-common'), 'Should have keep-common');
       assert.ok(choices.find((c: any) => c.value === 'abort'), 'Should have abort');
       assert.ok(!choices.find((c: any) => c.value === 'keep-platform'), 'Should not have keep-platform');
+    });
+
+    it('should present "keep-platform", "keep-common", "abort" choices for both mismatch without @ reference', async () => {
+      const skill: OutOfSyncSkill = {
+        skillName: 'test-skill',
+        platform: 'claude',
+        platformPath: '/path/to/claude/skill',
+        commonPath: '/path/to/common/skill',
+        mismatchType: 'both',
+        platformContent: 'Platform content',
+        commonContent: 'Common content'
+      };
+
+      const mockInquirer = createMockInquirer({ action: 'keep-platform' });
+
+      await resolveOutOfSyncSkill(skill, mockInquirer as any);
+
+      const questions = mockInquirer.getCapturedQuestions();
+      const choices = questions[0].choices;
+
+      assert.ok(choices.find((c: any) => c.value === 'keep-platform'), 'Should have keep-platform');
+      assert.ok(choices.find((c: any) => c.value === 'keep-common'), 'Should have keep-common');
+      assert.ok(choices.find((c: any) => c.value === 'abort'), 'Should have abort');
     });
 
     it('should return correct resolution when keep-platform is selected', async () => {

@@ -38,25 +38,20 @@ test('Integration: Auto-configuration - should prompt and create config when fol
   await cleanupTestFixture(testDir);
 });
 
-test('Integration: Auto-configuration - should prompt when no folders exist', async () => {
+test('Integration: Auto-configuration - should exit when no folders exist', async () => {
   // Create empty directory
   const testDir = await createTestFixture('auto-config-no-folders');
 
   // Stub inquirer to select claude
   promptStub = stubInquirer({ assistants: ['claude'] });
 
-  // This should prompt and create config
-  try {
-    await run({ baseDir: testDir });
-  } catch (e) {
-    // May exit if no config
-  }
+  await run({ baseDir: testDir });
 
   const { readConfig } = await import('../../src/config.js');
   const config = await readConfig(testDir);
 
-  assert.ok(config);
-  assert.deepEqual(config?.assistants, ['claude']);
+  assert.strictEqual(config, null);
+  assert.strictEqual(promptStub.callCount, 0, 'should not prompt when no folders exist');
 
   await cleanupTestFixture(testDir);
 });

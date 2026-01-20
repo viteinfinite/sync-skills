@@ -40,21 +40,27 @@ export async function cleanupTestFixture(dir: string): Promise<void> {
 
 /**
  * Stub inquirer.prompt to avoid interactive prompts
+ * Supports both single response and sequential response array
  * Uses a shared sandbox to avoid conflicts between tests
- * @param responses - Map of question names to resolved values
+ * @param responses - Map of question names to resolved values, or array of such maps for sequential calls
  * @returns Sinon stub that can be restored
  */
-export function stubInquirer(responses: Record<string, unknown>): sinon.SinonStub {
+export function stubInquirer(responses: Record<string, unknown> | Array<Record<string, unknown>>): sinon.SinonStub {
   // Restore any existing prompt stub first
   sandbox.restore();
 
+  const responsesArray = Array.isArray(responses) ? responses : [responses];
+  let callCount = 0;
+
   return sandbox.stub(inquirer, 'prompt').callsFake(async (questions: unknown) => {
     const qs = (Array.isArray(questions) ? questions : [questions]) as Array<{ name: string; message?: string }>;
+    const currentResponses = responsesArray[Math.min(callCount, responsesArray.length - 1)];
+    callCount++;
     const result: Record<string, unknown> = {};
     for (const q of qs) {
       // Handle out-of-sync prompts (distinguish by message content)
       if (q.name === 'action' && q.message && q.message.includes('out-of-sync')) {
-        const outOfSyncAction = responses['outOfSyncAction'] as string | undefined;
+        const outOfSyncAction = currentResponses['outOfSyncAction'] as string | undefined;
         // Map old outOfSyncAction values to new action values
         if (outOfSyncAction === 'use-common' || outOfSyncAction === 'keep-common') {
           result[q.name] = 'keep-common';
@@ -65,10 +71,10 @@ export function stubInquirer(responses: Record<string, unknown>): sinon.SinonStu
         } else if (outOfSyncAction === 'abort') {
           result[q.name] = 'abort';
         } else {
-          result[q.name] = responses['action'] ?? 'keep-common';
+          result[q.name] = currentResponses['action'] ?? 'keep-common';
         }
-      } else if (q.name in responses) {
-        result[q.name] = responses[q.name];
+      } else if (q.name in currentResponses) {
+        result[q.name] = currentResponses[q.name];
       } else {
         throw new Error(`No stub response for question: ${q.name}`);
       }
@@ -144,4 +150,42 @@ export async function createConfig(
     assistants
   };
   await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+}
+
+/**
+ * Read a common skill file content
+ * @param dir - Base directory
+ * @param skillName - Name of the skill
+ * @returns Content of the skill file
+ */
+export async function readCommonSkill(
+  dir: string,
+  skillName: string
+): Promise<string> {
+  const skillPath = join(dir, '.agents-common/skills', skillName, 'SKILL.md');
+  return await fs.readFile(skillPath, 'utf-8');
+}
+
+/**
+ * Check if a file or directory exists
+ * @param dir - Base directory
+ * @param path - Relative path to check
+ * @returns True if exists, false otherwise
+ */
+export async function exists(dir: string, path: string): Promise<boolean> {
+  try {
+    await fs.access(join(dir, path));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Create a directory
+ * @param dir - Base directory
+ * @param path - Relative path to create
+ */
+export async function createDir(dir: string, path: string): Promise<void> {
+  await fs.mkdir(join(dir, path), { recursive: true });
 }

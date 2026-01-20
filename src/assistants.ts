@@ -168,8 +168,14 @@ export async function processSyncPairs(
   baseDir: string,
   pairs: SyncPair[],
   dryRun: boolean
-): Promise<void> {
+): Promise<Set<string>> {
+  const blockedAssistants = new Set<string>();
+
   for (const pair of pairs) {
+    if (blockedAssistants.has(pair.target.config.name)) {
+      continue;
+    }
+
     const shouldPrompt = needsPrompt(pair);
     let shouldSync = false;
 
@@ -188,8 +194,12 @@ export async function processSyncPairs(
 
     if (shouldSync) {
       await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config);
+    } else {
+      blockedAssistants.add(pair.target.config.name);
     }
   }
+
+  return blockedAssistants;
 }
 
 /**

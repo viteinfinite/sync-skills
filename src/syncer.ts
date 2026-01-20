@@ -103,47 +103,39 @@ export async function writePlatformReference(
   const platformParsed = matter(platformContent);
   const commonParsed = matter(commonContent);
 
+  // Extract CORE_FIELDS from common to copy to platform
+  const commonCore = pickCoreFrontmatter(commonParsed.data as Record<string, unknown>);
+
   const commonMetadata =
-    commonParsed.data?.metadata &&
-    typeof commonParsed.data.metadata === 'object' &&
-    !Array.isArray(commonParsed.data.metadata)
-      ? commonParsed.data.metadata as Record<string, unknown>
-      : undefined;
+    commonCore.metadata as Record<string, unknown> | undefined;
   const commonSync =
-    commonMetadata?.sync &&
-    typeof commonMetadata.sync === 'object' &&
-    !Array.isArray(commonMetadata.sync)
+    commonMetadata?.sync && typeof commonMetadata.sync === 'object' && !Array.isArray(commonMetadata.sync)
       ? commonMetadata.sync as Record<string, unknown>
       : undefined;
   const commonHash = commonSync?.hash;
 
-  const platformData = platformParsed.data as Record<string, unknown>;
-  const platformMetadata =
-    platformData.metadata &&
-    typeof platformData.metadata === 'object' &&
-    !Array.isArray(platformData.metadata)
-      ? { ...(platformData.metadata as Record<string, unknown>) }
-      : {};
-  const platformSync =
-    platformMetadata.sync &&
-    typeof platformMetadata.sync === 'object' &&
-    !Array.isArray(platformMetadata.sync)
-      ? { ...(platformMetadata.sync as Record<string, unknown>) }
-      : {};
+  // Build platform frontmatter with CORE_FIELDS from common
+  const newPlatformData: Record<string, unknown> = { ...commonCore };
 
-  if (commonHash) {
-    platformMetadata.sync = {
-      ...platformSync,
-      hash: commonHash
-    };
-  } else if (Object.keys(platformSync).length > 0) {
-    platformMetadata.sync = platformSync;
+  // Preserve non-CORE fields from platform (like model, temperature, etc.)
+  const platformData = platformParsed.data as Record<string, unknown>;
+  const CORE_FIELDS = ['name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'] as const;
+  for (const key of Object.keys(platformData)) {
+    if (!CORE_FIELDS.includes(key as any)) {
+      (newPlatformData as any)[key] = platformData[key];
+    }
   }
 
-  const newPlatformData = {
-    ...platformData,
-    ...(Object.keys(platformMetadata).length > 0 ? { metadata: platformMetadata } : {})
-  };
+  // Ensure sync metadata has the hash from common
+  if (commonHash || Object.keys(newPlatformData).length > 0) {
+    const newMetadata: Record<string, unknown> = { ...(newPlatformData.metadata as Record<string, unknown> || {}) };
+    if (commonHash) {
+      newMetadata.sync = { hash: commonHash };
+    }
+    if (Object.keys(newMetadata).length > 0) {
+      newPlatformData.metadata = newMetadata;
+    }
+  }
 
   const skillName = basename(dirname(platformPath));
   const atReference = `@.agents-common/skills/${skillName}/SKILL.md`;
