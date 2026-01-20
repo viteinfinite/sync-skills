@@ -11,7 +11,7 @@ test.beforeEach(() => {
   promptStub = stubInquirer({
     assistants: ['claude', 'codex'],
     action: 'keep-both',
-    outOfSyncAction: 'no' // Discard platform edits for out-of-sync skills
+    outOfSyncAction: 'use-common' // Discard platform edits for out-of-sync skills
   });
 });
 

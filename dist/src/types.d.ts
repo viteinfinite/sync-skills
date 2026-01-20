@@ -98,7 +98,7 @@ export interface Conflict {
  */
 export interface ConflictResolution {
     /** Action to take */
-    action: 'abort' | 'use-a' | 'use-b' | 'keep-both';
+    action: 'abort' | 'use-a' | 'use-b' | 'keep-both' | 'use-common';
 }
 /**
  * Parsed skill file with frontmatter

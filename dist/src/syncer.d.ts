@@ -1,4 +1,5 @@
 export declare function refactorSkill(sourcePath: string): Promise<string | null>;
+export declare function writePlatformReference(platformPath: string, commonPath: string): Promise<void>;
 export declare function copySkill(sourcePath: string, targetPath: string): Promise<void>;
 /**
  * Compute hash of skill state (frontmatter + body + dependent files)

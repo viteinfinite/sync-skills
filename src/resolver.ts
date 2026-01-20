@@ -58,21 +58,45 @@ function formatConflictDetails(conflict: Conflict): string {
 
 export async function resolveConflict(
   conflict: Conflict,
-  inquirerImpl: InquirerImpl = inquirer
+  inquirerImpl: InquirerImpl = inquirer,
+  options: { allowUseA?: boolean; allowUseB?: boolean; allowUseCommon?: boolean } = {}
 ): Promise<ConflictResolution> {
   console.log(formatConflictDetails(conflict));
+
+  const allowUseA = options.allowUseA ?? true;
+  const allowUseB = options.allowUseB ?? true;
+
+  const choices: Array<{ name: string; value: ConflictResolution['action'] }> = [];
+
+  if (allowUseA) {
+    choices.push({
+      name: `Use .${conflict.platformA} version (overwrite .${conflict.platformB})`,
+      value: 'use-a'
+    });
+  }
+
+  if (allowUseB) {
+    choices.push({
+      name: `Use .${conflict.platformB} version (overwrite .${conflict.platformA})`,
+      value: 'use-b'
+    });
+  }
+
+  if (options.allowUseCommon) {
+    choices.push({ name: 'Use common version (discard platform edits)', value: 'use-common' });
+  }
+
+  choices.push(
+    { name: 'Keep both unchanged', value: 'keep-both' },
+    { name: 'Abort sync', value: 'abort' }
+  );
 
   const { action } = await inquirerImpl.prompt([
     {
       type: 'list',
       name: 'action',
       message: 'How would you like to resolve this conflict?',
-      choices: [
-        { name: `Use .${conflict.platformA} version (overwrite .${conflict.platformB})`, value: 'use-a' },
-        { name: `Use .${conflict.platformB} version (overwrite .${conflict.platformA})`, value: 'use-b' },
-        { name: 'Keep both unchanged', value: 'keep-both' },
-        { name: 'Abort sync', value: 'abort' }
-      ]
+      choices
     }
   ]);
 
@@ -166,51 +190,67 @@ export async function resolveDependentConflicts(
  * User resolution for an out-of-sync skill
  */
 export interface OutOfSyncResolution {
-  action: 'yes' | 'no' | 'skip';
+  action: 'use-platform' | 'use-common' | 'skip';
+  platformName?: string;
 }
 
 /**
- * Format details for an out-of-sync skill
+ * Format details for out-of-sync skills (grouped by name)
  */
-function formatOutOfSyncDetails(skill: OutOfSyncSkill): string {
+function formatOutOfSyncDetails(skillName: string, platforms: OutOfSyncSkill[]): string {
   const lines: string[] = [];
 
-  lines.push(chalk.bold.yellow(`\n⚠️  Skill modified outside of sync-skills: ${skill.skillName}`));
-  lines.push(chalk.yellow(`\nPlatform: ${skill.platform}`));
-  lines.push(chalk.gray(`Path: ${skill.platformPath}`));
-  lines.push(chalk.yellow(`\nThe skill has been modified directly, causing a hash mismatch:`));
-  lines.push(chalk.cyan(`\nCurrent hash:`));
-  lines.push(chalk.gray(`  ${skill.currentHash}`));
-  lines.push(chalk.magenta(`\nStored hash:`));
-  lines.push(chalk.gray(`  ${skill.storedHash}`));
+  lines.push(chalk.bold.yellow(`\n⚠️  Skill modified outside of sync-skills: ${skillName}`));
+  lines.push(chalk.yellow(`\nModified in ${platforms.length} platform(s):`));
+  
+  for (const p of platforms) {
+    lines.push(chalk.cyan(`\n  ${p.platform}`));
+    lines.push(chalk.gray(`  Path: ${p.platformPath}`));
+    lines.push(chalk.gray(`  Current hash: ${p.currentHash}`));
+    lines.push(chalk.gray(`  Stored hash:  ${p.storedHash}`));
+  }
+  
   lines.push('');
   return lines.join('\n');
 }
 
 /**
  * Resolve an out-of-sync skill through user interaction
- * @param skill - The out-of-sync skill to resolve
+ * @param skillName - The name of the skill
+ * @param platforms - Array of out-of-sync occurrences for this skill
  * @param inquirerImpl - Inquirer implementation (for testing)
  * @returns Resolution action
  */
 export async function resolveOutOfSyncSkill(
-  skill: OutOfSyncSkill,
+  skillName: string,
+  platforms: OutOfSyncSkill[],
   inquirerImpl: InquirerImpl = inquirer
 ): Promise<OutOfSyncResolution> {
-  console.log(formatOutOfSyncDetails(skill));
+  console.log(formatOutOfSyncDetails(skillName, platforms));
+
+  const choices = platforms.map(p => ({
+    name: `Use modified ${p.platform} version (updates common skill)`,
+    value: `use-platform:${p.platform}`
+  }));
+
+  choices.push({ name: 'Use common version (discards all platform edits)', value: 'use-common' });
+  choices.push({ name: 'Skip - Leave this skill as-is and continue', value: 'skip' });
 
   const { outOfSyncAction } = await inquirerImpl.prompt([
     {
       type: 'list',
       name: 'outOfSyncAction',
-      message: 'Do you want to apply these edits to the common skill?',
-      choices: [
-        { name: 'Yes - Copy platform edits to common skill', value: 'yes' },
-        { name: 'No - Use common skill content (discard platform edits)', value: 'no' },
-        { name: 'Skip - Leave this skill as-is and continue', value: 'skip' }
-      ]
+      message: 'How would you like to resolve this out-of-sync skill?',
+      choices
     }
   ]);
+
+  if (outOfSyncAction.startsWith('use-platform:')) {
+    return { 
+      action: 'use-platform', 
+      platformName: outOfSyncAction.split(':')[1] 
+    };
+  }
 
   return { action: outOfSyncAction };
 }
@@ -227,9 +267,17 @@ export async function resolveOutOfSyncSkills(
 ): Promise<Map<string, OutOfSyncResolution>> {
   const resolutions = new Map<string, OutOfSyncResolution>();
 
+  // Group by skill name
+  const grouped = new Map<string, OutOfSyncSkill[]>();
   for (const skill of skills) {
-    const resolution = await resolveOutOfSyncSkill(skill, inquirerImpl);
-    resolutions.set(skill.skillName, resolution);
+    const existing = grouped.get(skill.skillName) || [];
+    existing.push(skill);
+    grouped.set(skill.skillName, existing);
+  }
+
+  for (const [skillName, platforms] of grouped.entries()) {
+    const resolution = await resolveOutOfSyncSkill(skillName, platforms, inquirerImpl);
+    resolutions.set(skillName, resolution);
 
     if (resolution.action === 'skip') {
       continue;

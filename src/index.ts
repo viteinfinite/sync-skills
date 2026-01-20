@@ -5,7 +5,7 @@ import { scanSkills } from './scanner.js';
 import { parseSkillFile } from './parser.js';
 import { detectConflicts, detectOutOfSyncSkills } from './detector.js';
 import { resolveConflict, resolveDependentConflicts, resolveOutOfSyncSkills } from './resolver.js';
-import { refactorSkill, copySkill, computeSkillHash, updateMainHash } from './syncer.js';
+import { refactorSkill, copySkill, computeSkillHash, updateMainHash, writePlatformReference } from './syncer.js';
 import { propagateFrontmatter } from './propagator.js';
 import { discoverAssistants, findSyncPairs, processSyncPairs, syncCommonOnlySkills } from './assistants.js';
 import { ensureConfig, reconfigure as runReconfigure, getEnabledAssistants } from './config.js';
@@ -82,6 +82,23 @@ export async function run(options: RunOptions = {}): Promise<void> {
       const content = await fs.readFile(skill.path, 'utf8');
       const parsed = parseSkillFile(content);
       if (parsed && !parsed.hasAtReference) {
+        const metadata =
+          parsed.data?.metadata &&
+          typeof parsed.data.metadata === 'object' &&
+          !Array.isArray(parsed.data.metadata)
+            ? parsed.data.metadata as Record<string, unknown>
+            : undefined;
+        const sync =
+          metadata?.sync && typeof metadata.sync === 'object' && !Array.isArray(metadata.sync)
+            ? metadata.sync as Record<string, unknown>
+            : undefined;
+        const storedHash = sync?.hash;
+        const hasCommonSkill = common.some(c => c.skillName === skill.skillName);
+
+        if (storedHash && hasCommonSkill) {
+          continue;
+        }
+
         if (!dryRun) {
           const commonPath = await refactorSkill(skill.path);
           if (commonPath) {
@@ -108,6 +125,11 @@ export async function run(options: RunOptions = {}): Promise<void> {
     const outOfSyncSkills = await detectOutOfSyncSkills(allPlatformSkills);
 
     if (outOfSyncSkills.length > 0) {
+      if (failOnConflict) {
+        const skillNames = [...new Set(outOfSyncSkills.map(skill => skill.skillName))];
+        throw new Error(`Out-of-sync skills detected: ${skillNames.join(', ')}`);
+      }
+
       // Interactive resolution
       const resolutions = await resolveOutOfSyncSkills(outOfSyncSkills);
 
@@ -131,9 +153,19 @@ export async function run(options: RunOptions = {}): Promise<void> {
           continue;
         }
 
-        if (resolution.action === 'yes') {
-          // Copy platform edits to common skill
-          const platformContent = await fs.readFile(outOfSyncSkill.platformPath, 'utf8');
+        if (resolution.action === 'use-platform') {
+          // Find the specific platform skill that was chosen
+          const chosenPlatform = outOfSyncSkills.find(
+            s => s.skillName === skillName && s.platform === resolution.platformName
+          );
+
+          if (!chosenPlatform) {
+            console.warn(`Warning: Chosen platform ${resolution.platformName} not found for ${skillName}`);
+            continue;
+          }
+
+          // Copy chosen platform edits to common skill
+          const platformContent = await fs.readFile(chosenPlatform.platformPath, 'utf8');
           const platformParsed = matter(platformContent);
 
           // Read common skill
@@ -163,7 +195,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
           const newCommonContent = matter.stringify(platformBody, newCommonFrontmatter);
           await fs.writeFile(commonSkill.path, newCommonContent);
 
-          console.log(`Applied platform edits to common skill: ${skillName}`);
+          console.log(`Applied ${resolution.platformName} edits to common skill: ${skillName}`);
 
           // Propagate updated common skill to all platforms
           const platformPaths: string[] = [];
@@ -179,11 +211,22 @@ export async function run(options: RunOptions = {}): Promise<void> {
 
           if (platformPaths.length > 0) {
             await propagateFrontmatter(commonSkill.path, platformPaths, { failOnConflict, dryRun: false });
+
+            for (const platformPath of platformPaths) {
+              await writePlatformReference(platformPath, commonSkill.path);
+            }
           }
-        } else if (resolution.action === 'no') {
+        } else if (resolution.action === 'use-common') {
           // Use common skill content (overwrite platform edits)
-          // This will happen naturally in Phase 5 when we propagate frontmatter
           console.log(`Discarded platform edits for ${skillName}`);
+
+          const platformPaths = outOfSyncSkills
+            .filter(s => s.skillName === skillName)
+            .map(s => s.platformPath);
+
+          for (const platformPath of platformPaths) {
+            await writePlatformReference(platformPath, commonSkill.path);
+          }
         }
       }
     }
@@ -206,8 +249,69 @@ export async function run(options: RunOptions = {}): Promise<void> {
     }
 
     // Interactive resolution
-    for (const conflict of conflicts) {
-      const resolution = await resolveConflict(conflict);
+  for (const conflict of conflicts) {
+      const commonSkill = common.find(c => c.skillName === conflict.skillName);
+      let allowUseA = true;
+      let allowUseB = true;
+
+      if (
+        commonSkill &&
+        conflict.conflictType === 'content' &&
+        conflict.contentA &&
+        conflict.contentB
+      ) {
+        const commonContent = await fs.readFile(commonSkill.path, 'utf8');
+        const commonParsed = matter(commonContent);
+        const commonMetadata =
+          commonParsed.data?.metadata &&
+          typeof commonParsed.data.metadata === 'object' &&
+          !Array.isArray(commonParsed.data.metadata)
+            ? commonParsed.data.metadata as Record<string, unknown>
+            : undefined;
+        const commonSync =
+          commonMetadata?.sync && typeof commonMetadata.sync === 'object' && !Array.isArray(commonMetadata.sync)
+            ? commonMetadata.sync as Record<string, unknown>
+            : undefined;
+        const commonHash = commonSync?.hash;
+        const expectedRef = `@.agents-common/skills/${conflict.skillName}/SKILL.md`;
+
+        const isSyncedToCommon = (content: string): boolean => {
+          const parsed = matter(content);
+          const ref = parsed.content.trim();
+          if (ref !== expectedRef) {
+            return false;
+          }
+          const metadata =
+            parsed.data?.metadata && typeof parsed.data.metadata === 'object' && !Array.isArray(parsed.data.metadata)
+              ? parsed.data.metadata as Record<string, unknown>
+              : undefined;
+          const sync =
+            metadata?.sync && typeof metadata.sync === 'object' && !Array.isArray(metadata.sync)
+              ? metadata.sync as Record<string, unknown>
+              : undefined;
+          if (!commonHash) {
+            return true;
+          }
+          if (!sync?.hash) {
+            return true;
+          }
+          return sync.hash === commonHash;
+        };
+
+        const syncedA = isSyncedToCommon(conflict.contentA);
+        const syncedB = isSyncedToCommon(conflict.contentB);
+
+        if (syncedA !== syncedB) {
+          allowUseA = !syncedA;
+          allowUseB = !syncedB;
+        }
+      }
+
+      const resolution = await resolveConflict(conflict, undefined, {
+        allowUseA,
+        allowUseB,
+        allowUseCommon: Boolean(commonSkill)
+      });
 
       if (resolution.action === 'abort') {
         throw new Error('Sync aborted');
@@ -217,6 +321,9 @@ export async function run(options: RunOptions = {}): Promise<void> {
         await copySkill(conflict.pathA, conflict.pathB);
       } else if (resolution.action === 'use-b' && !dryRun) {
         await copySkill(conflict.pathB, conflict.pathA);
+      } else if (resolution.action === 'use-common' && !dryRun && commonSkill) {
+        await writePlatformReference(conflict.pathA, commonSkill.path);
+        await writePlatformReference(conflict.pathB, commonSkill.path);
       }
 
       // Propagate frontmatter from common to both targets after conflict resolution

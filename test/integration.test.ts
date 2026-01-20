@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { promises as fs } from 'fs';
 import { resolve, join } from 'path';
+import matter from 'gray-matter';
 import sinon from 'sinon';
 import inquirer from 'inquirer';
 import { createTestFixture, cleanupTestFixture } from './helpers/test-setup.js';
@@ -28,6 +29,12 @@ async function runTest(baseDir: string) {
   // Clear the module cache to ensure fresh imports
   const { run } = await import('../src/index.js');
   await run({ baseDir, failOnConflict: false, dryRun: false });
+}
+
+async function runTestFailOnConflict(baseDir: string) {
+  // Clear the module cache to ensure fresh imports
+  const { run } = await import('../src/index.js');
+  await run({ baseDir, failOnConflict: true, dryRun: false });
 }
 
 test.beforeEach(async () => {
@@ -77,7 +84,7 @@ Helps write good commit messages.`);
   stubPrompt({
     assistants: ['claude', 'codex'],
     action: 'keep-both', // For conflict resolution
-    outOfSyncAction: 'no' // For out-of-sync skills: no = discard platform edits
+    outOfSyncAction: 'use-common' // For out-of-sync skills: use-common = discard platform edits
   });
 
   const claudePrPath = join(testDir, '.claude/skills/pr-review/SKILL.md');
@@ -129,7 +136,7 @@ This is the content of my skill.`);
   stubPrompt({
     assistants: ['claude', 'codex'],
     action: 'keep-both',
-    outOfSyncAction: 'no'
+    outOfSyncAction: 'use-common'
   });
 
   await runTest(testDir);
@@ -177,7 +184,7 @@ This is the content of my skill.`);
   stubPrompt({
     assistants: ['claude', 'codex'],
     action: 'keep-both',
-    outOfSyncAction: 'no'
+    outOfSyncAction: 'use-common'
   });
 
   await runTest(testDir);
@@ -204,7 +211,7 @@ This is the content of my skill.`);
 test('Integration: Scenario 4 - should exit silently when no skills exist', async () => {
   const testDir = await createTestFixture('scenario3');
 
-  stubPrompt({ assistants: ['claude', 'codex'], outOfSyncAction: 'no' });
+  stubPrompt({ assistants: ['claude', 'codex'], outOfSyncAction: 'use-common' });
 
   await runTest(testDir);
 
@@ -246,7 +253,7 @@ This is the content of my skill.`);
   stubPrompt({
     assistants: ['claude', 'codex'],
     create: false,
-    outOfSyncAction: 'no'  // Stub for any out-of-sync prompts
+    outOfSyncAction: 'use-common'  // Stub for any out-of-sync prompts
   });
 
   await runTest(testDir);
@@ -292,7 +299,7 @@ This is the content of my skill.`);
   stubPrompt({
     assistants: ['claude', 'codex'],
     action: 'keep-both',
-    outOfSyncAction: 'no'
+    outOfSyncAction: 'use-common'
   });
 
   await runTest(testDir);
@@ -323,7 +330,7 @@ test('Integration: Scenario 7 - Auto-configuration - should prompt and create co
     await fs.writeFile(join(dir, '.claude/skills/test/SKILL.md'), '@test');
   });
 
-  stubPrompt({ assistants: ['claude'], outOfSyncAction: 'no' });
+  stubPrompt({ assistants: ['claude'], outOfSyncAction: 'use-common' });
 
   // Run sync (should prompt and create config)
   await runTest(testDir);
@@ -364,7 +371,7 @@ This is the content of my skill.`);
 
   stubPrompt({
     assistants: ['claude', 'gemini'],
-    outOfSyncAction: 'no'  // Stub the out-of-sync prompt to use common skill content
+    outOfSyncAction: 'use-common'  // Stub the out-of-sync prompt to use common skill content
   });
 
   await runTest(testDir);
@@ -445,6 +452,468 @@ model: gemini-3-pro-preview
   const geminiSkillPath = join(testDir, '.gemini/skills/my-skill/SKILL.md');
   const geminiContent = await fs.readFile(geminiSkillPath, 'utf8');
   assert.ok(geminiContent.includes('model: gemini-3-pro-preview'), 'Gemini should keep its model field');
+
+  await cleanupTestFixture(testDir);
+});
+
+// Scenario 10: Reference files should not be flagged as out-of-sync
+test('Integration: Scenario 10 - Reference files should not be flagged as out-of-sync', async () => {
+  const testDir = await createTestFixture('scenario10', async (dir) => {
+    // Create .claude folder with a skill
+    await fs.mkdir(join(dir, '.claude/skills/test-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.claude/skills/test-skill/SKILL.md'), `---
+name: test-skill
+description: A test skill
+---
+
+# Test Skill
+
+This is the content.`);
+  });
+
+  stubPrompt({
+    assistants: ['claude'], // Start with just claude
+    outOfSyncAction: 'use-common'
+  });
+
+  // First run: Refactors claude skill to common
+  await runTest(testDir);
+
+  // Verify claude skill is now a reference
+  const claudeSkillPath = join(testDir, '.claude/skills/test-skill/SKILL.md');
+  let content = await fs.readFile(claudeSkillPath, 'utf8');
+  assert.ok(content.includes('@.agents-common'), 'Claude skill should be refactored');
+
+  // Capture console logs for the second run
+  const originalLog = console.log;
+  const originalWarn = console.warn;
+  const logs: string[] = [];
+  console.log = (...args) => logs.push(args.join(' '));
+  console.warn = (...args) => logs.push(args.join(' '));
+
+  try {
+    // Second run: Should NOT report "Skill modified outside of sync-skills"
+    // We simulate adding 'cline' (or just running again)
+    // Note: 'cline' isn't in default ASSISTANT_MAP in types.ts usually unless added dynamically, 
+    // but running again with same config should be enough to trigger the check.
+    await runTest(testDir);
+  } finally {
+    console.log = originalLog;
+    console.warn = originalWarn;
+  }
+
+  // Check logs for the warning
+  const modifiedWarning = logs.find(l => l.includes('Skill modified outside of sync-skills') && l.includes('test-skill'));
+  assert.strictEqual(modifiedWarning, undefined, 'Should not flag reference file as modified');
+
+  await cleanupTestFixture(testDir);
+});
+
+// Scenario 11: Multiple assistants out-of-sync for the same skill
+test('Integration: Scenario 11 - Multiple assistants out-of-sync for the same skill', async () => {
+  const testDir = await createTestFixture('scenario11', async (dir) => {
+    // 1. Setup common skill and config
+    await fs.mkdir(join(dir, '.agents-common/skills/shared-skill'), { recursive: true });
+    
+    // Hash for "Original content"
+    const originalHash = 'sha256-4e383f59048386f53e34b7264855898d57574712066d9361732e700a08c0f543';
+
+    await fs.writeFile(join(dir, '.agents-common/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+metadata:
+  sync:
+    version: 2
+    hash: ${originalHash}
+---
+
+Original content`);
+
+    await fs.mkdir(join(dir, '.agents-common'), { recursive: true });
+    await fs.writeFile(join(dir, '.agents-common/config.json'), JSON.stringify({
+      version: 1,
+      assistants: ['claude', 'codex']
+    }, null, 2));
+
+    // 2. Create claude and codex skills with modifications (simulating out-of-sync)
+    // Claude version: Modified content
+    await fs.mkdir(join(dir, '.claude/skills/shared-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.claude/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+metadata:
+  sync:
+    hash: ${originalHash}
+---
+
+Claude modified content`);
+
+    // Codex version: Different modified content
+    await fs.mkdir(join(dir, '.codex/skills/shared-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.codex/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+metadata:
+  sync:
+    hash: ${originalHash}
+---
+
+Codex modified content`);
+  });
+
+  // Stub prompt to choose codex version
+  stubPrompt({
+    assistants: ['claude', 'codex'],
+    outOfSyncAction: 'use-platform:codex'
+  });
+
+  await runTest(testDir);
+
+  // 3. Verify common skill is updated with Codex content
+  const commonPath = join(testDir, '.agents-common/skills/shared-skill/SKILL.md');
+  const commonContent = await fs.readFile(commonPath, 'utf8');
+  assert.ok(commonContent.includes('Codex modified content'), 'Common skill should be updated with Codex content');
+
+  // 4. Verify Claude skill is updated with Codex content (propagated from common)
+  const claudePath = join(testDir, '.claude/skills/shared-skill/SKILL.md');
+  const claudeContent = await fs.readFile(claudePath, 'utf8');
+  assert.ok(claudeContent.includes('@.agents-common'), 'Claude skill should be a reference');
+  // Since it's a reference, the content is in the common file, which we verified above.
+  
+  // 5. Verify Codex skill is updated (should be a reference now)
+  const codexPath = join(testDir, '.codex/skills/shared-skill/SKILL.md');
+  const codexContent = await fs.readFile(codexPath, 'utf8');
+  assert.ok(codexContent.includes('@.agents-common'), 'Codex skill should be a reference');
+
+  await cleanupTestFixture(testDir);
+});
+
+// Scenario 12: Use common content when platform skill is out-of-sync
+test('Integration: Scenario 12 - Out-of-sync use-common should discard platform edits', async () => {
+  const testDir = await createTestFixture('scenario12', async (dir) => {
+    // 1. Setup common skill and config
+    await fs.mkdir(join(dir, '.agents-common/skills/shared-skill'), { recursive: true });
+    const originalHash = 'sha256-0aa1d1e50634a32c6f583b64c2bdf4b827c0ff0f820c1f1fb5f06cc0b4df6a99';
+
+    await fs.writeFile(join(dir, '.agents-common/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+metadata:
+  sync:
+    version: 2
+    hash: ${originalHash}
+---
+
+Original content`);
+
+    await fs.mkdir(join(dir, '.agents-common'), { recursive: true });
+    await fs.writeFile(join(dir, '.agents-common/config.json'), JSON.stringify({
+      version: 1,
+      assistants: ['claude']
+    }, null, 2));
+
+    // 2. Create platform skill with modified content (simulating out-of-sync)
+    await fs.mkdir(join(dir, '.claude/skills/shared-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.claude/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+model: haiku-3.5
+metadata:
+  sync:
+    hash: ${originalHash}
+---
+
+Claude modified content`);
+  });
+
+  // Stub prompt to choose common version
+  stubPrompt({
+    assistants: ['claude'],
+    outOfSyncAction: 'use-common'
+  });
+
+  await runTest(testDir);
+
+  // 3. Verify common skill remains unchanged
+  const commonPath = join(testDir, '.agents-common/skills/shared-skill/SKILL.md');
+  const commonContent = await fs.readFile(commonPath, 'utf8');
+  assert.ok(commonContent.includes('Original content'), 'Common skill should keep original content');
+
+  // 4. Verify platform skill now references common and preserves frontmatter
+  const claudePath = join(testDir, '.claude/skills/shared-skill/SKILL.md');
+  const claudeContent = await fs.readFile(claudePath, 'utf8');
+  assert.ok(claudeContent.includes('@.agents-common/skills/shared-skill/SKILL.md'), 'Platform skill should be a reference');
+  assert.ok(!claudeContent.includes('Claude modified content'), 'Platform edits should be discarded');
+  assert.ok(claudeContent.includes('model: haiku-3.5'), 'Platform-specific frontmatter should be preserved');
+
+  const commonParsed = matter(commonContent);
+  const claudeParsed = matter(claudeContent);
+  assert.strictEqual(
+    (claudeParsed.data?.metadata as { sync?: { hash?: string } } | undefined)?.sync?.hash,
+    (commonParsed.data?.metadata as { sync?: { hash?: string } } | undefined)?.sync?.hash
+  );
+
+  await cleanupTestFixture(testDir);
+});
+
+// Scenario 13: Conflict resolution should allow using common when one platform is a reference
+test('Integration: Scenario 13 - Conflict use-common should restore common reference', async () => {
+  const testDir = await createTestFixture('scenario13', async (dir) => {
+    await fs.mkdir(join(dir, '.agents-common/skills/shared-skill'), { recursive: true });
+    const originalHash = 'sha256-0aa1d1e50634a32c6f583b64c2bdf4b827c0ff0f820c1f1fb5f06cc0b4df6a99';
+    await fs.writeFile(join(dir, '.agents-common/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+metadata:
+  sync:
+    version: 2
+    hash: ${originalHash}
+---
+
+Original content`);
+
+    await fs.mkdir(join(dir, '.agents-common'), { recursive: true });
+    await fs.writeFile(join(dir, '.agents-common/config.json'), JSON.stringify({
+      version: 1,
+      assistants: ['claude', 'cline']
+    }, null, 2));
+
+    await fs.mkdir(join(dir, '.cline/skills/shared-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.cline/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+metadata:
+  sync:
+    hash: ${originalHash}
+---
+
+@.agents-common/skills/shared-skill/SKILL.md`);
+
+    await fs.mkdir(join(dir, '.claude/skills/shared-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.claude/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+model: haiku-3.5
+---
+
+Claude modified content`);
+  });
+
+  stubPrompt({
+    assistants: ['claude', 'cline'],
+    action: 'use-common',
+    outOfSyncAction: 'use-common'
+  });
+
+  await runTest(testDir);
+
+  const claudePath = join(testDir, '.claude/skills/shared-skill/SKILL.md');
+  const clinePath = join(testDir, '.cline/skills/shared-skill/SKILL.md');
+  const claudeContent = await fs.readFile(claudePath, 'utf8');
+  const clineContent = await fs.readFile(clinePath, 'utf8');
+
+  assert.ok(claudeContent.includes('@.agents-common/skills/shared-skill/SKILL.md'), 'Claude should reference common');
+  assert.ok(clineContent.includes('@.agents-common/skills/shared-skill/SKILL.md'), 'Cline should reference common');
+  assert.ok(claudeContent.includes('model: haiku-3.5'), 'Platform-specific frontmatter should be preserved');
+  assert.ok(!claudeContent.includes('Claude modified content'), 'Platform edits should be discarded');
+
+  await cleanupTestFixture(testDir);
+});
+
+// Scenario 14: Multiple assistants out-of-sync with common resolution
+test('Integration: Scenario 14 - Multiple assistants out-of-sync use-common', async () => {
+  const testDir = await createTestFixture('scenario14', async (dir) => {
+    // 1. Setup common skill and config
+    await fs.mkdir(join(dir, '.agents-common/skills/shared-skill'), { recursive: true });
+    const originalHash = 'sha256-0aa1d1e50634a32c6f583b64c2bdf4b827c0ff0f820c1f1fb5f06cc0b4df6a99';
+
+    await fs.writeFile(join(dir, '.agents-common/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+metadata:
+  sync:
+    version: 2
+    hash: ${originalHash}
+---
+
+Original content`);
+
+    await fs.mkdir(join(dir, '.agents-common'), { recursive: true });
+    await fs.writeFile(join(dir, '.agents-common/config.json'), JSON.stringify({
+      version: 1,
+      assistants: ['claude', 'cline']
+    }, null, 2));
+
+    // 2. Create claude and cline skills with modifications (simulating out-of-sync)
+    await fs.mkdir(join(dir, '.claude/skills/shared-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.claude/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+metadata:
+  sync:
+    hash: ${originalHash}
+---
+
+Claude modified content`);
+
+    await fs.mkdir(join(dir, '.cline/skills/shared-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.cline/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+metadata:
+  sync:
+    hash: ${originalHash}
+---
+
+Cline modified content`);
+  });
+
+  // Stub prompt to choose common version
+  stubPrompt({
+    assistants: ['claude', 'cline'],
+    outOfSyncAction: 'use-common'
+  });
+
+  await runTest(testDir);
+
+  // 3. Verify common skill remains unchanged
+  const commonPath = join(testDir, '.agents-common/skills/shared-skill/SKILL.md');
+  const commonContent = await fs.readFile(commonPath, 'utf8');
+  assert.ok(commonContent.includes('Original content'), 'Common skill should keep original content');
+
+  // 4. Verify both platform skills now reference common and discard edits
+  const claudePath = join(testDir, '.claude/skills/shared-skill/SKILL.md');
+  const clinePath = join(testDir, '.cline/skills/shared-skill/SKILL.md');
+  const claudeContent = await fs.readFile(claudePath, 'utf8');
+  const clineContent = await fs.readFile(clinePath, 'utf8');
+
+  assert.ok(claudeContent.includes('@.agents-common/skills/shared-skill/SKILL.md'), 'Claude skill should be a reference');
+  assert.ok(clineContent.includes('@.agents-common/skills/shared-skill/SKILL.md'), 'Cline skill should be a reference');
+  assert.ok(!claudeContent.includes('Claude modified content'), 'Claude edits should be discarded');
+  assert.ok(!clineContent.includes('Cline modified content'), 'Cline edits should be discarded');
+
+  await cleanupTestFixture(testDir);
+});
+
+// Scenario 15: Out-of-sync should fail in non-interactive mode
+test('Integration: Scenario 15 - Out-of-sync fail-on-conflict', async () => {
+  const testDir = await createTestFixture('scenario15', async (dir) => {
+    await fs.mkdir(join(dir, '.agents-common/skills/shared-skill'), { recursive: true });
+    const originalHash = 'sha256-0aa1d1e50634a32c6f583b64c2bdf4b827c0ff0f820c1f1fb5f06cc0b4df6a99';
+
+    await fs.writeFile(join(dir, '.agents-common/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+metadata:
+  sync:
+    version: 2
+    hash: ${originalHash}
+---
+
+Original content`);
+
+    await fs.mkdir(join(dir, '.agents-common'), { recursive: true });
+    await fs.writeFile(join(dir, '.agents-common/config.json'), JSON.stringify({
+      version: 1,
+      assistants: ['claude', 'cline']
+    }, null, 2));
+
+    await fs.mkdir(join(dir, '.claude/skills/shared-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.claude/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+metadata:
+  sync:
+    hash: ${originalHash}
+---
+
+Claude modified content`);
+
+    await fs.mkdir(join(dir, '.cline/skills/shared-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.cline/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+metadata:
+  sync:
+    hash: ${originalHash}
+---
+
+Cline modified content`);
+  });
+
+  stubPrompt({
+    assistants: ['claude', 'cline'],
+    outOfSyncAction: 'use-common'
+  });
+
+  await assert.rejects(
+    () => runTestFailOnConflict(testDir),
+    /Out-of-sync skills detected: shared-skill/
+  );
+
+  await cleanupTestFixture(testDir);
+});
+
+// Scenario 16: Conflict prompt should omit in-sync platform option
+test('Integration: Scenario 16 - Conflict prompt omits in-sync platform', async () => {
+  const testDir = await createTestFixture('scenario16', async (dir) => {
+    await fs.mkdir(join(dir, '.agents-common/skills/shared-skill'), { recursive: true });
+    const originalHash = 'sha256-0aa1d1e50634a32c6f583b64c2bdf4b827c0ff0f820c1f1fb5f06cc0b4df6a99';
+
+    await fs.writeFile(join(dir, '.agents-common/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+metadata:
+  sync:
+    version: 2
+    hash: ${originalHash}
+---
+
+Original content`);
+
+    await fs.mkdir(join(dir, '.agents-common'), { recursive: true });
+    await fs.writeFile(join(dir, '.agents-common/config.json'), JSON.stringify({
+      version: 1,
+      assistants: ['claude', 'cline']
+    }, null, 2));
+
+    await fs.mkdir(join(dir, '.cline/skills/shared-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.cline/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+---
+
+@.agents-common/skills/shared-skill/SKILL.md`);
+
+    await fs.mkdir(join(dir, '.claude/skills/shared-skill'), { recursive: true });
+    await fs.writeFile(join(dir, '.claude/skills/shared-skill/SKILL.md'), `---
+name: shared-skill
+description: Original description
+metadata:
+  sync:
+    hash: ${originalHash}
+---
+
+Claude modified content`);
+  });
+
+  stubPrompt({
+    assistants: ['claude', 'cline'],
+    outOfSyncAction: 'skip',
+    action: 'use-common'
+  });
+
+  await runTest(testDir);
+
+  const actionCalls = promptStub.getCalls().filter(call =>
+    call.args[0] && call.args[0][0] && call.args[0][0].name === 'action'
+  );
+  assert.ok(actionCalls.length > 0, 'Expected conflict prompt to be shown');
+  const choices = actionCalls[0].args[0][0].choices;
+
+  assert.ok(choices.find((choice: { value: string }) => choice.value === 'use-a'), 'Should include use-a');
+  assert.ok(!choices.find((choice: { value: string }) => choice.value === 'use-b'), 'Should not include use-b');
+  assert.ok(choices.find((choice: { value: string }) => choice.value === 'use-common'), 'Should include use-common');
 
   await cleanupTestFixture(testDir);
 });

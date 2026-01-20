@@ -144,6 +144,12 @@ export async function detectOutOfSyncSkills(platformSkills) {
         try {
             const content = await fs.readFile(skill.path, 'utf8');
             const parsed = matter(content);
+            // Skip reference files - they point to common skills so their content hash
+            // (which is just the reference string) will never match the stored sync hash
+            // (which is the hash of the actual common skill content)
+            if (parsed.content.trim().startsWith('@')) {
+                continue;
+            }
             // Extract stored hash from metadata.sync.hash
             const metadata = parsed.data;
             const storedHash = metadata?.metadata?.sync?.hash;
@@ -155,9 +161,12 @@ export async function detectOutOfSyncSkills(platformSkills) {
             const currentHash = await hashNormalized(skill.path);
             // Check if hashes match
             if (currentHash !== storedHash.replace('sha256-', '')) {
+                const pathParts = skill.path.split('/').filter(Boolean).reverse();
+                const platformFolder = pathParts[3] || 'unknown';
+                const platform = platformFolder.startsWith('.') ? platformFolder.slice(1) : platformFolder;
                 outOfSync.push({
                     skillName: skill.skillName,
-                    platform: skill.path.split('/').filter(Boolean).reverse()[2] || 'unknown', // Extract platform from path
+                    platform,
                     platformPath: skill.path,
                     currentHash: `sha256-${currentHash}`,
                     storedHash

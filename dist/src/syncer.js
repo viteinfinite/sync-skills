@@ -72,6 +72,53 @@ export async function refactorSkill(sourcePath) {
     await fs.writeFile(sourcePath, newContent);
     return commonPath;
 }
+export async function writePlatformReference(platformPath, commonPath) {
+    const [platformContent, commonContent] = await Promise.all([
+        fs.readFile(platformPath, 'utf8'),
+        fs.readFile(commonPath, 'utf8')
+    ]);
+    const platformParsed = matter(platformContent);
+    const commonParsed = matter(commonContent);
+    const commonMetadata = commonParsed.data?.metadata &&
+        typeof commonParsed.data.metadata === 'object' &&
+        !Array.isArray(commonParsed.data.metadata)
+        ? commonParsed.data.metadata
+        : undefined;
+    const commonSync = commonMetadata?.sync &&
+        typeof commonMetadata.sync === 'object' &&
+        !Array.isArray(commonMetadata.sync)
+        ? commonMetadata.sync
+        : undefined;
+    const commonHash = commonSync?.hash;
+    const platformData = platformParsed.data;
+    const platformMetadata = platformData.metadata &&
+        typeof platformData.metadata === 'object' &&
+        !Array.isArray(platformData.metadata)
+        ? { ...platformData.metadata }
+        : {};
+    const platformSync = platformMetadata.sync &&
+        typeof platformMetadata.sync === 'object' &&
+        !Array.isArray(platformMetadata.sync)
+        ? { ...platformMetadata.sync }
+        : {};
+    if (commonHash) {
+        platformMetadata.sync = {
+            ...platformSync,
+            hash: commonHash
+        };
+    }
+    else if (Object.keys(platformSync).length > 0) {
+        platformMetadata.sync = platformSync;
+    }
+    const newPlatformData = {
+        ...platformData,
+        ...(Object.keys(platformMetadata).length > 0 ? { metadata: platformMetadata } : {})
+    };
+    const skillName = basename(dirname(platformPath));
+    const atReference = `@.agents-common/skills/${skillName}/SKILL.md`;
+    const newContent = matter.stringify(atReference + '\n', newPlatformData);
+    await fs.writeFile(platformPath, newContent);
+}
 export async function copySkill(sourcePath, targetPath) {
     await fs.mkdir(dirname(targetPath), { recursive: true });
     await fs.copyFile(sourcePath, targetPath);
