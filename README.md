@@ -86,13 +86,13 @@ sync-skills supports the following AI assistants out of the box:
 
 | Assistant | Project Directory | Home Directory | Description |
 |-----------|-------------------|----------------|-------------|
-| **claude** | `.claude/skills` | — | Claude Code / Anthropic Claude |
-| **cline** | `.cline/skills` | — | Cline AI assistant |
-| **codex** | `.codex/skills` | — | Cursor Copilot / Codex |
-| **cursor** | `.cursor/skills` | — | Cursor AI |
-| **gemini** | `.gemini/skills` | — | Google Gemini CLI |
-| **github** | `.github/skills` | — | GitHub Copilot CLI |
-| **kilo** | `.kilocode/skills` | — | Kilocode AI assistant |
+| **claude** | `.claude/skills` | — | Claude Code |
+| **cline** | `.cline/skills` | — | Cline |
+| **codex** | `.codex/skills` | — | Codex |
+| **cursor** | `.cursor/skills` | — | Cursor |
+| **gemini** | `.gemini/skills` | — | Google Gemini |
+| **github** | `.github/skills` | — | GitHub Copilot |
+| **kilo** | `.kilocode/skills` | — | Kilo |
 | **opencode** | `.opencode/skill` | `.config/opencode/skill` | OpenCode |
 | **roo** | `.roo/skills` | — | Roo Code |
 | **windsurf** | `.windsurf/skills` | `.codeium/windsurf/skills` | Codeium Windsurf |
