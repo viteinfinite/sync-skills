@@ -43,15 +43,14 @@ describe('list mode', () => {
     const output = logs.join('\n');
     
     assert.ok(output.includes('skill-1'), 'Should contain skill-1');
-    assert.ok(output.includes('[claude'), 'Should contain claude site');
+    assert.ok(output.includes('[claude]'), 'Should contain claude site');
     assert.ok(output.includes('Skill 1 description'), 'Should contain skill-1 description');
-    assert.ok(output.includes('(2 files)'), 'Should contain correct file count for skill-1');
+    assert.strictEqual(output.includes('(2 files)'), false, 'Should NOT contain file count for skill-1');
 
     assert.ok(output.includes('skill-2'), 'Should contain skill-2');
-    assert.ok(output.includes('[common'), 'Should contain common site');
-    assert.ok(output.includes('[codex'), 'Should contain codex site');
+    assert.ok(output.includes('[common, codex]'), 'Should contain grouped sites [common, codex]');
     assert.ok(output.includes('Common skill 2 description'), 'Should contain skill-2 description from common');
-    assert.ok(output.includes('(1 files)'), 'Should contain correct file count for skill-2');
+    assert.strictEqual(output.includes('(1 files)'), false, 'Should NOT contain file count for skill-2');
 
     await cleanupTestFixture(testDir);
   });

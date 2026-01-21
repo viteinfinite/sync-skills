@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import matter from 'gray-matter';
 import { scanSkills } from './scanner.js';
 import type { WalkDirResult } from './scanner.js';
@@ -15,8 +15,7 @@ import {
   collectDependentFilesFromPlatforms,
   consolidateDependentsToCommon,
   cleanupPlatformDependentFiles,
-  applyConflictResolutions,
-  detectDependentFiles
+  applyConflictResolutions
 } from './dependents.js';
 import { getAssistantConfigs } from './types.js';
 import type { RunOptions, AssistantConfig, SkillFile, OutOfSyncSkill } from './types.js';
@@ -522,15 +521,27 @@ export async function run(options: RunOptions = {}): Promise<void> {
 async function listSkills(baseDir: string, homeMode: boolean): Promise<void> {
   const { platforms, common } = await scanSkills(baseDir, getAssistantConfigs(undefined, homeMode));
 
-  const allSkills: Array<{
+  const groupedSkills = new Map<string, {
     name: string;
     description: string;
-    site: string;
-    fileCount: number;
-  }> = [];
+    sites: string[];
+  }>();
 
   const processSkill = async (skill: WalkDirResult, site: string) => {
     try {
+      const existing = groupedSkills.get(skill.skillName);
+      if (existing) {
+        existing.sites.push(site);
+        // If we found a description in common, or already have one, keep it
+        // unless this is common and we didn't have a common one before
+        if (site === 'common' && !existing.description) {
+          const content = await fs.readFile(skill.path, 'utf8');
+          const parsed = parseSkillFile(content);
+          existing.description = (parsed?.data?.description as string) || '';
+        }
+        return;
+      }
+
       const content = await fs.readFile(skill.path, 'utf8');
       const parsed = parseSkillFile(content);
       let description = (parsed?.data?.description as string) || '';
@@ -547,21 +558,21 @@ async function listSkills(baseDir: string, homeMode: boolean): Promise<void> {
         }
       }
 
-      const skillDir = dirname(skill.path);
-      const dependents = await detectDependentFiles(skillDir);
-      const fileCount = dependents.length + 1; // +1 for SKILL.md
-
-      allSkills.push({
+      groupedSkills.set(skill.skillName, {
         name: skill.skillName,
         description,
-        site,
-        fileCount
+        sites: [site]
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.warn(`Warning: Failed to process skill at ${skill.path}: ${errorMessage}`);
     }
   };
+
+  // Process common first to prioritize its description
+  for (const skill of common) {
+    await processSkill(skill, 'common');
+  }
 
   // Process platforms
   for (const [site, skills] of Object.entries(platforms)) {
@@ -570,13 +581,10 @@ async function listSkills(baseDir: string, homeMode: boolean): Promise<void> {
     }
   }
 
-  // Process common
-  for (const skill of common) {
-    await processSkill(skill, 'common');
-  }
+  const allSkills = Array.from(groupedSkills.values());
 
-  // Sort by name, then site
-  allSkills.sort((a, b) => a.name.localeCompare(b.name) || a.site.localeCompare(b.site));
+  // Sort by name
+  allSkills.sort((a, b) => a.name.localeCompare(b.name));
 
   if (allSkills.length === 0) {
     console.log('No skills found.');
@@ -587,10 +595,17 @@ async function listSkills(baseDir: string, homeMode: boolean): Promise<void> {
   console.log('');
 
   const nameWidth = Math.max(20, ...allSkills.map(s => s.name.length));
-  const siteWidth = Math.max(8, ...allSkills.map(s => s.site.length));
 
   for (const s of allSkills) {
+    // Sort sites: common first, then alphabetical
+    s.sites.sort((a, b) => {
+      if (a === 'common') return -1;
+      if (b === 'common') return 1;
+      return a.localeCompare(b);
+    });
+
+    const sitesStr = `[${s.sites.join(', ')}]`;
     const desc = s.description ? ` - ${s.description}` : '';
-    console.log(`${s.name.padEnd(nameWidth)} [${s.site.padEnd(siteWidth)}] (${s.fileCount} files)${desc}`);
+    console.log(`${s.name.padEnd(nameWidth)} ${sitesStr}${desc}`);
   }
 }

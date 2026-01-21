@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import matter from 'gray-matter';
 import { scanSkills } from './scanner.js';
 import { parseSkillFile } from './parser.js';
@@ -10,7 +10,7 @@ import { propagateFrontmatter } from './propagator.js';
 import { discoverAssistants, findSyncPairs, processSyncPairs, syncCommonOnlySkills } from './assistants.js';
 import { ensureConfig, reconfigure as runReconfigure, getEnabledAssistants } from './config.js';
 import { normalizeBodyContent, pickCoreFrontmatter } from './frontmatter.js';
-import { collectDependentFilesFromPlatforms, consolidateDependentsToCommon, cleanupPlatformDependentFiles, applyConflictResolutions, detectDependentFiles } from './dependents.js';
+import { collectDependentFilesFromPlatforms, consolidateDependentsToCommon, cleanupPlatformDependentFiles, applyConflictResolutions } from './dependents.js';
 import { getAssistantConfigs } from './types.js';
 export async function run(options = {}) {
     let { baseDir = process.cwd(), failOnConflict = false, homeMode = false, reconfigure = false, listMode = false } = options;
@@ -418,9 +418,21 @@ export async function run(options = {}) {
  */
 async function listSkills(baseDir, homeMode) {
     const { platforms, common } = await scanSkills(baseDir, getAssistantConfigs(undefined, homeMode));
-    const allSkills = [];
+    const groupedSkills = new Map();
     const processSkill = async (skill, site) => {
         try {
+            const existing = groupedSkills.get(skill.skillName);
+            if (existing) {
+                existing.sites.push(site);
+                // If we found a description in common, or already have one, keep it
+                // unless this is common and we didn't have a common one before
+                if (site === 'common' && !existing.description) {
+                    const content = await fs.readFile(skill.path, 'utf8');
+                    const parsed = parseSkillFile(content);
+                    existing.description = parsed?.data?.description || '';
+                }
+                return;
+            }
             const content = await fs.readFile(skill.path, 'utf8');
             const parsed = parseSkillFile(content);
             let description = parsed?.data?.description || '';
@@ -436,14 +448,10 @@ async function listSkills(baseDir, homeMode) {
                     // ignore reference read errors
                 }
             }
-            const skillDir = dirname(skill.path);
-            const dependents = await detectDependentFiles(skillDir);
-            const fileCount = dependents.length + 1; // +1 for SKILL.md
-            allSkills.push({
+            groupedSkills.set(skill.skillName, {
                 name: skill.skillName,
                 description,
-                site,
-                fileCount
+                sites: [site]
             });
         }
         catch (error) {
@@ -451,18 +459,19 @@ async function listSkills(baseDir, homeMode) {
             console.warn(`Warning: Failed to process skill at ${skill.path}: ${errorMessage}`);
         }
     };
+    // Process common first to prioritize its description
+    for (const skill of common) {
+        await processSkill(skill, 'common');
+    }
     // Process platforms
     for (const [site, skills] of Object.entries(platforms)) {
         for (const skill of skills) {
             await processSkill(skill, site);
         }
     }
-    // Process common
-    for (const skill of common) {
-        await processSkill(skill, 'common');
-    }
-    // Sort by name, then site
-    allSkills.sort((a, b) => a.name.localeCompare(b.name) || a.site.localeCompare(b.site));
+    const allSkills = Array.from(groupedSkills.values());
+    // Sort by name
+    allSkills.sort((a, b) => a.name.localeCompare(b.name));
     if (allSkills.length === 0) {
         console.log('No skills found.');
         return;
@@ -470,10 +479,18 @@ async function listSkills(baseDir, homeMode) {
     console.log('Installed skills:');
     console.log('');
     const nameWidth = Math.max(20, ...allSkills.map(s => s.name.length));
-    const siteWidth = Math.max(8, ...allSkills.map(s => s.site.length));
     for (const s of allSkills) {
+        // Sort sites: common first, then alphabetical
+        s.sites.sort((a, b) => {
+            if (a === 'common')
+                return -1;
+            if (b === 'common')
+                return 1;
+            return a.localeCompare(b);
+        });
+        const sitesStr = `[${s.sites.join(', ')}]`;
         const desc = s.description ? ` - ${s.description}` : '';
-        console.log(`${s.name.padEnd(nameWidth)} [${s.site.padEnd(siteWidth)}] (${s.fileCount} files)${desc}`);
+        console.log(`${s.name.padEnd(nameWidth)} ${sitesStr}${desc}`);
     }
 }
 //# sourceMappingURL=index.js.map
