@@ -3,11 +3,12 @@ import minimist from 'minimist';
 import { run } from '../src/index.js';
 import { VERSION } from '../src/version.js';
 const argv = minimist(process.argv.slice(2), {
-    boolean: ['fail-on-conflict', 'help', 'home', 'reconfigure', 'version'],
+    boolean: ['fail-on-conflict', 'help', 'home', 'list', 'reconfigure', 'version'],
     alias: {
         'fail-on-conflict': 'f',
         'help': 'h',
         'home': 'H',
+        'list': 'l',
         'reconfigure': 'r',
         'version': 'v'
     }
@@ -26,12 +27,15 @@ Usage:
 Options:
   --fail-on-conflict, -f    Fail on conflicts instead of interactive mode
   --home, -H                Use home directory configuration
+  --list, -l                List installed skills
   --reconfigure, -r         Reconfigure settings
   --version, -v             Show version
   --help, -h                Show this help
 
 Examples:
   sync-skills                              # Interactive sync
+  sync-skills --list                       # List installed skills
+  sync-skills --home --list                # List skills in home dir
   sync-skills --fail-on-conflict           # Fail on conflicts
   sync-skills --home                       # Use home config
   sync-skills --reconfigure                # Reconfigure settings
@@ -43,7 +47,8 @@ try {
     await run({
         failOnConflict: argv['fail-on-conflict'],
         homeMode: argv.home,
-        reconfigure: argv.reconfigure
+        reconfigure: argv.reconfigure,
+        listMode: argv.list
     });
 }
 catch (error) {

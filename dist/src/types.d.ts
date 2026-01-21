@@ -65,6 +65,8 @@ export interface RunOptions {
     homeMode?: boolean;
     /** Run reconfiguration flow (default: false) */
     reconfigure?: boolean;
+    /** List installed skills and exit (default: false) */
+    listMode?: boolean;
 }
 /**
  * Detected conflict between skills

@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 import type { AssistantConfig } from './types.js';
 
-interface WalkDirResult {
+export interface WalkDirResult {
   agent: string;
   skillName: string;
   path: string;

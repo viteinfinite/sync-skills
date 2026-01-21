@@ -1,7 +1,8 @@
 import { promises as fs } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import matter from 'gray-matter';
 import { scanSkills } from './scanner.js';
+import type { WalkDirResult } from './scanner.js';
 import { parseSkillFile } from './parser.js';
 import { detectConflicts, detectOutOfSyncSkills } from './detector.js';
 import { resolveConflict, resolveDependentConflicts, resolveOutOfSyncSkill, resolveOutOfSyncSkills } from './resolver.js';
@@ -14,7 +15,8 @@ import {
   collectDependentFilesFromPlatforms,
   consolidateDependentsToCommon,
   cleanupPlatformDependentFiles,
-  applyConflictResolutions
+  applyConflictResolutions,
+  detectDependentFiles
 } from './dependents.js';
 import { getAssistantConfigs } from './types.js';
 import type { RunOptions, AssistantConfig, SkillFile, OutOfSyncSkill } from './types.js';
@@ -24,7 +26,8 @@ export async function run(options: RunOptions = {}): Promise<void> {
     baseDir = process.cwd(),
     failOnConflict = false,
     homeMode = false,
-    reconfigure = false
+    reconfigure = false,
+    listMode = false
   } = options;
 
   // Handle --home flag
@@ -34,6 +37,12 @@ export async function run(options: RunOptions = {}): Promise<void> {
     }
     baseDir = process.env.HOME;
     console.log(`Using home directory: ${baseDir}`);
+  }
+
+  // Handle --list mode
+  if (listMode) {
+    await listSkills(baseDir, homeMode);
+    return;
   }
 
   // Handle --reconfigure flag
@@ -505,4 +514,83 @@ export async function run(options: RunOptions = {}): Promise<void> {
   }
 
   console.log('Sync complete');
+}
+
+/**
+ * List all installed skills across platforms and common
+ */
+async function listSkills(baseDir: string, homeMode: boolean): Promise<void> {
+  const { platforms, common } = await scanSkills(baseDir, getAssistantConfigs(undefined, homeMode));
+
+  const allSkills: Array<{
+    name: string;
+    description: string;
+    site: string;
+    fileCount: number;
+  }> = [];
+
+  const processSkill = async (skill: WalkDirResult, site: string) => {
+    try {
+      const content = await fs.readFile(skill.path, 'utf8');
+      const parsed = parseSkillFile(content);
+      let description = (parsed?.data?.description as string) || '';
+
+      if (parsed?.hasAtReference && !description) {
+        const refPath = parsed.content.trim().substring(1); // Remove @
+        const absoluteRefPath = join(baseDir, refPath);
+        try {
+          const refContent = await fs.readFile(absoluteRefPath, 'utf8');
+          const refParsed = parseSkillFile(refContent);
+          description = (refParsed?.data?.description as string) || '';
+        } catch {
+          // ignore reference read errors
+        }
+      }
+
+      const skillDir = dirname(skill.path);
+      const dependents = await detectDependentFiles(skillDir);
+      const fileCount = dependents.length + 1; // +1 for SKILL.md
+
+      allSkills.push({
+        name: skill.skillName,
+        description,
+        site,
+        fileCount
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Warning: Failed to process skill at ${skill.path}: ${errorMessage}`);
+    }
+  };
+
+  // Process platforms
+  for (const [site, skills] of Object.entries(platforms)) {
+    for (const skill of skills) {
+      await processSkill(skill, site);
+    }
+  }
+
+  // Process common
+  for (const skill of common) {
+    await processSkill(skill, 'common');
+  }
+
+  // Sort by name, then site
+  allSkills.sort((a, b) => a.name.localeCompare(b.name) || a.site.localeCompare(b.site));
+
+  if (allSkills.length === 0) {
+    console.log('No skills found.');
+    return;
+  }
+
+  console.log('Installed skills:');
+  console.log('');
+
+  const nameWidth = Math.max(20, ...allSkills.map(s => s.name.length));
+  const siteWidth = Math.max(8, ...allSkills.map(s => s.site.length));
+
+  for (const s of allSkills) {
+    const desc = s.description ? ` - ${s.description}` : '';
+    console.log(`${s.name.padEnd(nameWidth)} [${s.site.padEnd(siteWidth)}] (${s.fileCount} files)${desc}`);
+  }
 }
