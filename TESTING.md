@@ -363,6 +363,7 @@ npx tsx --test test/integration.test.ts
 ## Manual Testing Checklist
 
 - [ ] `--help` flag displays usage
+- [ ] `--list` flag displays installed skills grouped by name
 - [ ] Auto-config works when folders exist
 - [ ] Auto-config prompts when no folders exist
 - [ ] `--reconfigure` opens interactive prompt

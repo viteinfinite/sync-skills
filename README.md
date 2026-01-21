@@ -163,6 +163,22 @@ npm install -g .
 sync-skills              # Sync all configured assistants
 ```
 
+### List Installed Skills
+
+Get an overview of all skills installed across your configured assistant platforms:
+
+```bash
+sync-skills --list       # Grouped list of installed skills
+# or
+sync-skills -l
+```
+
+Example output:
+```
+before-pushing           [common, claude, codex] - Use when about to push commits to remote repository
+my-custom-skill          [common, gemini] - A custom workflow for my project
+```
+
 ### Home Directory Mode
 
 Keep your personal skill collection in `~/` and share across projects:
