@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "assistants": [
+    "claude",
+    "codex",
+    "gemini",
+    "opencode"
+  ]
+}
