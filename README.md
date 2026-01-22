@@ -64,14 +64,14 @@ Many companies have policies allowing developers to use their preferred AI assis
 
 ```bash
 # Install
-npm install -g sync-skills
+npm install -g @viteinfinite/sync-skills
 
 # Run in your project
 sync-skills
-
-# Or using npx
-npx viteinfinite/sync-skills
 ```
+
+Note: this repo includes prebuilt `dist/` output so git installs work without running a build step.
+If you change source files locally, run `npm run build` to refresh `dist/`.
 
 That's it! The tool will:
 1. Prompt you to select which AI assistants to configure (preselecting detected ones)

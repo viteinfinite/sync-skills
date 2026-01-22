@@ -1,14 +1,21 @@
 {
-  "name": "sync-skills",
+  "name": "@viteinfinite/sync-skills",
   "version": "0.1.0",
   "description": "Synchronize agent skills between .claude and .codex directories",
   "main": "dist/index.js",
   "bin": {
-    "sync-skills": "./dist/bin/sync-skills.js"
+    "sync-skills": "dist/bin/sync-skills.js"
   },
+  "files": [
+    "dist/",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "node ./scripts/generate-version.mjs && npm exec --yes --package typescript -- tsc",
     "prepare": "node ./scripts/ensure-dist.mjs",
+    "prepublishOnly": "npm run build",
     "test": "tsx --test test/*.test.ts",
     "test:integration": "tsx --test test/integration/*.test.ts",
     "test:all": "npm test && npm run test:integration",
@@ -35,6 +42,10 @@
     "sinon": "^21.0.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "type": "module"
 }
