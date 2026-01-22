@@ -1,31 +1,19 @@
 # Project Context
 
 ## Purpose
-[Describe your project's purpose and goals]
+sync-skills is a CLI tool that centralizes and synchronizes AI assistant skills across multiple platforms. By maintaining a single source of truth for your skills, it ensures consistency and reduces duplication of effort when managing AI capabilities.
 
 ## Tech Stack
-- [List your primary technologies]
-- [e.g., TypeScript, React, Node.js]
+- TypeScript
+- npm-based CLI
 
 ## Project Conventions
 
-### Code Style
-[Describe your code style preferences, formatting rules, and naming conventions]
-
-### Architecture Patterns
-[Document your architectural decisions and patterns]
-
 ### Testing Strategy
-[Explain your testing approach and requirements]
-
-### Git Workflow
-[Describe your branching strategy and commit conventions]
+- Unit Tests: Focus on individual functions and modules to ensure they work as expected in isolation.
+- Integration Tests: Validate the interaction between different modules and the overall functionality of the sync-skills tool. Run these via the command: `npm test:integration`
+- Test Directory: Run integration tests in a dedicated subdirectory (e.g., `./test-dir`) to avoid conflicts with other files and ensure a clean testing environment.
+- Run all tests using the command: `npm test:all`
 
 ## Domain Context
-[Add domain-specific knowledge that AI assistants need to understand]
-
-## Important Constraints
-[List any technical, business, or regulatory constraints]
-
-## External Dependencies
-[Document key external services, APIs, or systems]
+Read the [Agent Skills Specification](docs/skills-specifications.md) for detailed information on skills.
