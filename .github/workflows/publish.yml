@@ -1,0 +1,64 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure no npm token auth is configured
+        run: |
+          echo "NODE_AUTH_TOKEN<<EOF" >> "$GITHUB_ENV"
+          echo "" >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
+          echo "NPM_TOKEN<<EOF" >> "$GITHUB_ENV"
+          echo "" >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
+          npm config set registry https://registry.npmjs.org/
+          npm config delete //registry.npmjs.org/:_authToken || true
+          npm config delete always-auth || true
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+      - name: Set package version from tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          npm pkg set version="$TAG_VERSION"
+
+      - name: Build package
+        run: npm run build
+
+      - name: Confirm OIDC available
+        run: |
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" && echo "OIDC env present" || (echo "OIDC env missing" && exit 1)
+          npm config get registry
+
+      - name: Auth for npm
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
+      - name: Publish to npm
+        run: npm publish --access public
