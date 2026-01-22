@@ -20,13 +20,88 @@ import {
 import { getAssistantConfigs } from './types.js';
 import type { RunOptions, AssistantConfig, SkillFile, OutOfSyncSkill } from './types.js';
 
+/**
+ * Install the sync-skills self-documentation skill
+ */
+async function installSyncSkillsSkill(baseDir: string): Promise<void> {
+  const skillDir = join(baseDir, '.agents-common/skills/sync-skills');
+  const skillFile = join(skillDir, 'SKILL.md');
+
+  // Create directory if it doesn't exist
+  await fs.mkdir(skillDir, { recursive: true });
+
+  // Skill content
+  const skillContent = `---
+name: sync-skills
+description: Documentation skill for the sync-skills tool - explains main options and usage
+---
+
+# sync-skills
+
+A tool for synchronizing AI agent skills across different platforms (Claude, Cursor, Windsurf, etc.).
+
+## Main Options
+
+### Basic Sync (default)
+\`\`\`bash
+sync-skills
+\`\`\`
+Synchronizes all skills across configured AI assistants from the common \`.agents-common/\` directory.
+
+### List Installed Skills
+\`\`\`bash
+sync-skills --list     # or -l
+\`\`\`
+Shows all installed skills grouped by platform with their descriptions.
+
+### Home Directory Mode
+\`\`\`bash
+sync-skills --home      # or -H
+\`\`\`
+Syncs skills in your home directory (\`~/\`) instead of the current project. Useful for maintaining a personal skill collection across projects.
+
+### Reconfigure
+\`\`\`bash
+sync-skills --reconfigure   # or -r
+\`\`\`
+Interactively select which AI assistants to configure for skill synchronization.
+
+### Strict Mode
+\`\`\`bash
+sync-skills --fail-on-conflict   # or -f
+\`\`\`
+Exit with error on conflicts instead of entering interactive resolution mode.
+
+## How It Works
+
+1. Skills are stored in \`.agents-common/skills/\` as the single source of truth
+2. Platform directories (\`.claude/skills/\`, \`.cursor/skills/\`, etc.) contain references to common skills
+3. Edit a skill once in \`.agents-common/\`, and all assistants see the changes
+4. Dependent files (scripts, docs, configs) are also synchronized
+
+## Supported Assistants
+
+claude, cline, codex, cursor, gemini, github, kilo, opencode, roo, windsurf, amp
+
+## When to Use
+
+- Use this tool when adding or modifying skills in your project
+- Run it after making changes to \`.agents-common/skills/\` to propagate updates
+- Use \`--list\` to see what skills are currently installed across platforms
+`;
+
+  await fs.writeFile(skillFile, skillContent, 'utf8');
+  console.log(`Installed sync-skills documentation skill to: ${skillFile}`);
+}
+
 export async function run(options: RunOptions = {}): Promise<void> {
   let {
     baseDir = process.cwd(),
     failOnConflict = false,
     homeMode = false,
     reconfigure = false,
-    listMode = false
+    listMode = false,
+    installSelfSkill = false
   } = options;
 
   // Handle --home flag
@@ -42,6 +117,30 @@ export async function run(options: RunOptions = {}): Promise<void> {
   if (listMode) {
     await listSkills(baseDir, homeMode);
     return;
+  }
+
+  // Handle --install-self-skill flag
+  if (installSelfSkill) {
+    await installSyncSkillsSkill(baseDir);
+
+    // Prompt user to run sync now
+    const inquirer = (await import('inquirer')).default;
+    const { shouldSync } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'shouldSync',
+        message: 'Skill installed. Would you like to run sync now?',
+        default: true
+      }
+    ]);
+
+    if (shouldSync) {
+      // Continue with normal sync operation
+      console.log('Running sync...');
+    } else {
+      console.log('Exiting without sync.');
+      return;
+    }
   }
 
   // Handle --reconfigure flag

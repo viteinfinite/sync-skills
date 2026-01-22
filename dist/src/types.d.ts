@@ -67,6 +67,8 @@ export interface RunOptions {
     reconfigure?: boolean;
     /** List installed skills and exit (default: false) */
     listMode?: boolean;
+    /** Install sync-skills self-documentation skill (default: false) */
+    installSelfSkill?: boolean;
 }
 /**
  * Detected conflict between skills
