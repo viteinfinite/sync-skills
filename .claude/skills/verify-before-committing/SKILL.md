@@ -7,4 +7,4 @@ metadata:
     files: {}
     hash: sha256-f854efdbffa81ee3b8eca20a8ce8e871192bff55608ecc59fcdd4f75c7504c21
 ---
-@.agents-common/skills/verify-before-committing/SKILL.md
+@../../../.agents-common/skills/verify-before-committing/SKILL.md
