@@ -218,7 +218,12 @@ export async function detectOutOfSyncSkills(
       }
 
       // Detect mismatches
-      const mismatchType: SyncMismatchType | null = detectSyncMismatch(platformParsed, commonParsed);
+      const expectedRef = `.agents-common/skills/${platformSkill.skillName}/SKILL.md`;
+      const mismatchType: SyncMismatchType | null = detectSyncMismatch(
+        platformParsed,
+        commonParsed,
+        expectedRef
+      );
 
       if (mismatchType) {
         outOfSync.push({
@@ -249,7 +254,8 @@ export async function detectOutOfSyncSkills(
  */
 function detectSyncMismatch(
   platformParsed: matter.GrayMatterFile<string>,
-  commonParsed: matter.GrayMatterFile<string>
+  commonParsed: matter.GrayMatterFile<string>,
+  expectedRef: string
 ): SyncMismatchType | null {
   const platformBody = platformParsed.content.trim();
   const commonBody = commonParsed.content.trim();
@@ -257,7 +263,6 @@ function detectSyncMismatch(
   // Check if platform has @ reference
   const platformHasReference = platformBody.startsWith('@');
   const platformReference = extractReference(platformBody);
-  const expectedRef = `.agents-common/skills/${commonParsed.data.name}/SKILL.md`;
 
   // Check body mismatch
   let bodyMismatch = false;

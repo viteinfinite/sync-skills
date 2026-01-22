@@ -508,7 +508,32 @@ git commit -m "test: add tests for computeSkillHash"
 
 ---
 
-## Task 7: Add Integration Test for Sync Metadata Consistency
+## Task 7: Fix Out-of-Sync Reference Detection
+
+**Files:**
+- Modify: `src/detector.ts`
+
+**Step 1: Derive expected @ reference from skill folder name**
+
+Ensure `detectOutOfSyncSkills()` passes the expected reference based on the skill folder name (not frontmatter):
+
+```typescript
+const expectedRef = `.agents-common/skills/${platformSkill.skillName}/SKILL.md`;
+const mismatchType = detectSyncMismatch(platformParsed, commonParsed, expectedRef);
+```
+
+Update `detectSyncMismatch()` to accept the `expectedRef` parameter and remove any use of `commonParsed.data.name` for path construction.
+
+**Step 2: Commit**
+
+```bash
+git add src/detector.ts
+git commit -m "fix: derive expected @ reference from skill folder name"
+```
+
+---
+
+## Task 8: Add Integration Test for Sync Metadata Consistency
 
 **Files:**
 - Modify: `test/integration/sync-workflow.test.ts`
@@ -582,7 +607,7 @@ git commit -m "test: add integration test for sync metadata consistency"
 
 ---
 
-## Task 8: Run Full Test Suite
+## Task 9: Run Full Test Suite
 
 **Step 1: Run all tests**
 
@@ -609,7 +634,7 @@ git commit -m "fix: resolve test failures and build errors"
 
 ---
 
-## Task 9: Manual Verification
+## Task 10: Manual Verification
 
 **Step 1: Test with real skills**
 
