@@ -7,11 +7,15 @@ The system SHALL publish the npm package when a version tag is pushed.
 - **THEN** the workflow runs tests, builds the package, and publishes to npm
 
 ### Requirement: Authenticated npm Publish
-The system SHALL use npm trusted publishing with GitHub Actions for registry authentication.
+The system SHALL support npm trusted publishing with GitHub Actions and optional token-based authentication.
 
 #### Scenario: Trusted publisher authentication
-- **WHEN** the publish workflow runs
-- **THEN** it authenticates using npm trusted publishing without registry tokens
+- **WHEN** the publish workflow runs with OIDC available
+- **THEN** it can authenticate using npm trusted publishing
+
+#### Scenario: Token authentication fallback
+- **WHEN** the publish workflow runs with `NPM_TOKEN` configured
+- **THEN** it can authenticate using the npm registry token
 
 ### Requirement: Tag-Based Version Metadata
 The system SHALL generate version metadata using the tag version and the commit short hash in the format `1.2.3-<shortsha>`.

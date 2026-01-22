@@ -57,5 +57,8 @@ jobs:
           test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" && echo "OIDC env present" || (echo "OIDC env missing" && exit 1)
           npm config get registry
 
+      - name: Auth for npm
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
       - name: Publish to npm
         run: npm publish --access public
