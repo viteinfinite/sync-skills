@@ -3,6 +3,7 @@ import { strict as assert } from 'node:assert';
 import { run } from '../src/index.js';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import { buildCommonSkillReference } from '../src/references.js';
 import { createTestFixture, cleanupTestFixture } from './helpers/test-setup.js';
 
 describe('list mode', () => {
@@ -30,8 +31,10 @@ describe('list mode', () => {
       await fs.writeFile(join(commonSkillDir, 'SKILL.md'), '---\ndescription: Common skill 2 description\n---\nCommon body');
 
       const codexSkillDir = join(dir, '.codex/skills/skill-2');
+      const codexSkillPath = join(codexSkillDir, 'SKILL.md');
       await fs.mkdir(codexSkillDir, { recursive: true });
-      await fs.writeFile(join(codexSkillDir, 'SKILL.md'), '---\n---\n@.agents-common/skills/skill-2/SKILL.md');
+      const atReference = buildCommonSkillReference(codexSkillPath, join(commonSkillDir, 'SKILL.md'));
+      await fs.writeFile(codexSkillPath, `---\n---\n${atReference}`);
     });
 
     console.log = (...args: any[]) => {

@@ -25,7 +25,7 @@ describe('resolver', () => {
         platformPath: '/path/to/claude/skill',
         commonPath: '/path/to/common/skill',
         mismatchType: 'body',
-        platformContent: '@.agents-common/skills/test-skill/SKILL.md',
+        platformContent: '@../../../.agents-common/skills/test-skill/SKILL.md',
         commonContent: 'Common content'
       };
 
@@ -48,7 +48,7 @@ describe('resolver', () => {
         platformPath: '/path/to/claude/skill',
         commonPath: '/path/to/common/skill',
         mismatchType: 'frontmatter',
-        platformContent: '@.agents-common/skills/test-skill/SKILL.md',
+        platformContent: '@../../../.agents-common/skills/test-skill/SKILL.md',
         commonContent: 'Common content'
       };
 
@@ -71,7 +71,7 @@ describe('resolver', () => {
         platformPath: '/path/to/claude/skill',
         commonPath: '/path/to/common/skill',
         mismatchType: 'both',
-        platformContent: '@.agents-common/skills/test-skill/SKILL.md',
+        platformContent: '@../../../.agents-common/skills/test-skill/SKILL.md',
         commonContent: 'Common content'
       };
 
@@ -117,7 +117,7 @@ describe('resolver', () => {
         platformPath: '/path/to/claude/skill',
         commonPath: '/path/to/common/skill',
         mismatchType: 'frontmatter',
-        platformContent: '@.agents-common/skills/test-skill/SKILL.md',
+        platformContent: '@../../../.agents-common/skills/test-skill/SKILL.md',
         commonContent: 'Common content'
       };
 
@@ -259,7 +259,7 @@ describe('resolver', () => {
         hashA: 'hashA',
         hashB: 'hashB',
         contentA: 'content A',
-        contentB: '@.agents-common/skills/conflict-skill/SKILL.md',
+        contentB: '@../../../.agents-common/skills/conflict-skill/SKILL.md',
         conflictType: 'content'
       };
 
@@ -283,7 +283,7 @@ describe('resolver', () => {
         hashA: 'hashA',
         hashB: 'hashB',
         contentA: 'content A',
-        contentB: '@.agents-common/skills/conflict-skill/SKILL.md',
+        contentB: '@../../../.agents-common/skills/conflict-skill/SKILL.md',
         conflictType: 'content'
       };
 

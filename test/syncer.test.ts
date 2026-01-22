@@ -3,6 +3,7 @@ import { strict as assert } from 'assert';
 import { promises as fs } from 'fs';
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import { refactorSkill, computeSkillHash } from '../src/syncer.js';
+import { buildCommonSkillReference } from '../src/references.js';
 
 describe('refactorSkill', () => {
   const testDir = './test/fixtures/refactor';
@@ -32,9 +33,10 @@ This is content`);
     const sourceContent = await fs.readFile(sourcePath, 'utf8');
     const commonPath = `${testDir}/.agents-common/skills/test-skill/SKILL.md`;
     const commonContent = await fs.readFile(commonPath, 'utf8');
+    const expectedRef = buildCommonSkillReference(sourcePath, commonPath);
 
     // Platform file now has @ reference and sync metadata under metadata.sync
-    assert.ok(sourceContent.includes('@.agents-common/skills/test-skill/SKILL.md'));
+    assert.ok(sourceContent.includes(expectedRef));
     assert.ok(sourceContent.includes('metadata:'));
     assert.ok(sourceContent.includes('sync:'));
     assert.ok(sourceContent.includes('hash:'));
@@ -49,11 +51,13 @@ This is content`);
 
   it('should not refactor if @ reference already exists', async () => {
     const sourcePath = `${testDir}/.claude/skills/test-skill/SKILL.md`;
+    const commonPath = `${testDir}/.agents-common/skills/test-skill/SKILL.md`;
+    const atReference = buildCommonSkillReference(sourcePath, commonPath);
     await fs.writeFile(sourcePath, `---
 name: test-skill
 ---
 
-@.agents-common/skills/test-skill/SKILL.md`);
+${atReference}`);
 
     await fs.writeFile(`${testDir}/.agents-common/skills/test-skill/SKILL.md`, 'original');
 

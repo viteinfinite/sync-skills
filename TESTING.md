@@ -335,10 +335,10 @@ npx tsx bin/sync-skills.ts
     └── skill-b/SKILL.md (full content)
 
 .claude/skills/
-└── skill-a/SKILL.md (@.agents-common/... + sync metadata)
+└── skill-a/SKILL.md (@../../../.agents-common/... + sync metadata)
 
 .codex/skills/
-└── skill-a/SKILL.md (@.agents-common/...)
+└── skill-a/SKILL.md (@../../../.agents-common/...)
 ```
 
 ### Conflict Detection

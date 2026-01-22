@@ -4,6 +4,7 @@ import { createHash } from 'crypto';
 import matter from 'gray-matter';
 import { normalizeBodyContent, pickCoreFrontmatter } from './frontmatter.js';
 import { ASSISTANT_MAP } from './types.js';
+import { buildCommonSkillReference } from './references.js';
 
 export async function refactorSkill(sourcePath: string): Promise<string | null> {
   const content = await fs.readFile(sourcePath, 'utf8');
@@ -45,7 +46,6 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
   }
 
   const commonPath = join(projectRoot, '.agents-common/skills', skillName, 'SKILL.md');
-  const relativeCommonPath = '.agents-common/skills/' + skillName + '/SKILL.md';
 
   // Ensure .agents-common directory exists
   await fs.mkdir(dirname(commonPath), { recursive: true });
@@ -85,7 +85,8 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
   };
 
   // Replace body with @ reference
-  const newContent = matter.stringify(`@${relativeCommonPath}\n`, normalizedPlatform);
+  const atReference = buildCommonSkillReference(sourcePath, commonPath);
+  const newContent = matter.stringify(`${atReference}\n`, normalizedPlatform);
   await fs.writeFile(sourcePath, newContent);
 
   return commonPath;
@@ -137,8 +138,7 @@ export async function writePlatformReference(
     }
   }
 
-  const skillName = basename(dirname(platformPath));
-  const atReference = `@.agents-common/skills/${skillName}/SKILL.md`;
+  const atReference = buildCommonSkillReference(platformPath, commonPath);
   const newContent = matter.stringify(atReference + '\n', newPlatformData);
 
   await fs.writeFile(platformPath, newContent);

@@ -4,6 +4,7 @@ import matter from 'gray-matter';
 import { diffLines } from 'diff';
 import chalk from 'chalk';
 import { pickCoreFrontmatter } from './frontmatter.js';
+import { getRelativeCommonSkillPath } from './references.js';
 import type { Conflict, SkillFile, OutOfSyncSkill, SyncMismatchType } from './types.js';
 
 /**
@@ -218,7 +219,7 @@ export async function detectOutOfSyncSkills(
       }
 
       // Detect mismatches
-      const expectedRef = `.agents-common/skills/${platformSkill.skillName}/SKILL.md`;
+      const expectedRef = getRelativeCommonSkillPath(platformSkill.path, commonSkill.path);
       const mismatchType: SyncMismatchType | null = detectSyncMismatch(
         platformParsed,
         commonParsed,

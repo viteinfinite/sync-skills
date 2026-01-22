@@ -124,7 +124,7 @@ Helps write good commit messages.`);
 
   // Check that claude pr-review was refactored
   const claudePrContent = await fs.readFile(claudePrPath, 'utf8');
-  assert.ok(claudePrContent.includes('@.agents-common/skills/pr-review/SKILL.md'));
+  assert.ok(claudePrContent.includes('@../../../.agents-common/skills/pr-review/SKILL.md'));
   assert.ok(claudePrContent.includes('managed-by: sync-skills'));
 
   // Check that .agents-common file was created with frontmatter
@@ -136,11 +136,11 @@ Helps write good commit messages.`);
 
   // Check that codex pr-review was also refactored
   const codexPrContent = await fs.readFile(codexPrPath, 'utf8');
-  assert.ok(codexPrContent.includes('@.agents-common/skills/pr-review/SKILL.md'));
+  assert.ok(codexPrContent.includes('@../../../.agents-common/skills/pr-review/SKILL.md'));
 
   // Check that commit-message was refactored
   const claudeCommitContent = await fs.readFile(claudeCommitPath, 'utf8');
-  assert.ok(claudeCommitContent.includes('@.agents-common/skills/commit-message/SKILL.md'));
+  assert.ok(claudeCommitContent.includes('@../../../.agents-common/skills/commit-message/SKILL.md'));
 
   await cleanupTestFixture(testDir);
 });
@@ -183,12 +183,12 @@ This is the content of my skill.`);
 
   // Verify .codex/skills has @ reference to common skills
   const codexContent = await fs.readFile(codexSkillPath, 'utf8');
-  assert.ok(codexContent.includes('@.agents-common/skills/my-skill/SKILL.md'));
+  assert.ok(codexContent.includes('@../../../.agents-common/skills/my-skill/SKILL.md'));
 
   // Verify .claude skill was also refactored to use @ reference
   const claudeSkillPath = join(testDir, '.claude/skills/my-skill/SKILL.md');
   const claudeContent = await fs.readFile(claudeSkillPath, 'utf8');
-  assert.ok(claudeContent.includes('@.agents-common/skills/my-skill/SKILL.md'));
+  assert.ok(claudeContent.includes('@../../../.agents-common/skills/my-skill/SKILL.md'));
 
   await cleanupTestFixture(testDir);
 });
@@ -231,7 +231,7 @@ This is the content of my skill.`);
 
   // Verify .codex/skills has @ reference to common skills
   const codexContent = await fs.readFile(codexSkillPath, 'utf8');
-  assert.ok(codexContent.includes('@.agents-common/skills/my-skill/SKILL.md'));
+  assert.ok(codexContent.includes('@../../../.agents-common/skills/my-skill/SKILL.md'));
 
   await cleanupTestFixture(testDir);
 });
@@ -263,7 +263,7 @@ name: my-skill
 description: A test skill
 ---
 
-@.agents-common/skills/my-skill/SKILL.md
+@../../../.agents-common/skills/my-skill/SKILL.md
 `);
 
     // Also create the common skill
@@ -306,7 +306,7 @@ name: my-skill
 description: A test skill
 ---
 
-@.agents-common/skills/my-skill/SKILL.md
+@../../../.agents-common/skills/my-skill/SKILL.md
 `);
 
     // Also create the common skill
@@ -343,7 +343,7 @@ This is the content of my skill.`);
 
   // Verify .claude/skills has @ reference to common skills
   const claudeContent = await fs.readFile(claudeSkillPath, 'utf8');
-  assert.ok(claudeContent.includes('@.agents-common/skills/my-skill/SKILL.md'));
+  assert.ok(claudeContent.includes('@../../../.agents-common/skills/my-skill/SKILL.md'));
 
   await cleanupTestFixture(testDir);
 });
@@ -409,7 +409,7 @@ This is the content of my skill.`);
   assert.ok(claudeExists, '.claude/skills/my-skill/SKILL.md should exist');
 
   const claudeContent = await fs.readFile(claudeSkillPath, 'utf8');
-  assert.ok(claudeContent.includes('@.agents-common/skills/my-skill/SKILL.md'), 'Should have @ reference');
+  assert.ok(claudeContent.includes('@../../../.agents-common/skills/my-skill/SKILL.md'), 'Should have @ reference');
   assert.ok(claudeContent.includes('name: my-skill'), 'Should have core frontmatter');
 
   // Verify .gemini/skills/my-skill/SKILL.md was created with @ reference
@@ -418,7 +418,7 @@ This is the content of my skill.`);
   assert.ok(geminiExists, '.gemini/skills/my-skill/SKILL.md should exist');
 
   const geminiContent = await fs.readFile(geminiSkillPath, 'utf8');
-  assert.ok(geminiContent.includes('@.agents-common/skills/my-skill/SKILL.md'), 'Should have @ reference');
+  assert.ok(geminiContent.includes('@../../../.agents-common/skills/my-skill/SKILL.md'), 'Should have @ reference');
   assert.ok(geminiContent.includes('name: my-skill'), 'Should have core frontmatter');
 
   await cleanupTestFixture(testDir);
@@ -454,7 +454,7 @@ name: my-skill
 description: A test skill
 model: haiku-3.5
 ---
-@.agents-common/skills/my-skill/SKILL.md`);
+@../../../.agents-common/skills/my-skill/SKILL.md`);
 
     await fs.mkdir(join(dir, '.gemini/skills/my-skill'), { recursive: true });
     await fs.writeFile(join(dir, '.gemini/skills/my-skill/SKILL.md'), `---
@@ -462,7 +462,7 @@ name: my-skill
 description: A test skill
 model: gemini-3-pro-preview
 ---
-@.agents-common/skills/my-skill/SKILL.md`);
+@../../../.agents-common/skills/my-skill/SKILL.md`);
   });
 
   stubPrompt({
@@ -509,7 +509,7 @@ This is the content.`);
   // Verify claude skill is now a reference
   const claudeSkillPath = join(testDir, '.claude/skills/test-skill/SKILL.md');
   let content = await fs.readFile(claudeSkillPath, 'utf8');
-  assert.ok(content.includes('@.agents-common'), 'Claude skill should be refactored');
+  assert.ok(content.includes('@../../../.agents-common'), 'Claude skill should be refactored');
 
   // Capture console logs for the second run
   const originalLog = console.log;
@@ -573,7 +573,7 @@ metadata:
     hash: ${originalHash}
 ---
 
-@.agents-common/skills/shared-skill/SKILL.md`);
+@../../../.agents-common/skills/shared-skill/SKILL.md`);
 
     // Codex version: Different modified description (frontmatter only)
     await fs.mkdir(join(dir, '.codex/skills/shared-skill'), { recursive: true });
@@ -585,7 +585,7 @@ metadata:
     hash: ${originalHash}
 ---
 
-@.agents-common/skills/shared-skill/SKILL.md`);
+@../../../.agents-common/skills/shared-skill/SKILL.md`);
   });
 
   // Stub prompt to use common version (discard platform frontmatter edits)
@@ -605,11 +605,11 @@ metadata:
   // 4. Verify both platform skills have correct @ reference
   const claudePath = join(testDir, '.claude/skills/shared-skill/SKILL.md');
   const claudeContent = await fs.readFile(claudePath, 'utf8');
-  assert.ok(claudeContent.includes('@.agents-common'), 'Claude skill should be a reference');
+  assert.ok(claudeContent.includes('@../../../.agents-common'), 'Claude skill should be a reference');
 
   const codexPath = join(testDir, '.codex/skills/shared-skill/SKILL.md');
   const codexContent = await fs.readFile(codexPath, 'utf8');
-  assert.ok(codexContent.includes('@.agents-common'), 'Codex skill should be a reference');
+  assert.ok(codexContent.includes('@../../../.agents-common'), 'Codex skill should be a reference');
 
   await cleanupTestFixture(testDir);
 });
@@ -668,7 +668,7 @@ Claude modified content`);
   // 4. Verify platform skill now references common and preserves frontmatter
   const claudePath = join(testDir, '.claude/skills/shared-skill/SKILL.md');
   const claudeContent = await fs.readFile(claudePath, 'utf8');
-  assert.ok(claudeContent.includes('@.agents-common/skills/shared-skill/SKILL.md'), 'Platform skill should be a reference');
+  assert.ok(claudeContent.includes('@../../../.agents-common/skills/shared-skill/SKILL.md'), 'Platform skill should be a reference');
   assert.ok(!claudeContent.includes('Claude modified content'), 'Platform edits should be discarded');
   assert.ok(claudeContent.includes('model: haiku-3.5'), 'Platform-specific frontmatter should be preserved');
 
@@ -713,7 +713,7 @@ metadata:
     hash: ${originalHash}
 ---
 
-@.agents-common/skills/shared-skill/SKILL.md`);
+@../../../.agents-common/skills/shared-skill/SKILL.md`);
 
     await fs.mkdir(join(dir, '.claude/skills/shared-skill'), { recursive: true });
     await fs.writeFile(join(dir, '.claude/skills/shared-skill/SKILL.md'), `---
@@ -738,8 +738,8 @@ Claude modified content`);
   const claudeContent = await fs.readFile(claudePath, 'utf8');
   const clineContent = await fs.readFile(clinePath, 'utf8');
 
-  assert.ok(claudeContent.includes('@.agents-common/skills/shared-skill/SKILL.md'), 'Claude should reference common');
-  assert.ok(clineContent.includes('@.agents-common/skills/shared-skill/SKILL.md'), 'Cline should reference common');
+  assert.ok(claudeContent.includes('@../../../.agents-common/skills/shared-skill/SKILL.md'), 'Claude should reference common');
+  assert.ok(clineContent.includes('@../../../.agents-common/skills/shared-skill/SKILL.md'), 'Cline should reference common');
   assert.ok(claudeContent.includes('model: haiku-3.5'), 'Platform-specific frontmatter should be preserved');
   assert.ok(!claudeContent.includes('Claude modified content'), 'Platform edits should be discarded');
 
@@ -813,8 +813,8 @@ Cline modified content`);
   const claudeContent = await fs.readFile(claudePath, 'utf8');
   const clineContent = await fs.readFile(clinePath, 'utf8');
 
-  assert.ok(claudeContent.includes('@.agents-common/skills/shared-skill/SKILL.md'), 'Claude skill should be a reference');
-  assert.ok(clineContent.includes('@.agents-common/skills/shared-skill/SKILL.md'), 'Cline skill should be a reference');
+  assert.ok(claudeContent.includes('@../../../.agents-common/skills/shared-skill/SKILL.md'), 'Claude skill should be a reference');
+  assert.ok(clineContent.includes('@../../../.agents-common/skills/shared-skill/SKILL.md'), 'Cline skill should be a reference');
   assert.ok(!claudeContent.includes('Claude modified content'), 'Claude edits should be discarded');
   assert.ok(!clineContent.includes('Cline modified content'), 'Cline edits should be discarded');
 
@@ -909,7 +909,7 @@ name: shared-skill
 description: Original description
 ---
 
-@.agents-common/skills/shared-skill/SKILL.md`);
+@../../../.agents-common/skills/shared-skill/SKILL.md`);
 
     await fs.mkdir(join(dir, '.claude/skills/shared-skill'), { recursive: true });
     await fs.writeFile(join(dir, '.claude/skills/shared-skill/SKILL.md'), `---
@@ -917,7 +917,7 @@ name: shared-skill
 description: Original description
 ---
 
-@.agents-common/skills/shared-skill/SKILL.md`);
+@../../../.agents-common/skills/shared-skill/SKILL.md`);
   });
 
   stubPrompt({

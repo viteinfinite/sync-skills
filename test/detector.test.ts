@@ -3,8 +3,20 @@ import { strict as assert } from 'node:assert';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { detectConflicts, detectOutOfSyncSkills } from '../src/detector.js';
+import { buildCommonSkillReference } from '../src/references.js';
 import { createTestFixture, cleanupTestFixture } from './helpers/test-setup.js';
 import type { OutOfSyncSkill } from '../src/types.js';
+
+function buildReference(
+  dir: string,
+  assistant: string,
+  skillName: string,
+  commonSkillName: string = skillName
+): string {
+  const platformPath = join(dir, assistant, 'skills', skillName, 'SKILL.md');
+  const commonPath = join(dir, '.agents-common/skills', commonSkillName, 'SKILL.md');
+  return buildCommonSkillReference(platformPath, commonPath);
+}
 
 describe('detector', () => {
   describe('detectConflicts sync metadata', () => {
@@ -12,6 +24,9 @@ describe('detector', () => {
       const TEST_DIR = await createTestFixture('detector-sync', async (dir) => {
         await fs.mkdir(join(dir, '.claude/skills/test-skill'), { recursive: true });
         await fs.mkdir(join(dir, '.codex/skills/test-skill'), { recursive: true });
+
+        const claudeRef = buildReference(dir, '.claude', 'test-skill');
+        const codexRef = buildReference(dir, '.codex', 'test-skill');
 
         await fs.writeFile(
           join(dir, '.claude/skills/test-skill/SKILL.md'),
@@ -22,7 +37,7 @@ metadata:
     hash: sha256-aaa
     managed-by: sync-skills
 ---
-@.agents-common/skills/test-skill/SKILL.md
+${claudeRef}
 `
         );
 
@@ -35,7 +50,7 @@ metadata:
     hash: sha256-bbb
     managed-by: sync-skills
 ---
-@.agents-common/skills/test-skill/SKILL.md
+${codexRef}
 `
         );
       });
@@ -124,6 +139,7 @@ Common content
 
         // Create platform skill with @ reference but different frontmatter
         await fs.mkdir(join(dir, '.claude/skills/test-skill'), { recursive: true });
+        const claudeRef = buildReference(dir, '.claude', 'test-skill');
         await fs.writeFile(
           join(dir, '.claude/skills/test-skill/SKILL.md'),
           `---
@@ -133,7 +149,7 @@ metadata:
   sync:
     hash: sha256-abc123
 ---
-@.agents-common/skills/test-skill/SKILL.md
+${claudeRef}
 `
         );
       });
@@ -178,6 +194,7 @@ Common content
 
         // Create platform skill with different frontmatter and correct @ reference
         await fs.mkdir(join(dir, '.claude/skills/test-skill'), { recursive: true });
+        const claudeRef = buildReference(dir, '.claude', 'test-skill');
         await fs.writeFile(
           join(dir, '.claude/skills/test-skill/SKILL.md'),
           `---
@@ -187,7 +204,7 @@ metadata:
   sync:
     hash: sha256-abc123
 ---
-@.agents-common/skills/test-skill/SKILL.md
+${claudeRef}
 `
         );
       });
@@ -233,6 +250,7 @@ Common content
 
         // Create platform skill with wrong @ reference and different frontmatter
         await fs.mkdir(join(dir, '.claude/skills/test-skill'), { recursive: true });
+        const wrongRef = buildReference(dir, '.claude', 'test-skill', 'other-skill');
         await fs.writeFile(
           join(dir, '.claude/skills/test-skill/SKILL.md'),
           `---
@@ -242,7 +260,7 @@ metadata:
   sync:
     hash: sha256-abc123
 ---
-@.agents-common/skills/other-skill/SKILL.md
+${wrongRef}
 `
         );
       });
@@ -288,6 +306,7 @@ Common content
 
         // Create platform skill with matching frontmatter and @ reference
         await fs.mkdir(join(dir, '.claude/skills/test-skill'), { recursive: true });
+        const claudeRef = buildReference(dir, '.claude', 'test-skill');
         await fs.writeFile(
           join(dir, '.claude/skills/test-skill/SKILL.md'),
           `---
@@ -297,7 +316,7 @@ metadata:
   sync:
     hash: sha256-abc123
 ---
-@.agents-common/skills/test-skill/SKILL.md
+${claudeRef}
 `
         );
       });

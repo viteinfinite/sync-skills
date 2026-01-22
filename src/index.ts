@@ -11,6 +11,7 @@ import { propagateFrontmatter } from './propagator.js';
 import { discoverAssistants, findSyncPairs, processSyncPairs, syncCommonOnlySkills } from './assistants.js';
 import { ensureConfig, reconfigure as runReconfigure, getEnabledAssistants } from './config.js';
 import { normalizeBodyContent, pickCoreFrontmatter } from './frontmatter.js';
+import { buildCommonSkillReference } from './references.js';
 import {
   collectDependentFilesFromPlatforms,
   consolidateDependentsToCommon,
@@ -289,11 +290,10 @@ export async function run(options: RunOptions = {}): Promise<void> {
             ? commonMetadata.sync as Record<string, unknown>
             : undefined;
         const commonHash = commonSync?.hash;
-        const expectedRef = `@.agents-common/skills/${conflict.skillName}/SKILL.md`;
-
-        const isSyncedToCommon = (content: string): boolean => {
+        const isSyncedToCommon = (content: string, platformPath: string): boolean => {
           const parsed = matter(content);
           const ref = parsed.content.trim();
+          const expectedRef = buildCommonSkillReference(platformPath, commonSkill.path);
           if (ref !== expectedRef) {
             return false;
           }
@@ -314,8 +314,8 @@ export async function run(options: RunOptions = {}): Promise<void> {
           return sync.hash === commonHash;
         };
 
-        const syncedA = isSyncedToCommon(conflict.contentA);
-        const syncedB = isSyncedToCommon(conflict.contentB);
+        const syncedA = isSyncedToCommon(conflict.contentA, conflict.pathA);
+        const syncedB = isSyncedToCommon(conflict.contentB, conflict.pathB);
 
         if (syncedA !== syncedB) {
           allowUseA = !syncedA;

@@ -39,7 +39,7 @@ Content`);
     await run({ baseDir: testDir, failOnConflict: false });
 
     const content = await fs.readFile(claudePath, 'utf8');
-    assert.ok(content.includes('@.agents-common/skills/test-skill/SKILL.md'));
+    assert.ok(content.includes('@../../../.agents-common/skills/test-skill/SKILL.md'));
 
     await cleanupTestFixture(testDir);
   });

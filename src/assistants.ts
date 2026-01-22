@@ -3,6 +3,7 @@ import { join, dirname } from 'path';
 import inquirer from 'inquirer';
 import matter from 'gray-matter';
 import { pickCoreFrontmatter } from './frontmatter.js';
+import { buildCommonSkillReference } from './references.js';
 import type {
   AssistantConfig,
   AssistantState,
@@ -141,16 +142,9 @@ async function cloneAssistantSkills(
     // Extract only core frontmatter fields
     const coreFrontmatter = pickCoreFrontmatter(parsed.data as Record<string, unknown>);
 
-    // Get the @ reference from the content (if it exists)
-    // Or create a new reference to common skills
-    let atReference = parsed.content.trim();
-    if (!atReference.startsWith('@')) {
-      // If source doesn't have @ reference, create one
-      atReference = `@.agents-common/skills/${skill.skillName}/SKILL.md`;
-    }
-
-    // Build the target path
     const targetPath = join(baseDir, targetConfig.skillsDir, skill.skillName, 'SKILL.md');
+    const commonPath = join(baseDir, '.agents-common/skills', skill.skillName, 'SKILL.md');
+    const atReference = buildCommonSkillReference(targetPath, commonPath);
 
     // Ensure directory exists
     await fs.mkdir(dirname(targetPath), { recursive: true });
@@ -283,7 +277,7 @@ export async function syncCommonOnlySkills(
       const { metadata, ...coreWithoutMetadata } = coreFrontmatter;
 
       // Create @ reference to common skill
-      const atReference = `@.agents-common/skills/${commonSkill.skillName}/SKILL.md`;
+      const atReference = buildCommonSkillReference(platformSkillPath, commonSkill.path);
 
       // Ensure directory exists
       await fs.mkdir(dirname(platformSkillPath), { recursive: true });
