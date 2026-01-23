@@ -1,7 +1,7 @@
 {
   "name": "sync-skills",
-  "version": "0.1.0",
-  "description": "Synchronize agent skills between .claude and .codex directories",
+  "version": "0.3.0",
+  "description": "Synchronize agent skills between multiple agents (Claude, Codex, Cursor and more)",
   "main": "dist/index.js",
   "bin": {
     "sync-skills": "dist/bin/sync-skills.js"
