@@ -64,7 +64,7 @@ Many companies have policies allowing developers to use their preferred AI assis
 
 ```bash
 # Install
-npm install -g @viteinfinite/sync-skills
+npm install -g sync-skills
 
 # Run in your project
 sync-skills
@@ -292,15 +292,6 @@ Configuration is stored in `.agents-common/config.json`:
 ## 🔧 Contributing & Debugging
 
 > **💡 See [Supported Assistants](#-supported-assistants) above for how to add custom AI assistants.**
-
-### Adding Skills via Script
-
-Quickly create test skills:
-
-```bash
-npm run add-skill claude my-skill
-npm run add-skill codex another-skill
-```
 
 ---
 
