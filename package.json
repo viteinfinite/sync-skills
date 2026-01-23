@@ -1,5 +1,5 @@
 {
-  "name": "@viteinfinite/sync-skills",
+  "name": "sync-skills",
   "version": "0.1.0",
   "description": "Synchronize agent skills between .claude and .codex directories",
   "main": "dist/index.js",
