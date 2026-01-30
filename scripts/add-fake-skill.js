@@ -77,6 +77,6 @@ ${skillName} do something
 
 await fs.writeFile(skillFile, skillContent, 'utf-8');
 
-console.log(`✅ Created fake skill: ${skillFile}`);
+console.log(`Created fake skill: ${skillFile}`);
 console.log(`   Assistant: ${assistant}`);
 console.log(`   Skill: ${skillName}`);

@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 import inquirer from 'inquirer';
+import chalk from 'chalk';
 import { ASSISTANT_MAP, getAssistantConfigs } from './types.js';
 
 /**
@@ -192,7 +193,7 @@ export async function reconfigure(baseDir: string): Promise<void> {
     process.exit(1);
   }
 
-  console.log(`Configured assistants: ${selected.join(', ')}`);
+  console.log(chalk.greenBright(`Configured assistants: ${selected.join(', ')}`));
 }
 
 /**
@@ -212,7 +213,7 @@ export async function ensureConfig(baseDir: string): Promise<Config> {
 
   if (detected.length === 0) {
     // No folders exist - prompt user to select
-    console.log('No assistant folders found.');
+    console.log(chalk.yellowBright('No assistant folders found.'));
   }
 
   let selected: string[];

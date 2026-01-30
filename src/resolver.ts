@@ -10,7 +10,7 @@ type InquirerImpl = typeof inquirer;
 function formatConflictDetails(conflict: Conflict): string {
   const lines: string[] = [];
 
-  lines.push(chalk.bold.red(`\n⚠️  Conflict detected: ${conflict.skillName}`));
+  lines.push(chalk.bold.red(`\nWARNING: Conflict detected: ${conflict.skillName}`));
 
   if (conflict.conflictType === 'frontmatter') {
     lines.push(chalk.yellow(`\nConflict type: Frontmatter (metadata) only`));
@@ -109,7 +109,11 @@ export async function resolveConflict(
 function formatDependentConflictDetails(conflict: DependentConflict): string {
   const lines: string[] = [];
 
-  lines.push(chalk.bold.red(`\n⚠️  Dependent file conflict: ${conflict.skillName}/${conflict.relativePath}`));
+  lines.push(
+    chalk.bold.red(
+      `\nWARNING: Dependent file conflict: ${conflict.skillName}/${conflict.relativePath}`
+    )
+  );
   lines.push(chalk.yellow(`\nFile: ${conflict.relativePath}`));
   lines.push(chalk.gray(`Platform: ${conflict.platform}`));
 
@@ -199,7 +203,7 @@ function formatOutOfSyncDetails(skill: OutOfSyncSkill): string {
     'both': 'Both body and frontmatter are out of sync'
   };
 
-  lines.push(chalk.bold.yellow(`\n⚠️  Skill out of sync: ${skill.skillName}`));
+  lines.push(chalk.bold.yellow(`\nWARNING: Skill out of sync: ${skill.skillName}`));
   lines.push(chalk.yellow(`\nPlatform: ${skill.platform}`));
   lines.push(chalk.gray(`Platform path: ${skill.platformPath}`));
   lines.push(chalk.gray(`Common path: ${skill.commonPath}`));

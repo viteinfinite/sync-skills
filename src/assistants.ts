@@ -3,6 +3,7 @@ import { join, dirname } from 'path';
 import inquirer from 'inquirer';
 import matter from 'gray-matter';
 import { pickCoreFrontmatter } from './frontmatter.js';
+import chalk from 'chalk';
 import { buildCommonSkillReference } from './references.js';
 import type {
   AssistantConfig,
@@ -308,7 +309,7 @@ export async function syncCommonOnlySkills(
       const targetContent = matter.stringify(atReference + '\n', platformFrontmatter);
       await fs.writeFile(platformSkillPath, targetContent);
 
-      console.log(`Created @ reference for ${commonSkill.skillName} in ${config.name}`);
+      console.log(chalk.green(`Created @ reference for ${commonSkill.skillName} in ${config.name}`));
     }
   }
 }

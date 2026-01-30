@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import matter from 'gray-matter';
+import chalk from 'chalk';
 import { parseSkillFile } from './parser.js';
 
 const SKIP_FIELDS = ['sync'];
@@ -173,10 +174,12 @@ function mergeFrontmatter(
 async function defaultResolver(conflict: FrontmatterConflict, targetPath: string): Promise<string> {
   const skillName = targetPath.split('/').slice(-2, -1)[0];
 
-  console.log(`\nConflict in skill "${skillName}" for field "${conflict.field}":`);
-  console.log(`  Common: ${JSON.stringify(conflict.commonValue)}`);
-  console.log(`  Target: ${JSON.stringify(conflict.targetValue)}`);
-  console.log(`Choose: (c)ommon, (t)arget, (s)kip all for this skill`);
+  console.log(
+    chalk.redBright(`\nWARNING: Conflict in skill "${skillName}" for field "${conflict.field}":`)
+  );
+  console.log(chalk.gray(`  Common: ${JSON.stringify(conflict.commonValue)}`));
+  console.log(chalk.gray(`  Target: ${JSON.stringify(conflict.targetValue)}`));
+  console.log(chalk.yellow('Choose: (c)ommon, (t)arget, (s)kip all for this skill'));
 
   // For now, default to 'target' to preserve existing behavior
   // In a real implementation, this would use readline/inquirer

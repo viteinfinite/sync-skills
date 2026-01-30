@@ -10,6 +10,7 @@ describe('list mode', () => {
   let logs: string[] = [];
   const originalLog = console.log;
   const originalWarn = console.warn;
+  const stripAnsi = (value: string) => value.replace(/\u001b\[[0-9;]*m/g, '');
 
   afterEach(() => {
     console.log = originalLog;
@@ -43,7 +44,7 @@ describe('list mode', () => {
 
     await run({ baseDir: testDir, listMode: true });
 
-    const output = logs.join('\n');
+    const output = stripAnsi(logs.join('\n'));
     
     assert.ok(output.includes('skill-1'), 'Should contain skill-1');
     assert.ok(output.includes('[claude]'), 'Should contain claude site');
@@ -69,7 +70,8 @@ describe('list mode', () => {
 
     await run({ baseDir: testDir, listMode: true });
 
-    assert.ok(logs.some(l => l.includes('No skills found')), 'Should show no skills found message');
+    const output = stripAnsi(logs.join('\n'));
+    assert.ok(output.includes('No skills found'), 'Should show no skills found message');
 
     await cleanupTestFixture(testDir);
   });

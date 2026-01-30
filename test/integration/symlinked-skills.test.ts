@@ -6,6 +6,7 @@ import { run } from '../../src/index.js';
 import { createTestFixture, cleanupTestFixture, createConfig, exists } from '../helpers/test-setup.js';
 
 test.describe('symlinked skill handling', { concurrency: 1 }, () => {
+  const stripAnsi = (value: string) => value.replace(/\u001b\[[0-9;]*m/g, '');
   test('ignores symlinked skills during sync and logs message', async () => {
     const logs: string[] = [];
     const originalLog = console.log;
@@ -26,8 +27,9 @@ test.describe('symlinked skill handling', { concurrency: 1 }, () => {
     try {
       await run({ baseDir: testDir });
 
+      const output = stripAnsi(logs.join('\n'));
       assert.ok(
-        logs.some(line => line.includes('ignored linked-skill because it was symlinked')),
+        output.includes('Ignored linked-skill because it was symlinked'),
         'should log ignore message for symlinked skill'
       );
 
@@ -60,9 +62,9 @@ test.describe('symlinked skill handling', { concurrency: 1 }, () => {
     try {
       await run({ baseDir: testDir, listMode: true });
 
-      const output = logs.join('\n');
+      const output = stripAnsi(logs.join('\n'));
       assert.ok(
-        output.includes('ignored linked-skill because it was symlinked'),
+        output.includes('Ignored linked-skill because it was symlinked'),
         'should log ignore message in list mode'
       );
       assert.ok(output.includes('linked-skill'), 'should list symlinked skill');

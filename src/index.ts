@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import matter from 'gray-matter';
+import chalk from 'chalk';
 import { scanSkills } from './scanner.js';
 import type { WalkDirResult, IgnoredSkill } from './scanner.js';
 import { parseSkillFile } from './parser.js';
@@ -36,7 +37,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
       throw new Error('HOME environment variable not set');
     }
     baseDir = process.env.HOME;
-    console.log(`Using home directory: ${baseDir}`);
+    console.log(chalk.cyanBright(`Using home directory: ${baseDir}`));
   }
 
   // Handle --list mode
@@ -55,7 +56,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
   const anyInitialSkills = Object.values(preConfigScan.platforms).some(skills => skills.length > 0);
   const hasInitialCommonSkills = preConfigScan.common.length > 0;
   if (!anyInitialSkills && !hasInitialCommonSkills) {
-    console.log('No skills found. Exiting.');
+    console.log(chalk.yellowBright('No skills found. Exiting.'));
     return;
   }
 
@@ -213,7 +214,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
         const newCommonContent = matter.stringify(nextBody, newCommonFrontmatter);
         await fs.writeFile(commonSkill.path, newCommonContent);
 
-        console.log(`Applied ${representative.platform} changes to common skill: ${skillName}`);
+        console.log(chalk.green(`Applied ${representative.platform} changes to common skill: ${skillName}`));
 
         // Propagate updated common skill frontmatter to all platforms
         const platformPaths: string[] = [];
@@ -243,7 +244,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
         // Keep common version - overwrite platform(s) with @ reference
         const targets = isMultiPlatform ? group : [representative];
         for (const target of targets) {
-          console.log(`Kept common version for ${skillName} (discarding ${target.platform} changes)`);
+          console.log(chalk.green(`Kept common version for ${skillName} (discarding ${target.platform} changes)`));
           await writePlatformReference(target.platformPath, commonSkill.path);
         }
       }
@@ -513,7 +514,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
     }
   }
 
-  console.log('Sync complete');
+  console.log(chalk.greenBright('Sync complete'));
 }
 
 /**
@@ -607,11 +608,11 @@ async function listSkills(baseDir: string, homeMode: boolean): Promise<void> {
   allSkills.sort((a, b) => a.name.localeCompare(b.name));
 
   if (allSkills.length === 0) {
-    console.log('No skills found.');
+    console.log(chalk.yellowBright('No skills found.'));
     return;
   }
 
-  console.log('Installed skills:');
+  console.log(chalk.magentaBright('Installed skills:'));
   console.log('');
 
   const nameWidth = Math.max(20, ...allSkills.map(s => s.name.length));
@@ -626,7 +627,10 @@ async function listSkills(baseDir: string, homeMode: boolean): Promise<void> {
 
     const sitesStr = `[${s.sites.join(', ')}]`;
     const desc = s.description ? ` - ${s.description}` : '';
-    console.log(`${s.name.padEnd(nameWidth)} ${sitesStr}${desc}`);
+    const nameText = chalk.cyan(s.name.padEnd(nameWidth));
+    const siteText = chalk.yellow(sitesStr);
+    const descText = s.description ? chalk.gray(` - ${s.description}`) : '';
+    console.log(`- ${nameText} ${siteText}${descText}`);
   }
 }
 
@@ -644,6 +648,6 @@ function logIgnoredSymlinkedSkills(ignored: IgnoredSkill[]): void {
       continue;
     }
     seen.add(skill.skillName);
-    console.log(`ignored ${skill.skillName} because it was symlinked`);
+    console.log(chalk.yellowBright(`Ignored ${skill.skillName} because it was symlinked`));
   }
 }
