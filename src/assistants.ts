@@ -11,6 +11,7 @@ import type {
   SyncPair
 } from './types.js';
 import { getAssistantConfigs } from './types.js';
+import { isAgentsSkillSymlink } from './symlinks.js';
 
 /**
  * Discover the state of configured assistants
@@ -52,17 +53,24 @@ async function discoverAssistant(baseDir: string, config: AssistantConfig): Prom
       const entries = await fs.readdir(skillsDir, { withFileTypes: true });
 
       for (const entry of entries) {
-        if (entry.isDirectory()) {
-          const skillFile = join(skillsDir, entry.name, 'SKILL.md');
-          try {
-            await fs.access(skillFile);
-            skills.push({
-              path: skillFile,
-              skillName: entry.name
-            });
-          } catch {
-            // SKILL.md doesn't exist, skip this directory
-          }
+        if (!entry.isDirectory() && !entry.isSymbolicLink()) {
+          continue;
+        }
+
+        const skillDir = join(skillsDir, entry.name);
+        if (await isAgentsSkillSymlink(skillDir, baseDir, entry.name)) {
+          continue;
+        }
+
+        const skillFile = join(skillDir, 'SKILL.md');
+        try {
+          await fs.access(skillFile);
+          skills.push({
+            path: skillFile,
+            skillName: entry.name
+          });
+        } catch {
+          // SKILL.md doesn't exist, skip this directory
         }
       }
 

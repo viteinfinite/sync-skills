@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import matter from 'gray-matter';
 import { scanSkills } from './scanner.js';
-import type { WalkDirResult } from './scanner.js';
+import type { WalkDirResult, IgnoredSkill } from './scanner.js';
 import { parseSkillFile } from './parser.js';
 import { detectConflicts, detectOutOfSyncSkills } from './detector.js';
 import { resolveConflict, resolveDependentConflicts, resolveOutOfSyncSkill, resolveOutOfSyncSkills } from './resolver.js';
@@ -51,6 +51,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
   }
 
   const preConfigScan = await scanSkills(baseDir, getAssistantConfigs(undefined, homeMode));
+  logIgnoredSymlinkedSkills(preConfigScan.ignored);
   const anyInitialSkills = Object.values(preConfigScan.platforms).some(skills => skills.length > 0);
   const hasInitialCommonSkills = preConfigScan.common.length > 0;
   if (!anyInitialSkills && !hasInitialCommonSkills) {
@@ -519,7 +520,8 @@ export async function run(options: RunOptions = {}): Promise<void> {
  * List all installed skills across platforms and common
  */
 async function listSkills(baseDir: string, homeMode: boolean): Promise<void> {
-  const { platforms, common } = await scanSkills(baseDir, getAssistantConfigs(undefined, homeMode));
+  const { platforms, common, ignored } = await scanSkills(baseDir, getAssistantConfigs(undefined, homeMode));
+  logIgnoredSymlinkedSkills(ignored);
 
   const groupedSkills = new Map<string, {
     name: string;
@@ -581,6 +583,24 @@ async function listSkills(baseDir: string, homeMode: boolean): Promise<void> {
     }
   }
 
+  // Process ignored symlinked skills
+  for (const skill of ignored) {
+    const site = `${skill.agent} (unmanaged)`;
+    const existing = groupedSkills.get(skill.skillName);
+    if (existing) {
+      if (!existing.sites.includes(site)) {
+        existing.sites.push(site);
+      }
+      continue;
+    }
+
+    groupedSkills.set(skill.skillName, {
+      name: skill.skillName,
+      description: '',
+      sites: [site]
+    });
+  }
+
   const allSkills = Array.from(groupedSkills.values());
 
   // Sort by name
@@ -607,5 +627,23 @@ async function listSkills(baseDir: string, homeMode: boolean): Promise<void> {
     const sitesStr = `[${s.sites.join(', ')}]`;
     const desc = s.description ? ` - ${s.description}` : '';
     console.log(`${s.name.padEnd(nameWidth)} ${sitesStr}${desc}`);
+  }
+}
+
+function logIgnoredSymlinkedSkills(ignored: IgnoredSkill[]): void {
+  if (!ignored.length) {
+    return;
+  }
+
+  const seen = new Set<string>();
+  for (const skill of ignored) {
+    if (skill.reason !== 'symlinked') {
+      continue;
+    }
+    if (seen.has(skill.skillName)) {
+      continue;
+    }
+    seen.add(skill.skillName);
+    console.log(`ignored ${skill.skillName} because it was symlinked`);
   }
 }

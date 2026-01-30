@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import type { AssistantConfig } from './types.js';
+import { isAgentsSkillSymlink } from './symlinks.js';
 
 export interface WalkDirResult {
   agent: string;
@@ -13,14 +14,18 @@ async function* walkDir(
   dir: string,
   agent: string,
   baseDir: string,
-  originalBaseDir: string
+  originalBaseDir: string,
+  ignoredDirs: Set<string> = new Set()
 ): AsyncGenerator<WalkDirResult> {
   try {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = join(dir, entry.name);
       if (entry.isDirectory()) {
-        yield* walkDir(fullPath, agent, baseDir, originalBaseDir);
+        if (ignoredDirs.has(fullPath)) {
+          continue;
+        }
+        yield* walkDir(fullPath, agent, baseDir, originalBaseDir, ignoredDirs);
       } else if (entry.name === 'SKILL.md') {
         const relativePath = fullPath.substring(baseDir.length + 1);
         const parts = relativePath.split('/');
@@ -49,6 +54,16 @@ interface ScanResult {
   platforms: Record<string, WalkDirResult[]>;
   /** Skills in .agents-common */
   common: WalkDirResult[];
+  /** Skills ignored because they are symlinked to .agents */
+  ignored: IgnoredSkill[];
+}
+
+export interface IgnoredSkill {
+  agent: string;
+  skillName: string;
+  path: string;
+  relativePath: string;
+  reason: 'symlinked';
 }
 
 /**
@@ -69,6 +84,7 @@ export async function scanSkills(
 
   const platforms: Record<string, WalkDirResult[]> = {};
   const common: WalkDirResult[] = [];
+  const ignored: IgnoredSkill[] = [];
 
   // Normalize the base directory for filesystem operations
   const normalizedBaseDir = join(baseDir);
@@ -77,8 +93,40 @@ export async function scanSkills(
   for (const config of configs) {
     const platformSkills: WalkDirResult[] = [];
     const skillsPath = join(baseDir, config.skillsDir);
+    const ignoredDirs = new Set<string>();
 
-    for await (const skill of walkDir(skillsPath, config.name, normalizedBaseDir, baseDir)) {
+    try {
+      const entries = await fs.readdir(skillsPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory() && !entry.isSymbolicLink()) {
+          continue;
+        }
+
+        const fullPath = join(skillsPath, entry.name);
+        const isSymlinkToAgents = await isAgentsSkillSymlink(fullPath, baseDir, entry.name);
+        if (!isSymlinkToAgents) {
+          continue;
+        }
+
+        ignoredDirs.add(fullPath);
+
+        const relativePath = fullPath.substring(normalizedBaseDir.length + 1);
+        const separator = baseDir.endsWith('/') ? '' : '/';
+        const resultPath = baseDir + separator + relativePath;
+
+        ignored.push({
+          agent: config.name,
+          skillName: entry.name,
+          path: resultPath,
+          relativePath,
+          reason: 'symlinked'
+        });
+      }
+    } catch {
+      // Skills directory doesn't exist
+    }
+
+    for await (const skill of walkDir(skillsPath, config.name, normalizedBaseDir, baseDir, ignoredDirs)) {
       platformSkills.push(skill);
     }
 
@@ -90,5 +138,5 @@ export async function scanSkills(
     common.push(skill);
   }
 
-  return { platforms, common };
+  return { platforms, common, ignored };
 }
