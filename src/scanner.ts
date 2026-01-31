@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import type { AssistantConfig } from './types.js';
-import { isAgentsSkillSymlink } from './symlinks.js';
+import { isSymlinkedSkill } from './symlinks.js';
 
 export interface WalkDirResult {
   agent: string;
@@ -54,7 +54,7 @@ interface ScanResult {
   platforms: Record<string, WalkDirResult[]>;
   /** Skills in .agents-common */
   common: WalkDirResult[];
-  /** Skills ignored because they are symlinked to .agents */
+  /** Skills ignored because they are symlinked */
   ignored: IgnoredSkill[];
 }
 
@@ -103,8 +103,8 @@ export async function scanSkills(
         }
 
         const fullPath = join(skillsPath, entry.name);
-        const isSymlinkToAgents = await isAgentsSkillSymlink(fullPath, baseDir, entry.name);
-        if (!isSymlinkToAgents) {
+        const isSymlinked = await isSymlinkedSkill(fullPath);
+        if (!isSymlinked) {
           continue;
         }
 

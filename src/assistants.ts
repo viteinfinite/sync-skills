@@ -12,7 +12,7 @@ import type {
   SyncPair
 } from './types.js';
 import { getAssistantConfigs } from './types.js';
-import { isAgentsSkillSymlink } from './symlinks.js';
+import { isSymlinkedSkill } from './symlinks.js';
 
 /**
  * Discover the state of configured assistants
@@ -59,7 +59,7 @@ async function discoverAssistant(baseDir: string, config: AssistantConfig): Prom
         }
 
         const skillDir = join(skillsDir, entry.name);
-        if (await isAgentsSkillSymlink(skillDir, baseDir, entry.name)) {
+        if (await isSymlinkedSkill(skillDir)) {
           continue;
         }
 

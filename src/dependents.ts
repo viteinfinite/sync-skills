@@ -6,6 +6,7 @@ import type {
   DependentConflict,
   DependentConflictResolution
 } from './types.js';
+import { isSymlinkedSkill } from './symlinks.js';
 
 // Directories to ignore when scanning for dependent files
 const IGNORED_DIRECTORIES = new Set([
@@ -131,6 +132,9 @@ export async function collectDependentFilesFromPlatforms(
     try {
       // Check if skill folder exists
       await fs.access(skillPath);
+      if (await isSymlinkedSkill(skillPath)) {
+        continue;
+      }
       const dependents = await detectDependentFiles(skillPath);
 
       if (dependents.length > 0) {

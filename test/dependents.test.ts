@@ -7,6 +7,7 @@ import {
   hashMatches,
   hashChanged,
   detectDependentFiles,
+  collectDependentFilesFromPlatforms,
   consolidateDependentsToCommon,
   cleanupPlatformDependentFiles
 } from '../src/dependents.js';
@@ -225,6 +226,37 @@ describe('dependents', () => {
       // Should have a conflict since hashes differ
       assert.ok(result.conflicts.length > 0);
       assert.strictEqual(result.conflicts[0].relativePath, 'util.js');
+      await cleanupTestFixture(TEST_DIR);
+    });
+  });
+
+  describe('collectDependentFilesFromPlatforms', () => {
+    it('should skip symlinked skill folders', async () => {
+      TEST_DIR = await createTestFixture('collect-symlink');
+
+      const claudeSkillsPath = join(TEST_DIR, '.claude', 'skills');
+      const codexSkillsPath = join(TEST_DIR, '.codex', 'skills');
+      const agentsSkillPath = join(TEST_DIR, '.agents', 'skills', 'linked-skill');
+
+      await fs.mkdir(join(claudeSkillsPath, 'linked-skill'), { recursive: true });
+      await fs.writeFile(join(claudeSkillsPath, 'linked-skill', 'SKILL.md'), '---\nname: linked-skill\n---\ncontent');
+      await fs.writeFile(join(claudeSkillsPath, 'linked-skill', 'util.js'), 'console.log("managed");');
+
+      await fs.mkdir(agentsSkillPath, { recursive: true });
+      await fs.writeFile(join(agentsSkillPath, 'SKILL.md'), '---\nname: linked-skill\n---\ncontent');
+      await fs.writeFile(join(agentsSkillPath, 'util.js'), 'console.log("external");');
+
+      await fs.mkdir(codexSkillsPath, { recursive: true });
+      await fs.symlink(agentsSkillPath, join(codexSkillsPath, 'linked-skill'), 'dir');
+
+      const result = await collectDependentFilesFromPlatforms('linked-skill', [
+        { name: 'claude', path: claudeSkillsPath },
+        { name: 'codex', path: codexSkillsPath }
+      ]);
+
+      assert.ok(result.has('claude'), 'managed skill should be collected');
+      assert.ok(!result.has('codex'), 'symlinked skill should be skipped');
+
       await cleanupTestFixture(TEST_DIR);
     });
   });
