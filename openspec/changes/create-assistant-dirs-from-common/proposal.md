@@ -2,9 +2,9 @@
 
 ## Why
 
-When a user has `.agents-common` configured with skills for certain assistants (e.g., claude and gemini), but those assistant directories don't exist yet, the tool currently skips creating them. This is an awkward gap in the workflow:
+When a user has `.agents` configured with skills for certain assistants (e.g., claude and gemini), but those assistant directories don't exist yet, the tool currently skips creating them. This is an awkward gap in the workflow:
 
-- Scenario: A team shares `.agents-common` skills via version control
+- Scenario: A team shares `.agents` skills via version control
 - New team member runs `sync-skills`
 - Expected: `.claude/skills` and `.gemini/skills` are created with @ references
 - Actual: Nothing happens (assistant directories don't exist, so `syncCommonOnlySkills` skips them)
@@ -29,7 +29,7 @@ This explicitly skips creation when the directory doesn't exist.
 - **MODIFIED**: Remove individual file hash tracking (`metadata.sync.files`) since main hash already includes all dependent files
 - **ADDED**: Validation to detect platform skills modified outside of sync-skills (hash mismatch)
 - **ADDED**: Interactive prompt asking user to apply edits to common skill when out-of-sync is detected
-- **ADDED**: Integration test coverage for the scenario where only `.agents-common` exists
+- **ADDED**: Integration test coverage for the scenario where only `.agents` exists
 - **ADDED**: Integration test coverage for the same scenario with `--home` mode
 
 ## Impact

@@ -2,11 +2,11 @@
 
 ## Overview
 
-`syntax-skills` is an npm package (runnable via npx) that synchronizes agent skill definitions between `.claude/` and `.codex/` directories. It extracts common content to `.agents-common/` and uses `@`-based static linking for shared definitions.
+`syntax-skills` is an npm package (runnable via npx) that synchronizes agent skill definitions between `.claude/` and `.codex/` directories. It extracts common content to `.agents/` and uses `@`-based static linking for shared definitions.
 
 **Key features:**
 - Bidirectional sync between `.claude/` and `.codex/` skills
-- Automatic refactoring: extracts shared content to `.agents-common/`
+- Automatic refactoring: extracts shared content to `.agents/`
 - Interactive conflict resolution
 - Fail-fast mode for CI/CD (pre-commit hooks)
 - Watch mode for continuous synchronization
@@ -15,7 +15,7 @@
 
 ```
 your-project/
-├── .agents-common/               # Shared skill content (no frontmatter)
+├── .agents/               # Shared skill content (no frontmatter)
 │   └── skills/
 │       └── pr-review/
 │           └── SKILL.md          # Pure markdown content
@@ -31,7 +31,7 @@ your-project/
 
 ## File Format
 
-### Source File (`.agents-common/skills/*/SKILL.md`)
+### Source File (`.agents/skills/*/SKILL.md`)
 
 Pure markdown content, no frontmatter:
 
@@ -60,7 +60,7 @@ metadata:
     refactored: 2025-01-11T10:30:00Z
 ---
 
-@.agents-common/skills/pr-review/SKILL.md
+@.agents/skills/pr-review/SKILL.md
 ```
 
 **Note:** The `@` reference syntax is a built-in feature of the agent skill system - this tool does not implement `@` resolution.
@@ -180,7 +180,7 @@ Discover all skill files in target directories:
 ```
 .claude/skills/*.md    →  List of skill files
 .codex/skills/*.md     →  List of skill files
-.agents-common/skills/*.md  →  Common content files
+.agents/skills/*.md  →  Common content files
 ```
 
 ### 2. Parse Phase
@@ -207,7 +207,7 @@ Full content...
 
 ### 3. Refactor Phase
 
-If a skill doesn't have an `@` reference, extract its body to `.agents-common/`:
+If a skill doesn't have an `@` reference, extract its body to `.agents/`:
 
 **Before:**
 ```yaml
@@ -233,11 +233,11 @@ metadata:
     refactored: 2025-01-11T10:30:00Z
 ---
 
-@.agents-common/skills/pr-review/SKILL.md
+@.agents/skills/pr-review/SKILL.md
 ```
 
 ```markdown
-# .agents-common/skills/pr-review/SKILL.md (created)
+# .agents/skills/pr-review/SKILL.md (created)
 
 # PR Review
 Full content...
@@ -306,9 +306,9 @@ function refactorSkill(sourcePath, targetAgent) {
   if (!parsed || parsed.hasAtReference) return;
 
   const skillName = path.basename(path.dirname(sourcePath));
-  const commonPath = `.agents-common/skills/${skillName}/SKILL.md`;
+  const commonPath = `.agents/skills/${skillName}/SKILL.md`;
 
-  // 1. Write body to .agents-common
+  // 1. Write body to .agents
   fs.mkdirSync(path.dirname(commonPath), { recursive: true });
   fs.writeFileSync(commonPath, parsed.body);
 
@@ -339,7 +339,7 @@ metadata:
 
 This metadata:
 - Identifies files under sync-skills management
-- Tracks when content was extracted to `.agents-common/`
+- Tracks when content was extracted to `.agents/`
 - Reserved for future enhancements (hash, version, etc.)
 
 ## Future Enhancements
@@ -351,6 +351,6 @@ metadata:
   sync:
     managed-by: sync-skills
     refactored: 2025-01-11T10:30:00Z
-    content-hash: abc123...    # Hash of .agents-common content
+    content-hash: abc123...    # Hash of .agents content
     version: 1.0               # Schema version
 ```

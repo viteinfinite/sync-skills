@@ -7,7 +7,7 @@ TBD - created by archiving change list-installed-skills. Update Purpose after ar
 The CLI SHALL support a `--list` (alias `-l`) flag to display installed skills.
 
 #### Scenario: Listing skills in the current directory
-Given a project with skills in `.claude/skills/my-skill` and `.agents-common/skills/my-skill`
+Given a project with skills in `.claude/skills/my-skill` and `.agents/skills/my-skill`
 When I run `sync-skills --list`
 Then I should see a list containing both `my-skill` entries with their descriptions and file counts.
 
@@ -32,7 +32,7 @@ Then the output for `weather` should include:
 The list mode SHALL NOT trigger sync operations or interactive configuration.
 
 #### Scenario: Listing without config
-Given a directory with assistant folders but no `.agents-common/config.json`
+Given a directory with assistant folders but no `.agents/config.json`
 When I run `sync-skills --list`
 Then the skills should be listed without prompting for configuration.
 

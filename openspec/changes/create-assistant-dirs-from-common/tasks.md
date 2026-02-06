@@ -22,9 +22,9 @@
 
 - [x] 1.10 Integrate out-of-sync detection into main sync flow in `src/index.ts` as Phase 2.75
 
-- [x] 1.11 Add integration test: "Scenario: Only .agents-common exists - should create assistant directories with @ references" in `test/integration.test.ts`
+- [x] 1.11 Add integration test: "Scenario: Only .agents exists - should create assistant directories with @ references" in `test/integration.test.ts`
 
-- [x] 1.12 Add integration test: "Scenario: Only .agents-common exists with --home - should create home assistant directories with @ references" in `test/integration.test.ts`
+- [x] 1.12 Add integration test: "Scenario: Only .agents exists with --home - should create home assistant directories with @ references" in `test/integration.test.ts`
 
 - [x] 1.13 Add integration test: "Scenario: Dependent files cleanup with newly created platform - should not warn about deleting non-existent files" in `test/integration.test.ts`
 
@@ -40,7 +40,7 @@
 
 ## Validation Tasks
 
-- [ ] 2.1 Manual test: Create a test directory with only `.agents-common` configured for claude and gemini, run `sync-skills`, verify directories are created
+- [ ] 2.1 Manual test: Create a test directory with only `.agents` configured for claude and gemini, run `sync-skills`, verify directories are created
 
 - [ ] 2.2 Manual test: Same as above with `--home` flag
 

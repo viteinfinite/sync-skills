@@ -1,11 +1,11 @@
 ## Context
-Platform skills currently embed `@.agents-common/skills/<skill>/SKILL.md`, which assumes a root-relative resolution. We need references that are correct relative to each platform skill file regardless of nesting depth and platform directory layout.
+Platform skills currently embed `@.agents/skills/<skill>/SKILL.md`, which assumes a root-relative resolution. We need references that are correct relative to each platform skill file regardless of nesting depth and platform directory layout.
 
 ## Goals / Non-Goals
 - Goals:
   - Generate @ references that are relative to the platform skill file location.
   - Support all assistants and both project/home paths.
-  - Treat old `@.agents-common/...` references as out-of-sync (no backward compatibility).
+  - Treat old `@.agents/...` references as out-of-sync (no backward compatibility).
 - Non-Goals:
   - Auto-migrate or rewrite existing platform skills that already use the old reference format.
   - Introduce new config flags or user prompts.
@@ -17,7 +17,7 @@ Platform skills currently embed `@.agents-common/skills/<skill>/SKILL.md`, which
   - Rationale: Skill files are text and should use a consistent separator across platforms.
 
 ## Alternatives considered
-- Keep `@.agents-common/...` and add lookup logic in consumers.
+- Keep `@.agents/...` and add lookup logic in consumers.
   - Rejected: Does not address the nesting issue and delays the needed breaking change.
 - Convert to absolute paths.
   - Rejected: Less portable across machines and repositories.

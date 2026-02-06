@@ -93,5 +93,5 @@ This ensures existing configs continue working without modification.
 - Should we infer home paths for assistants without explicit configuration?
   - **Answer**: Start with no inference, add later if needed based on user feedback
 
-- Should the `.agents-common/config.json` store the user's preferred mode?
+- Should the `.agents/config.json` store the user's preferred mode?
   - **Answer**: Out of scope for this change; controlled via CLI flag only

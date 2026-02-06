@@ -7,7 +7,7 @@ Each listed skill SHALL show its name, trimmed description, and grouped installa
 
 #### Scenario: Displaying grouped skill details
 Given a skill `weather` installed in:
-- `.agents-common/skills/weather`
+- `.agents/skills/weather`
 - `.claude/skills/weather`
 When I run `sync-skills --list`
 Then the output for `weather` should show:
