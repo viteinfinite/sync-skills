@@ -13,6 +13,8 @@ import type {
 } from './types.js';
 import { getAssistantConfigs } from './types.js';
 import { isSymlinkedSkill } from './symlinks.js';
+import type { VerboseLogger } from './logger.js';
+import { COMMON_SKILLS_DIR } from './constants.js';
 
 /**
  * Discover the state of configured assistants
@@ -142,7 +144,8 @@ async function promptForSync(targetName: string): Promise<boolean> {
 async function cloneAssistantSkills(
   baseDir: string,
   sourceSkills: SkillFile[],
-  targetConfig: AssistantConfig
+  targetConfig: AssistantConfig,
+  logger?: VerboseLogger
 ): Promise<void> {
   for (const skill of sourceSkills) {
     const content = await fs.readFile(skill.path, 'utf-8');
@@ -152,7 +155,7 @@ async function cloneAssistantSkills(
     const coreFrontmatter = pickCoreFrontmatter(parsed.data as Record<string, unknown>);
 
     const targetPath = join(baseDir, targetConfig.skillsDir, skill.skillName, 'SKILL.md');
-    const commonPath = join(baseDir, '.agents-common/skills', skill.skillName, 'SKILL.md');
+    const commonPath = join(baseDir, COMMON_SKILLS_DIR, skill.skillName, 'SKILL.md');
     const atReference = buildCommonSkillReference(targetPath, commonPath);
 
     // Ensure directory exists
@@ -161,6 +164,14 @@ async function cloneAssistantSkills(
     // Write the target skill file with @ reference and core frontmatter
     const targetContent = matter.stringify(atReference + '\n', coreFrontmatter);
     await fs.writeFile(targetPath, targetContent);
+    logger?.skillOperation({
+      phase: 'sync-pairs',
+      action: 'create',
+      reason: 'clone-assistant-skill-reference',
+      skill: skill.skillName,
+      platform: targetConfig.name,
+      path: targetPath
+    });
   }
 }
 
@@ -169,7 +180,8 @@ async function cloneAssistantSkills(
  */
 export async function processSyncPairs(
   baseDir: string,
-  pairs: SyncPair[]
+  pairs: SyncPair[],
+  logger?: VerboseLogger
 ): Promise<Set<string>> {
   const blockedAssistants = new Set<string>();
   const approvedAssistants = new Set<string>();
@@ -182,7 +194,7 @@ export async function processSyncPairs(
 
     // Skip if already approved in a previous iteration
     if (approvedAssistants.has(targetName)) {
-      await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config);
+      await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config, logger);
       continue;
     }
 
@@ -199,7 +211,7 @@ export async function processSyncPairs(
 
     if (shouldSync) {
       approvedAssistants.add(targetName);
-      await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config);
+      await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config, logger);
     } else {
       blockedAssistants.add(targetName);
     }
@@ -209,14 +221,15 @@ export async function processSyncPairs(
 }
 
 /**
- * Sync skills that exist only in .agents-common to enabled platforms
+ * Sync skills that exist only in .agents to enabled platforms
  * Creates @ references in platform folders for common-only skills
  */
 export async function syncCommonOnlySkills(
   baseDir: string,
   commonSkills: SkillFile[],
   enabledConfigs: AssistantConfig[],
-  blockedAssistants: Set<string> = new Set()
+  blockedAssistants: Set<string> = new Set(),
+  logger?: VerboseLogger
 ): Promise<void> {
   const approvedAssistants = new Set<string>();
   const assistantDirExists = new Map<string, boolean>();
@@ -308,6 +321,14 @@ export async function syncCommonOnlySkills(
       // Write the platform skill file with @ reference and frontmatter
       const targetContent = matter.stringify(atReference + '\n', platformFrontmatter);
       await fs.writeFile(platformSkillPath, targetContent);
+      logger?.skillOperation({
+        phase: 'sync-common-only',
+        action: 'create',
+        reason: 'create-platform-reference-from-common',
+        skill: commonSkill.skillName,
+        platform: config.name,
+        path: platformSkillPath
+      });
 
       console.log(chalk.green(`Created @ reference for ${commonSkill.skillName} in ${config.name}`));
     }

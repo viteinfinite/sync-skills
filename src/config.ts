@@ -3,6 +3,7 @@ import { join, dirname } from 'path';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { ASSISTANT_MAP, getAssistantConfigs } from './types.js';
+import { COMMON_DIR } from './constants.js';
 
 /**
  * Configuration file structure
@@ -15,7 +16,7 @@ export interface Config {
 }
 
 /** Path to config file relative to base directory */
-export const CONFIG_PATH = '.agents-common/config.json';
+export const CONFIG_PATH = `${COMMON_DIR}/config.json`;
 
 /**
  * Read configuration file
@@ -105,7 +106,7 @@ export async function writeConfig(baseDir: string, config: Config): Promise<void
   const configPath = join(baseDir, CONFIG_PATH);
   const configDir = join(baseDir, dirname(CONFIG_PATH));
 
-  // Ensure .agents-common directory exists
+  // Ensure .agents directory exists
   await fs.mkdir(configDir, { recursive: true });
 
   // Write config with pretty formatting

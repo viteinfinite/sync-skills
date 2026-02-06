@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import type { AssistantConfig } from './types.js';
 import { isSymlinkedSkill } from './symlinks.js';
+import { COMMON_DIR } from './constants.js';
 
 export interface WalkDirResult {
   agent: string;
@@ -52,7 +53,7 @@ async function* walkDir(
 interface ScanResult {
   /** Map of assistant name to their skills (e.g., { claude: [...], codex: [...], kilo: [...] }) */
   platforms: Record<string, WalkDirResult[]>;
-  /** Skills in .agents-common */
+  /** Skills in .agents */
   common: WalkDirResult[];
   /** Skills ignored because they are symlinked */
   ignored: IgnoredSkill[];
@@ -67,7 +68,7 @@ export interface IgnoredSkill {
 }
 
 /**
- * Scan for skills in all enabled assistant directories and .agents-common
+ * Scan for skills in all enabled assistant directories and .agents
  * @param baseDir - Base directory to scan
  * @param assistantConfigs - Array of assistant configs to scan
  * @returns ScanResult with platform skills map and common skills
@@ -133,8 +134,8 @@ export async function scanSkills(
     platforms[config.name] = platformSkills;
   }
 
-  // Scan .agents-common
-  for await (const skill of walkDir(join(baseDir, '.agents-common'), 'common', normalizedBaseDir, baseDir)) {
+  // Scan .agents
+  for await (const skill of walkDir(join(baseDir, COMMON_DIR), 'common', normalizedBaseDir, baseDir)) {
     common.push(skill);
   }
 

@@ -14,7 +14,7 @@ function buildReference(
   commonSkillName: string = skillName
 ): string {
   const platformPath = join(dir, assistant, 'skills', skillName, 'SKILL.md');
-  const commonPath = join(dir, '.agents-common/skills', commonSkillName, 'SKILL.md');
+  const commonPath = join(dir, '.agents/skills', commonSkillName, 'SKILL.md');
   return buildCommonSkillReference(platformPath, commonPath);
 }
 
@@ -64,15 +64,38 @@ ${codexRef}
 
       await cleanupTestFixture(TEST_DIR);
     });
+
+    it('detects dependent file differences when SKILL.md matches', async () => {
+      const TEST_DIR = await createTestFixture('detector-dependents', async (dir) => {
+        await fs.mkdir(join(dir, '.claude/skills/test-skill'), { recursive: true });
+        await fs.mkdir(join(dir, '.codex/skills/test-skill'), { recursive: true });
+
+        const skillContent = `---\nname: test-skill\n---\nSame content\n`;
+        await fs.writeFile(join(dir, '.claude/skills/test-skill/SKILL.md'), skillContent);
+        await fs.writeFile(join(dir, '.codex/skills/test-skill/SKILL.md'), skillContent);
+
+        await fs.writeFile(join(dir, '.claude/skills/test-skill/util.js'), 'console.log("hi");');
+      });
+
+      const claudeSkills = [{ skillName: 'test-skill', path: join(TEST_DIR, '.claude/skills/test-skill/SKILL.md') }];
+      const codexSkills = [{ skillName: 'test-skill', path: join(TEST_DIR, '.codex/skills/test-skill/SKILL.md') }];
+
+      const conflicts = await detectConflicts(claudeSkills, codexSkills);
+
+      assert.strictEqual(conflicts.length, 1);
+      assert.strictEqual(conflicts[0].conflictType, 'dependents');
+
+      await cleanupTestFixture(TEST_DIR);
+    });
   });
 
   describe('detectOutOfSyncSkills', () => {
     it('detects body mismatch when platform has different content than common', async () => {
       const TEST_DIR = await createTestFixture('out-of-sync-body', async (dir) => {
         // Create common skill
-        await fs.mkdir(join(dir, '.agents-common/skills/test-skill'), { recursive: true });
+        await fs.mkdir(join(dir, '.agents/skills/test-skill'), { recursive: true });
         await fs.writeFile(
-          join(dir, '.agents-common/skills/test-skill/SKILL.md'),
+          join(dir, '.agents/skills/test-skill/SKILL.md'),
           `---
 name: test-skill
 metadata:
@@ -106,7 +129,7 @@ Modified content
 
       const commonSkills = [{
         skillName: 'test-skill',
-        path: join(TEST_DIR, '.agents-common/skills/test-skill/SKILL.md')
+        path: join(TEST_DIR, '.agents/skills/test-skill/SKILL.md')
       }];
 
       const outOfSync = await detectOutOfSyncSkills(platformSkills, commonSkills, 'claude');
@@ -122,9 +145,9 @@ Modified content
     it('detects frontmatter mismatch when platform has different metadata', async () => {
       const TEST_DIR = await createTestFixture('out-of-sync-frontmatter', async (dir) => {
         // Create common skill
-        await fs.mkdir(join(dir, '.agents-common/skills/test-skill'), { recursive: true });
+        await fs.mkdir(join(dir, '.agents/skills/test-skill'), { recursive: true });
         await fs.writeFile(
-          join(dir, '.agents-common/skills/test-skill/SKILL.md'),
+          join(dir, '.agents/skills/test-skill/SKILL.md'),
           `---
 name: test-skill
 description: Original description
@@ -161,7 +184,7 @@ ${claudeRef}
 
       const commonSkills = [{
         skillName: 'test-skill',
-        path: join(TEST_DIR, '.agents-common/skills/test-skill/SKILL.md')
+        path: join(TEST_DIR, '.agents/skills/test-skill/SKILL.md')
       }];
 
       const outOfSync = await detectOutOfSyncSkills(platformSkills, commonSkills, 'claude');
@@ -177,9 +200,9 @@ ${claudeRef}
     it('detects frontmatter mismatch when platform has different metadata with @ reference', async () => {
       const TEST_DIR = await createTestFixture('out-of-sync-both', async (dir) => {
         // Create common skill
-        await fs.mkdir(join(dir, '.agents-common/skills/test-skill'), { recursive: true });
+        await fs.mkdir(join(dir, '.agents/skills/test-skill'), { recursive: true });
         await fs.writeFile(
-          join(dir, '.agents-common/skills/test-skill/SKILL.md'),
+          join(dir, '.agents/skills/test-skill/SKILL.md'),
           `---
 name: test-skill
 description: Original description
@@ -216,7 +239,7 @@ ${claudeRef}
 
       const commonSkills = [{
         skillName: 'test-skill',
-        path: join(TEST_DIR, '.agents-common/skills/test-skill/SKILL.md')
+        path: join(TEST_DIR, '.agents/skills/test-skill/SKILL.md')
       }];
 
       const outOfSync = await detectOutOfSyncSkills(platformSkills, commonSkills, 'claude');
@@ -233,9 +256,9 @@ ${claudeRef}
     it('detects both mismatch when platform has wrong @ reference and different frontmatter', async () => {
       const TEST_DIR = await createTestFixture('out-of-sync-both', async (dir) => {
         // Create common skill
-        await fs.mkdir(join(dir, '.agents-common/skills/test-skill'), { recursive: true });
+        await fs.mkdir(join(dir, '.agents/skills/test-skill'), { recursive: true });
         await fs.writeFile(
-          join(dir, '.agents-common/skills/test-skill/SKILL.md'),
+          join(dir, '.agents/skills/test-skill/SKILL.md'),
           `---
 name: test-skill
 description: Original description
@@ -272,7 +295,7 @@ ${wrongRef}
 
       const commonSkills = [{
         skillName: 'test-skill',
-        path: join(TEST_DIR, '.agents-common/skills/test-skill/SKILL.md')
+        path: join(TEST_DIR, '.agents/skills/test-skill/SKILL.md')
       }];
 
       const outOfSync = await detectOutOfSyncSkills(platformSkills, commonSkills, 'claude');
@@ -289,9 +312,9 @@ ${wrongRef}
     it('returns empty array when platform and common are in sync', async () => {
       const TEST_DIR = await createTestFixture('in-sync', async (dir) => {
         // Create common skill
-        await fs.mkdir(join(dir, '.agents-common/skills/test-skill'), { recursive: true });
+        await fs.mkdir(join(dir, '.agents/skills/test-skill'), { recursive: true });
         await fs.writeFile(
-          join(dir, '.agents-common/skills/test-skill/SKILL.md'),
+          join(dir, '.agents/skills/test-skill/SKILL.md'),
           `---
 name: test-skill
 description: Same description
@@ -328,7 +351,7 @@ ${claudeRef}
 
       const commonSkills = [{
         skillName: 'test-skill',
-        path: join(TEST_DIR, '.agents-common/skills/test-skill/SKILL.md')
+        path: join(TEST_DIR, '.agents/skills/test-skill/SKILL.md')
       }];
 
       const outOfSync = await detectOutOfSyncSkills(platformSkills, commonSkills, 'claude');
@@ -338,12 +361,45 @@ ${claudeRef}
       await cleanupTestFixture(TEST_DIR);
     });
 
-    it('skips when common skill has no hash', async () => {
+    it('treats frontmatter with different key order as in sync', async () => {
+      const TEST_DIR = await createTestFixture('frontmatter-order', async (dir) => {
+        await fs.mkdir(join(dir, '.agents/skills/test-skill'), { recursive: true });
+        await fs.writeFile(
+          join(dir, '.agents/skills/test-skill/SKILL.md'),
+          `---\nname: test-skill\ndescription: Same description\nmetadata:\n  sync:\n    hash: sha256-abc123\n    version: 2\nallowed-tools:\n  - search\n  - read\n---\nCommon content\n`
+        );
+
+        await fs.mkdir(join(dir, '.claude/skills/test-skill'), { recursive: true });
+        const claudeRef = buildReference(dir, '.claude', 'test-skill');
+        await fs.writeFile(
+          join(dir, '.claude/skills/test-skill/SKILL.md'),
+          `---\nallowed-tools:\n  - search\n  - read\nmetadata:\n  sync:\n    hash: sha256-abc123\nname: test-skill\ndescription: Same description\n---\n${claudeRef}\n`
+        );
+      });
+
+      const platformSkills = [{
+        skillName: 'test-skill',
+        path: join(TEST_DIR, '.claude/skills/test-skill/SKILL.md')
+      }];
+
+      const commonSkills = [{
+        skillName: 'test-skill',
+        path: join(TEST_DIR, '.agents/skills/test-skill/SKILL.md')
+      }];
+
+      const outOfSync = await detectOutOfSyncSkills(platformSkills, commonSkills, 'claude');
+
+      assert.strictEqual(outOfSync.length, 0);
+
+      await cleanupTestFixture(TEST_DIR);
+    });
+
+    it('detects out-of-sync when common skill has no hash', async () => {
       const TEST_DIR = await createTestFixture('no-common-hash', async (dir) => {
         // Create common skill without hash
-        await fs.mkdir(join(dir, '.agents-common/skills/test-skill'), { recursive: true });
+        await fs.mkdir(join(dir, '.agents/skills/test-skill'), { recursive: true });
         await fs.writeFile(
-          join(dir, '.agents-common/skills/test-skill/SKILL.md'),
+          join(dir, '.agents/skills/test-skill/SKILL.md'),
           `---
 name: test-skill
 ---
@@ -370,12 +426,13 @@ Modified content
 
       const commonSkills = [{
         skillName: 'test-skill',
-        path: join(TEST_DIR, '.agents-common/skills/test-skill/SKILL.md')
+        path: join(TEST_DIR, '.agents/skills/test-skill/SKILL.md')
       }];
 
       const outOfSync = await detectOutOfSyncSkills(platformSkills, commonSkills, 'claude');
 
-      assert.strictEqual(outOfSync.length, 0, 'Should skip when common has no hash');
+      assert.strictEqual(outOfSync.length, 1);
+      assert.strictEqual(outOfSync[0].mismatchType, 'body');
 
       await cleanupTestFixture(TEST_DIR);
     });
@@ -404,6 +461,48 @@ Platform content
       const outOfSync = await detectOutOfSyncSkills(platformSkills, commonSkills, 'claude');
 
       assert.strictEqual(outOfSync.length, 0, 'Should skip when common skill does not exist');
+
+      await cleanupTestFixture(TEST_DIR);
+    });
+
+    it('detects dependent file mismatch when platform references common', async () => {
+      const TEST_DIR = await createTestFixture('out-of-sync-dependents', async (dir) => {
+        await fs.mkdir(join(dir, '.agents/skills/test-skill'), { recursive: true });
+        await fs.writeFile(
+          join(dir, '.agents/skills/test-skill/SKILL.md'),
+          `---\nname: test-skill\n---\nCommon content\n`
+        );
+        await fs.writeFile(
+          join(dir, '.agents/skills/test-skill/util.js'),
+          'console.log("common");'
+        );
+
+        await fs.mkdir(join(dir, '.claude/skills/test-skill'), { recursive: true });
+        const claudeRef = buildReference(dir, '.claude', 'test-skill');
+        await fs.writeFile(
+          join(dir, '.claude/skills/test-skill/SKILL.md'),
+          `---\nname: test-skill\n---\n${claudeRef}\n`
+        );
+        await fs.writeFile(
+          join(dir, '.claude/skills/test-skill/extra.js'),
+          'console.log("extra");'
+        );
+      });
+
+      const platformSkills = [{
+        skillName: 'test-skill',
+        path: join(TEST_DIR, '.claude/skills/test-skill/SKILL.md')
+      }];
+
+      const commonSkills = [{
+        skillName: 'test-skill',
+        path: join(TEST_DIR, '.agents/skills/test-skill/SKILL.md')
+      }];
+
+      const outOfSync = await detectOutOfSyncSkills(platformSkills, commonSkills, 'claude');
+
+      assert.strictEqual(outOfSync.length, 1);
+      assert.strictEqual(outOfSync[0].mismatchType, 'dependents');
 
       await cleanupTestFixture(TEST_DIR);
     });

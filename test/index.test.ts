@@ -39,15 +39,20 @@ Content`);
     await run({ baseDir: testDir, failOnConflict: false });
 
     const content = await fs.readFile(claudePath, 'utf8');
-    assert.ok(content.includes('@../../../.agents-common/skills/test-skill/SKILL.md'));
+    assert.ok(content.includes('@../../../.agents/skills/test-skill/SKILL.md'));
+
+    const managedSkillsRaw = await fs.readFile(`${testDir}/.agents/managed-skills.json`, 'utf8');
+    const managedSkills = JSON.parse(managedSkillsRaw) as { version: number; skills: string[] };
+    assert.equal(managedSkills.version, 1);
+    assert.deepEqual(managedSkills.skills, ['test-skill']);
 
     await cleanupTestFixture(testDir);
   });
 
   it('should fail on out-of-sync skills in non-interactive mode', async () => {
     const testDir = await createTestFixture('index-out-of-sync', async (dir) => {
-      await fs.mkdir(`${dir}/.agents-common/skills/test-skill`, { recursive: true });
-      await fs.writeFile(`${dir}/.agents-common/skills/test-skill/SKILL.md`, `---
+      await fs.mkdir(`${dir}/.agents/skills/test-skill`, { recursive: true });
+      await fs.writeFile(`${dir}/.agents/skills/test-skill/SKILL.md`, `---
 name: test-skill
 description: Original description
 metadata:
@@ -58,8 +63,8 @@ metadata:
 
 Original content`);
 
-      await fs.mkdir(`${dir}/.agents-common`, { recursive: true });
-      await fs.writeFile(`${dir}/.agents-common/config.json`, JSON.stringify({
+      await fs.mkdir(`${dir}/.agents`, { recursive: true });
+      await fs.writeFile(`${dir}/.agents/config.json`, JSON.stringify({
         version: 1,
         assistants: ['claude']
       }, null, 2));

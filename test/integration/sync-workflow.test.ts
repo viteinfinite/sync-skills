@@ -19,7 +19,7 @@ test.afterEach(() => {
   promptStub.restore();
 });
 
-test('Integration: Full Sync Workflow - should refactor skills to .agents-common', async () => {
+test('Integration: Full Sync Workflow - should refactor skills to .agents', async () => {
   const testDir = await createTestFixture('sync-full', async (dir) => {
     // Create skills in both assistants
     await createSkillFile(dir, '.claude', 'my-skill', `---
@@ -44,18 +44,18 @@ Codex version`);
 
   // Verify .claude skill was refactored
   const claudeContent = await readSkillFile(testDir, '.claude', 'my-skill');
-  assert.ok(claudeContent.includes('@../../../.agents-common/skills/my-skill/SKILL.md'));
+  assert.ok(claudeContent.includes('@../../../.agents/skills/my-skill/SKILL.md'));
   assert.ok(claudeContent.includes('metadata:'));
   assert.ok(claudeContent.includes('sync:'));
 
   // Verify .codex skill was refactored
   const codexContent = await readSkillFile(testDir, '.codex', 'my-skill');
-  assert.ok(codexContent.includes('@../../../.agents-common/skills/my-skill/SKILL.md'));
+  assert.ok(codexContent.includes('@../../../.agents/skills/my-skill/SKILL.md'));
   assert.ok(codexContent.includes('metadata:'));
   assert.ok(codexContent.includes('sync:'));
 
   // Verify common skill exists with frontmatter
-  const commonContent = await fs.readFile(join(testDir, '.agents-common/skills/my-skill/SKILL.md'), 'utf8');
+  const commonContent = await fs.readFile(join(testDir, '.agents/skills/my-skill/SKILL.md'), 'utf8');
   assert.ok(commonContent.includes('---'));
   assert.ok(commonContent.includes('name: my-skill'));
 
@@ -83,7 +83,7 @@ Codex content`);
 
   // Verify conflict was handled
   const claudeContent = await readSkillFile(testDir, '.claude', 'conflicting-skill');
-  assert.ok(claudeContent.includes('@../../../.agents-common'));
+  assert.ok(claudeContent.includes('@../../../.agents'));
 
   await cleanupTestFixture(testDir);
 });
@@ -115,11 +115,11 @@ Same content`);
   const codexContent = await readSkillFile(testDir, '.codex', 'order-skill');
 
   // Both should now reference the common skill
-  assert.ok(claudeContent.includes('@../../../.agents-common/skills/order-skill/SKILL.md'));
-  assert.ok(codexContent.includes('@../../../.agents-common/skills/order-skill/SKILL.md'));
+  assert.ok(claudeContent.includes('@../../../.agents/skills/order-skill/SKILL.md'));
+  assert.ok(codexContent.includes('@../../../.agents/skills/order-skill/SKILL.md'));
 
   // Common skill should exist
-  const commonContent = await fs.readFile(join(testDir, '.agents-common/skills/order-skill/SKILL.md'), 'utf8');
+  const commonContent = await fs.readFile(join(testDir, '.agents/skills/order-skill/SKILL.md'), 'utf8');
   assert.ok(commonContent.includes('name: order-skill'));
   assert.ok(commonContent.includes('Same content'));
 

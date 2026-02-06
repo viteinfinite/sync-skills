@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs';
-import { join } from 'path';
+import { join, dirname, resolve } from 'path';
 import matter from 'gray-matter';
 import chalk from 'chalk';
 import { scanSkills } from './scanner.js';
@@ -12,7 +12,7 @@ import { propagateFrontmatter } from './propagator.js';
 import { discoverAssistants, findSyncPairs, processSyncPairs, syncCommonOnlySkills } from './assistants.js';
 import { ensureConfig, reconfigure as runReconfigure, getEnabledAssistants } from './config.js';
 import { normalizeBodyContent, pickCoreFrontmatter } from './frontmatter.js';
-import { buildCommonSkillReference } from './references.js';
+import { buildCommonSkillReference, extractAtReference, isReferenceToPath, isReferenceToSkill } from './references.js';
 import {
   collectDependentFilesFromPlatforms,
   consolidateDependentsToCommon,
@@ -21,6 +21,8 @@ import {
 } from './dependents.js';
 import { getAssistantConfigs } from './types.js';
 import type { RunOptions, AssistantConfig, SkillFile, OutOfSyncSkill } from './types.js';
+import { VerboseLogger } from './logger.js';
+import { COMMON_DIR, COMMON_SKILLS_DIR, MANAGED_SKILLS_PATH } from './constants.js';
 
 export async function run(options: RunOptions = {}): Promise<void> {
   let {
@@ -28,8 +30,11 @@ export async function run(options: RunOptions = {}): Promise<void> {
     failOnConflict = false,
     homeMode = false,
     reconfigure = false,
-    listMode = false
+    listMode = false,
+    verbose = false
   } = options;
+  const logger = new VerboseLogger(verbose);
+  try {
 
   // Handle --home flag
   if (homeMode) {
@@ -42,13 +47,17 @@ export async function run(options: RunOptions = {}): Promise<void> {
 
   // Handle --list mode
   if (listMode) {
+    logger.decision({ phase: 'list', action: 'list-mode-start' });
     await listSkills(baseDir, homeMode);
+    logger.decision({ phase: 'list', action: 'list-mode-complete' });
     return;
   }
 
   // Handle --reconfigure flag
   if (reconfigure) {
+    logger.decision({ phase: 'config', action: 'reconfigure-start' });
     await runReconfigure(baseDir);
+    logger.decision({ phase: 'config', action: 'reconfigure-complete' });
   }
 
   const preConfigScan = await scanSkills(baseDir, getAssistantConfigs(undefined, homeMode));
@@ -57,32 +66,41 @@ export async function run(options: RunOptions = {}): Promise<void> {
   const hasInitialCommonSkills = preConfigScan.common.length > 0;
   if (!anyInitialSkills && !hasInitialCommonSkills) {
     console.log(chalk.yellowBright('No skills found. Exiting.'));
+    logger.decision({ phase: 'scan', action: 'exit-no-skills' });
     return;
   }
 
   // Ensure config exists
   const config = await ensureConfig(baseDir);
+  logger.decision({ phase: 'config', action: 'config-ready' });
 
   // Phase 1: Get enabled assistants and find sync pairs
   const enabledConfigs = getEnabledAssistants(config, homeMode);
   const states = await discoverAssistants(baseDir, enabledConfigs);
   const syncPairs = findSyncPairs(states);
+  logger.decision({
+    phase: 'sync-pairs',
+    action: 'pairs-detected',
+    result: `${syncPairs.length}`
+  });
 
   // Phase 2: Process sync pairs (bidirectional)
-  const blockedAssistants = await processSyncPairs(baseDir, syncPairs);
+  const blockedAssistants = await processSyncPairs(baseDir, syncPairs, logger);
   const activeConfigs = enabledConfigs.filter(config => !blockedAssistants.has(config.name));
   const activeStates = states.filter(state => activeConfigs.some(config => config.name === state.config.name));
 
   // Re-scan after sync to get updated state (including common skills)
   let { platforms, common } = await scanSkills(baseDir, activeConfigs);
 
-  // Phase 2.5: Sync skills that exist only in .agents-common to enabled platforms
+  // Phase 2.5: Sync skills that exist only in .agents to enabled platforms
   await syncCommonOnlySkills(
     baseDir,
     common.map(c => ({ path: c.path, skillName: c.skillName })),
     activeConfigs,
-    blockedAssistants
+    blockedAssistants,
+    logger
   );
+  logger.decision({ phase: 'sync-common-only', action: 'sync-complete' });
 
   // Phase 3: Refactor platform skills that don't have @ references
   for (const config of activeConfigs) {
@@ -110,6 +128,21 @@ export async function run(options: RunOptions = {}): Promise<void> {
 
         const commonPath = await refactorSkill(skill.path);
         if (commonPath) {
+          logger.skillOperation({
+            phase: 'refactor',
+            action: 'create',
+            reason: 'refactor-to-common',
+            skill: skill.skillName,
+            path: commonPath
+          });
+          logger.skillOperation({
+            phase: 'refactor',
+            action: 'rewrite',
+            reason: 'replace-platform-with-reference',
+            skill: skill.skillName,
+            platform: config.name,
+            path: skill.path
+          });
           await propagateFrontmatter(commonPath, [skill.path], { failOnConflict });
         }
       }
@@ -129,6 +162,11 @@ export async function run(options: RunOptions = {}): Promise<void> {
   }
 
   if (outOfSyncSkills.length > 0) {
+    logger.decision({
+      phase: 'out-of-sync',
+      action: 'detected',
+      result: `${outOfSyncSkills.length}`
+    });
     if (failOnConflict) {
       const skillNames = [...new Set(outOfSyncSkills.map(skill => skill.skillName))];
       throw new Error(`Out-of-sync skills detected: ${skillNames.join(', ')}`);
@@ -159,6 +197,12 @@ export async function run(options: RunOptions = {}): Promise<void> {
         : (await resolveOutOfSyncSkills([promptSkill]))[0];
 
       if (resolution.action === 'abort') {
+        logger.decision({
+          phase: 'out-of-sync',
+          action: 'abort',
+          reason: 'user-selected-abort',
+          skill: skillName
+        });
         throw new Error('Sync aborted');
       }
 
@@ -213,6 +257,13 @@ export async function run(options: RunOptions = {}): Promise<void> {
 
         const newCommonContent = matter.stringify(nextBody, newCommonFrontmatter);
         await fs.writeFile(commonSkill.path, newCommonContent);
+        logger.skillOperation({
+          phase: 'out-of-sync',
+          action: 'rewrite',
+          reason: 'keep-platform-update-common',
+          skill: skillName,
+          path: commonSkill.path
+        });
 
         console.log(chalk.green(`Applied ${representative.platform} changes to common skill: ${skillName}`));
 
@@ -232,12 +283,28 @@ export async function run(options: RunOptions = {}): Promise<void> {
           if (usePlatformBody) {
             for (const platformPath of platformPaths) {
               await writePlatformReference(platformPath, commonSkill.path);
+              logger.skillOperation({
+                phase: 'out-of-sync',
+                action: 'rewrite',
+                reason: 'propagate-common-reference',
+                skill: skillName,
+                path: platformPath
+              });
             }
           } else {
             await propagateFrontmatter(commonSkill.path, platformPaths, {
               failOnConflict,
               resolver: async () => 'common'
             });
+            for (const platformPath of platformPaths) {
+              logger.skillOperation({
+                phase: 'out-of-sync',
+                action: 'rewrite',
+                reason: 'propagate-frontmatter',
+                skill: skillName,
+                path: platformPath
+              });
+            }
           }
         }
       } else if (resolution.action === 'keep-common') {
@@ -246,6 +313,14 @@ export async function run(options: RunOptions = {}): Promise<void> {
         for (const target of targets) {
           console.log(chalk.green(`Kept common version for ${skillName} (discarding ${target.platform} changes)`));
           await writePlatformReference(target.platformPath, commonSkill.path);
+          logger.skillOperation({
+            phase: 'out-of-sync',
+            action: 'rewrite',
+            reason: 'keep-common-overwrite-platform',
+            skill: skillName,
+            platform: target.platform,
+            path: target.platformPath
+          });
         }
       }
     }
@@ -261,6 +336,11 @@ export async function run(options: RunOptions = {}): Promise<void> {
     platformA,
     platformB
   );
+  logger.decision({
+    phase: 'conflict-detection',
+    action: 'detected',
+    result: `${conflicts.length}`
+  });
 
   if (conflicts.length > 0) {
     if (failOnConflict) {
@@ -294,9 +374,8 @@ export async function run(options: RunOptions = {}): Promise<void> {
         const commonHash = commonSync?.hash;
         const isSyncedToCommon = (content: string, platformPath: string): boolean => {
           const parsed = matter(content);
-          const ref = parsed.content.trim();
           const expectedRef = buildCommonSkillReference(platformPath, commonSkill.path);
-          if (ref !== expectedRef) {
+          if (!isReferenceToPath(parsed.content, expectedRef)) {
             return false;
           }
           const metadata =
@@ -332,21 +411,71 @@ export async function run(options: RunOptions = {}): Promise<void> {
       });
 
       if (resolution.action === 'abort') {
+        logger.decision({
+          phase: 'conflict-resolution',
+          action: 'abort',
+          reason: 'user-selected-abort',
+          skill: conflict.skillName
+        });
         throw new Error('Sync aborted');
       }
 
       if (resolution.action === 'use-a') {
         await copySkill(conflict.pathA, conflict.pathB);
+        logger.skillOperation({
+          phase: 'conflict-resolution',
+          action: 'copy',
+          reason: 'conflict-resolution-use-a',
+          skill: conflict.skillName,
+          fromPath: conflict.pathA,
+          toPath: conflict.pathB
+        });
       } else if (resolution.action === 'use-b') {
         await copySkill(conflict.pathB, conflict.pathA);
+        logger.skillOperation({
+          phase: 'conflict-resolution',
+          action: 'copy',
+          reason: 'conflict-resolution-use-b',
+          skill: conflict.skillName,
+          fromPath: conflict.pathB,
+          toPath: conflict.pathA
+        });
       } else if (resolution.action === 'use-common' && commonSkill) {
         await writePlatformReference(conflict.pathA, commonSkill.path);
         await writePlatformReference(conflict.pathB, commonSkill.path);
+        logger.skillOperation({
+          phase: 'conflict-resolution',
+          action: 'rewrite',
+          reason: 'conflict-resolution-use-common',
+          skill: conflict.skillName,
+          path: conflict.pathA
+        });
+        logger.skillOperation({
+          phase: 'conflict-resolution',
+          action: 'rewrite',
+          reason: 'conflict-resolution-use-common',
+          skill: conflict.skillName,
+          path: conflict.pathB
+        });
       }
 
       // Propagate frontmatter from common to both targets after conflict resolution
-      const commonPath = join(baseDir, '.agents-common/skills', conflict.skillName, 'SKILL.md');
+      const commonPath = join(baseDir, COMMON_SKILLS_DIR, conflict.skillName, 'SKILL.md');
       await propagateFrontmatter(commonPath, [conflict.pathA, conflict.pathB], { failOnConflict });
+      logger.skillOperation({
+        phase: 'conflict-resolution',
+        action: 'rewrite',
+        reason: 'propagate-frontmatter',
+        skill: conflict.skillName,
+        path: conflict.pathA
+      });
+      logger.skillOperation({
+        phase: 'conflict-resolution',
+        action: 'rewrite',
+        reason: 'propagate-frontmatter',
+        skill: conflict.skillName,
+        path: conflict.pathB
+      });
     }
   }
 
@@ -365,11 +494,20 @@ export async function run(options: RunOptions = {}): Promise<void> {
 
     if (targetPaths.length > 0) {
       await propagateFrontmatter(commonSkill.path, targetPaths, { failOnConflict });
+      for (const targetPath of targetPaths) {
+        logger.skillOperation({
+          phase: 'frontmatter-propagation',
+          action: 'rewrite',
+          reason: 'propagate-frontmatter',
+          skill: commonSkill.skillName,
+          path: targetPath
+        });
+      }
     }
   }
 
   // Phase 6: Sync dependent files
-  const commonSkillsPath = join(baseDir, '.agents-common/skills');
+  const commonSkillsPath = join(baseDir, COMMON_SKILLS_DIR);
 
   // Collect all skill names from all platforms
   const allSkillNames = new Set<string>();
@@ -403,6 +541,13 @@ export async function run(options: RunOptions = {}): Promise<void> {
       platformFiles,
       commonSkillsPath
     );
+    logger.decision({
+      phase: 'dependents',
+      action: 'consolidate',
+      reason: 'scan-platform-dependents',
+      skill: skillName,
+      result: `${initialFiles.length}`
+    });
 
     let finalFiles = initialFiles;
 
@@ -465,6 +610,13 @@ export async function run(options: RunOptions = {}): Promise<void> {
 
       // Update hash in common file
       await updateMainHash(commonFilePath, newHash);
+      logger.skillOperation({
+        phase: 'dependents',
+        action: 'rewrite',
+        reason: 'update-common-hash',
+        skill: skillName,
+        path: commonFilePath
+      });
 
       // Propagate to all enabled platforms
       const platformPaths: string[] = [];
@@ -480,6 +632,15 @@ export async function run(options: RunOptions = {}): Promise<void> {
 
       if (platformPaths.length > 0) {
         await propagateFrontmatter(commonFilePath, platformPaths, { failOnConflict });
+        for (const platformPath of platformPaths) {
+          logger.skillOperation({
+            phase: 'dependents',
+            action: 'rewrite',
+            reason: 'propagate-common-hash',
+            skill: skillName,
+            path: platformPath
+          });
+        }
       }
 
       // Clean up dependent files from platform folders
@@ -514,7 +675,14 @@ export async function run(options: RunOptions = {}): Promise<void> {
     }
   }
 
+  // Refresh state and persist managed skills manifest at the end of sync.
+  ({ common } = await scanSkills(baseDir, activeConfigs));
+  await writeManagedSkillsManifest(baseDir, common.map(skill => skill.skillName));
+
   console.log(chalk.greenBright('Sync complete'));
+  } finally {
+    logger.printSummary();
+  }
 }
 
 /**
@@ -550,14 +718,18 @@ async function listSkills(baseDir: string, homeMode: boolean): Promise<void> {
       let description = (parsed?.data?.description as string) || '';
 
       if (parsed?.hasAtReference && !description) {
-        const refPath = parsed.content.trim().substring(1); // Remove @
-        const absoluteRefPath = join(baseDir, refPath);
+        const refPath = extractAtReference(parsed.content);
+        if (!refPath || !isReferenceToSkill(parsed.content, skill.skillName)) {
+          // skip invalid references
+        } else {
+          const absoluteRefPath = resolve(dirname(skill.path), refPath);
         try {
           const refContent = await fs.readFile(absoluteRefPath, 'utf8');
           const refParsed = parseSkillFile(refContent);
           description = (refParsed?.data?.description as string) || '';
         } catch {
           // ignore reference read errors
+        }
         }
       }
 
@@ -650,4 +822,16 @@ function logIgnoredSymlinkedSkills(ignored: IgnoredSkill[]): void {
     seen.add(skill.skillName);
     console.log(chalk.yellowBright(`Ignored ${skill.skillName} because it was symlinked`));
   }
+}
+
+async function writeManagedSkillsManifest(baseDir: string, managedSkills: string[]): Promise<void> {
+  const uniqueSkills = Array.from(new Set(managedSkills)).sort((a, b) => a.localeCompare(b));
+  const manifestPath = join(baseDir, MANAGED_SKILLS_PATH);
+  const manifest = {
+    version: 1,
+    skills: uniqueSkills
+  };
+
+  await fs.mkdir(join(baseDir, COMMON_DIR), { recursive: true });
+  await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
 }

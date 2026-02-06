@@ -118,7 +118,7 @@ export async function readSkillFile(
 }
 
 /**
- * Create a common skill file in .agents-common
+ * Create a common skill file in .agents
  * @param dir - Base directory
  * @param skillName - Name of the skill
  * @param content - Content of the skill file
@@ -128,7 +128,7 @@ export async function createCommonSkill(
   skillName: string,
   content: string
 ): Promise<void> {
-  const skillDir = join(dir, '.agents-common/skills', skillName);
+  const skillDir = join(dir, '.agents/skills', skillName);
   await fs.mkdir(skillDir, { recursive: true });
   await fs.writeFile(join(skillDir, 'SKILL.md'), content, 'utf-8');
 }
@@ -142,7 +142,7 @@ export async function createConfig(
   dir: string,
   assistants: string[] = ['claude', 'codex']
 ): Promise<void> {
-  const configDir = join(dir, '.agents-common');
+  const configDir = join(dir, '.agents');
   await fs.mkdir(configDir, { recursive: true });
   const configPath = join(configDir, 'config.json');
   const config = {
@@ -162,7 +162,7 @@ export async function readCommonSkill(
   dir: string,
   skillName: string
 ): Promise<string> {
-  const skillPath = join(dir, '.agents-common/skills', skillName, 'SKILL.md');
+  const skillPath = join(dir, '.agents/skills', skillName, 'SKILL.md');
   return await fs.readFile(skillPath, 'utf-8');
 }
 

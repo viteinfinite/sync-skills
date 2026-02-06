@@ -163,12 +163,25 @@ describe('dependents', () => {
       assert.ok(paths.includes('scripts' + '/' + 'util.js') || paths.includes('scripts\\util.js'));
       await cleanupTestFixture(TEST_DIR);
     });
+
+    it('should ignore .DS_Store files', async () => {
+      TEST_DIR = await createTestFixture('detect-ds-store');
+      const skillPath = join(TEST_DIR, 'test-skill');
+      await fs.mkdir(skillPath, { recursive: true });
+      await fs.writeFile(join(skillPath, 'SKILL.md'), '---\nname: test\n---\ncontent');
+      await fs.writeFile(join(skillPath, '.DS_Store'), 'ignored');
+
+      const result = await detectDependentFiles(skillPath);
+
+      assert.strictEqual(result.length, 0);
+      await cleanupTestFixture(TEST_DIR);
+    });
   });
 
   describe('consolidateDependentsToCommon', () => {
     it('should copy single source to common', async () => {
       TEST_DIR = await createTestFixture('consolidate-single');
-      const commonPath = join(TEST_DIR, '.agents-common', 'skills');
+      const commonPath = join(TEST_DIR, '.agents', 'skills');
       await fs.mkdir(commonPath, { recursive: true });
 
       const claudePath = join(TEST_DIR, '.claude', 'skills');
@@ -196,7 +209,7 @@ describe('dependents', () => {
 
     it('should detect conflict when hashes differ', async () => {
       TEST_DIR = await createTestFixture('consolidate-conflict');
-      const commonPath = join(TEST_DIR, '.agents-common', 'skills');
+      const commonPath = join(TEST_DIR, '.agents', 'skills');
       await fs.mkdir(commonPath, { recursive: true });
 
       const claudePath = join(TEST_DIR, '.claude', 'skills');

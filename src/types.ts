@@ -72,6 +72,8 @@ export interface RunOptions {
   reconfigure?: boolean;
   /** List installed skills and exit (default: false) */
   listMode?: boolean;
+  /** Enable verbose operation logging (default: false) */
+  verbose?: boolean;
 }
 
 /**
@@ -96,8 +98,8 @@ export interface Conflict {
   contentA?: string;
   /** Second platform's skill content for diff display */
   contentB?: string;
-  /** Type of conflict: 'content' for full content, 'frontmatter' for metadata only */
-  conflictType?: 'content' | 'frontmatter';
+  /** Type of conflict: 'content' for full content, 'frontmatter' for metadata only, 'dependents' for dependent files */
+  conflictType?: 'content' | 'frontmatter' | 'dependents';
 }
 
 /**
@@ -127,7 +129,7 @@ export interface ParsedSkill {
  * Use getAssistantConfigs() to convert this map into AssistantConfig[] objects.
  */
 export const ASSISTANT_MAP: Record<string, string | AssistantPathConfig> = {
-  'amp':      '.agents/skills',
+  'amp':      '.amp/skills',
   'claude':   '.claude/skills',
   'cline':    '.cline/skills',
   'codex':    '.codex/skills',
@@ -240,7 +242,7 @@ export interface DependentConflictResolution {
 /**
  * Types of sync mismatches for out-of-sync detection
  */
-export type SyncMismatchType = 'body' | 'frontmatter' | 'both';
+export type SyncMismatchType = 'body' | 'frontmatter' | 'both' | 'dependents';
 
 /**
  * User resolution for an out-of-sync skill

@@ -4,21 +4,21 @@ import { createHash } from 'crypto';
 import matter from 'gray-matter';
 import { normalizeBodyContent, pickCoreFrontmatter } from './frontmatter.js';
 import { ASSISTANT_MAP } from './types.js';
-import { buildCommonSkillReference } from './references.js';
+import { buildCommonSkillReference, isReferenceToSkill } from './references.js';
+import { COMMON_SKILLS_DIR } from './constants.js';
 
 export async function refactorSkill(sourcePath: string): Promise<string | null> {
   const content = await fs.readFile(sourcePath, 'utf8');
   const parsed = matter(content);
 
-  // Skip if already has @ reference
-  if (parsed.content.trim().startsWith('@')) {
-    return null;
-  }
-
   // Extract skill name from path and resolve paths
   const absSourcePath = resolve(sourcePath);
   const sourceDir = dirname(absSourcePath);
   const skillName = basename(sourceDir);
+  // Skip if already has a valid @ reference
+  if (isReferenceToSkill(parsed.content, skillName)) {
+    return null;
+  }
 
   // Navigate from the source directory to find the project root
   let projectRoot = resolve('.'); // Default to current working directory
@@ -45,15 +45,15 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
     projectRoot = '/' + dirParts.slice(0, agentDirIndex).join('/');
   }
 
-  const commonPath = join(projectRoot, '.agents-common/skills', skillName, 'SKILL.md');
+  const commonPath = join(projectRoot, COMMON_SKILLS_DIR, skillName, 'SKILL.md');
 
-  // Ensure .agents-common directory exists
+  // Ensure .agents directory exists
   await fs.mkdir(dirname(commonPath), { recursive: true });
 
   // Extract core frontmatter fields to copy to common
   const coreFrontmatter = pickCoreFrontmatter(parsed.data as Record<string, unknown>);
 
-  // Write frontmatter + body to .agents-common (strip leading newline added by gray-matter)
+  // Write frontmatter + body to .agents (strip leading newline added by gray-matter)
   const bodyContent = normalizeBodyContent(parsed.content);
 
   // Compute hash of the new common skill (no dependents yet)
@@ -220,6 +220,6 @@ export async function updateMainHash(skillPath: string, newHash: string): Promis
     }
   };
 
-  const newContent = matter.stringify(content, newData);
+  const newContent = matter.stringify(parsed.content, newData);
   await fs.writeFile(skillPath, newContent);
 }
