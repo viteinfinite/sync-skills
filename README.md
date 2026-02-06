@@ -86,7 +86,6 @@ sync-skills supports the following AI assistants out of the box:
 
 | Assistant | Project Directory | Home Directory | Description |
 |-----------|-------------------|----------------|-------------|
-| **amp** | `.agents/skills` | — | Amp |
 | **claude** | `.claude/skills` | — | Claude Code |
 | **cline** | `.cline/skills` | — | Cline |
 | **codex** | `.codex/skills` | — | Codex |
