@@ -3,11 +3,12 @@ import { strict as assert } from 'node:assert';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { run } from '../../src/index.js';
-import { createTestFixture, cleanupTestFixture, createConfig, exists } from '../helpers/test-setup.js';
+import { createTestFixture, cleanupTestFixture, createConfig, exists, stubInquirer } from '../helpers/test-setup.js';
 
 test.describe('symlinked skill handling', { concurrency: 1 }, () => {
   const stripAnsi = (value: string) => value.replace(/\u001b\[[0-9;]*m/g, '');
   test('ignores symlinked skills during sync and logs message', async () => {
+    const promptStub = stubInquirer({ create: false });
     const logs: string[] = [];
     const originalLog = console.log;
     const originalWarn = console.warn;
@@ -34,8 +35,9 @@ test.describe('symlinked skill handling', { concurrency: 1 }, () => {
       );
 
       const commonSkillExists = await exists(testDir, '.sync-skills/skills/linked-skill/SKILL.md');
-      assert.ok(!commonSkillExists, 'should not create common skill for symlinked skill');
+      assert.ok(commonSkillExists, 'should preserve existing common skill');
     } finally {
+      promptStub.restore();
       console.log = originalLog;
       console.warn = originalWarn;
       await cleanupTestFixture(testDir);
@@ -43,6 +45,7 @@ test.describe('symlinked skill handling', { concurrency: 1 }, () => {
   });
 
   test('ignores symlinked skills regardless of target', async () => {
+    const promptStub = stubInquirer({ create: false });
     const logs: string[] = [];
     const originalLog = console.log;
     const originalWarn = console.warn;
@@ -74,6 +77,7 @@ test.describe('symlinked skill handling', { concurrency: 1 }, () => {
       const commonSkillExists = await exists(testDir, '.sync-skills/skills/linked-skill/SKILL.md');
       assert.ok(!commonSkillExists, 'should not create common skill for symlinked skill');
     } finally {
+      promptStub.restore();
       console.log = originalLog;
       console.warn = originalWarn;
       await cleanupTestFixture(testDir);
@@ -81,6 +85,7 @@ test.describe('symlinked skill handling', { concurrency: 1 }, () => {
   });
 
   test('lists symlinked skills as unmanaged in list mode', async () => {
+    const promptStub = stubInquirer({ create: false });
     const logs: string[] = [];
     const originalLog = console.log;
     const originalWarn = console.warn;
@@ -108,6 +113,7 @@ test.describe('symlinked skill handling', { concurrency: 1 }, () => {
       assert.ok(output.includes('linked-skill'), 'should list symlinked skill');
       assert.ok(output.includes('(unmanaged)'), 'should mark symlinked skill as unmanaged');
     } finally {
+      promptStub.restore();
       console.log = originalLog;
       console.warn = originalWarn;
       await cleanupTestFixture(testDir);
@@ -115,6 +121,7 @@ test.describe('symlinked skill handling', { concurrency: 1 }, () => {
   });
 
   test('does not delete dependent files for ignored symlinked skills', async () => {
+    const promptStub = stubInquirer({ create: false, outOfSyncAction: 'keep-common', action: 'use-common' });
     const testDir = await createTestFixture('symlinked-cleanup', async (dir) => {
       await createConfig(dir, ['claude', 'codex']);
 
@@ -159,6 +166,7 @@ test.describe('symlinked skill handling', { concurrency: 1 }, () => {
       const codexLinkStats = await fs.lstat(join(testDir, '.codex/skills/linked-skill'));
       assert.ok(codexLinkStats.isSymbolicLink(), 'should keep symlinked skill directory intact');
     } finally {
+      promptStub.restore();
       await cleanupTestFixture(testDir);
     }
   });

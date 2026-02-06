@@ -17,7 +17,7 @@ test.afterEach(async () => {
 test('Integration: Auto-configuration - should prompt and create config when folders exist', async () => {
   const testDir = await createTestFixture('auto-config-folders-exist', async (dir) => {
     // Create .claude folder with skills
-    await createSkillFile(dir, '.claude', 'test-skill', '@test');
+    await createSkillFile(dir, '.claude', 'test-skill', '---\nname: test-skill\n---\n@test');
   });
 
   promptStub = stubInquirer({ assistants: ['claude'] });

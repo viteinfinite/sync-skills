@@ -6,6 +6,25 @@ import inquirer from 'inquirer';
 
 // Create a shared sandbox for all tests
 const sandbox = sinon.createSandbox();
+const originalPrompt = inquirer.prompt;
+
+function describePromptQuestions(questions: unknown): string {
+  const qs = (Array.isArray(questions) ? questions : [questions]) as Array<{ name?: string }>;
+  const names = qs.map(q => q?.name).filter((name): name is string => typeof name === 'string');
+  return names.length > 0 ? names.join(', ') : 'unknown';
+}
+
+function installPromptGuard(): void {
+  (inquirer as { prompt: typeof inquirer.prompt }).prompt = (async (questions: unknown) => {
+    const questionNames = describePromptQuestions(questions);
+    throw new Error(
+      `Unexpected interactive prompt in test. Stub it with stubInquirer(...). Questions: ${questionNames}`
+    );
+  }) as typeof inquirer.prompt;
+}
+
+// Default to "fail fast" if any test reaches interactive prompts without stubbing.
+installPromptGuard();
 
 /**
  * Create a temporary test fixture directory
@@ -48,11 +67,12 @@ export async function cleanupTestFixture(dir: string): Promise<void> {
 export function stubInquirer(responses: Record<string, unknown> | Array<Record<string, unknown>>): sinon.SinonStub {
   // Restore any existing prompt stub first
   sandbox.restore();
+  (inquirer as { prompt: typeof inquirer.prompt }).prompt = originalPrompt;
 
   const responsesArray = Array.isArray(responses) ? responses : [responses];
   let callCount = 0;
 
-  return sandbox.stub(inquirer, 'prompt').callsFake(async (questions: unknown) => {
+  const promptStub = sandbox.stub(inquirer, 'prompt').callsFake(async (questions: unknown) => {
     const qs = (Array.isArray(questions) ? questions : [questions]) as Array<{ name: string; message?: string }>;
     const currentResponses = responsesArray[Math.min(callCount, responsesArray.length - 1)];
     callCount++;
@@ -81,6 +101,14 @@ export function stubInquirer(responses: Record<string, unknown> | Array<Record<s
     }
     return result;
   });
+
+  const originalRestore = promptStub.restore.bind(promptStub);
+  promptStub.restore = (() => {
+    originalRestore();
+    installPromptGuard();
+  }) as typeof promptStub.restore;
+
+  return promptStub;
 }
 
 /**
