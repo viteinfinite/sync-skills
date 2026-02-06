@@ -15,7 +15,7 @@
 
 ## ✨ Why?
 
-Managing the same AI agent skills across multiple platforms (Claude, Cursor Copilot, etc.) is **painful**. You end up duplicating files, keeping them in sync manually, and dealing with version conflicts.
+Managing the same AI agent skills across multiple platforms (Claude, Cursor, Copilot, etc.) is **painful**. You end up duplicating files, keeping them in sync manually, and dealing with version conflicts.
 
 **sync-skills** solves this by:
 - 🔄 **Keep skills in sync** across all your AI assistants automatically
@@ -51,7 +51,7 @@ Many companies have policies allowing developers to use their preferred AI assis
 - Each developer can run with their own assistant set: `sync-skills --reconfigure`
 - Skills sync across all configured assistants automatically
 - No need to maintain separate skill sets or manually copy files
-- Works seamlessly whether you use Claude, Cursor, Windsurf, or all of them
+- Works seamlessly whether you use Claude, Codex, Cursor, Gemini, or all of them
 
 **3. Conflict resolution and safety**
 
@@ -86,7 +86,7 @@ sync-skills supports the following AI assistants out of the box:
 
 | Assistant | Project Directory | Home Directory | Description |
 |-----------|-------------------|----------------|-------------|
-| **claude** | `.claude/skills` | — | Claude Code |
+| **claude** | `.claude/skills` | — | Claude Code, Amp |
 | **cline** | `.cline/skills` | — | Cline |
 | **codex** | `.codex/skills` | — | Codex |
 | **cursor** | `.cursor/skills` | — | Cursor |
