@@ -108,7 +108,7 @@ export async function readSkillFile(
 }
 
 /**
- * Create a common skill file in .agents
+ * Create a common skill file in .sync-skills
  * @param dir - Base directory
  * @param skillName - Name of the skill
  * @param content - Content of the skill file
@@ -118,7 +118,7 @@ export async function createCommonSkill(
   skillName: string,
   content: string
 ): Promise<void> {
-  const skillDir = join(dir, '.agents/skills', skillName);
+  const skillDir = join(dir, '.sync-skills/skills', skillName);
   await fs.mkdir(skillDir, { recursive: true });
   await fs.writeFile(join(skillDir, 'SKILL.md'), content, 'utf-8');
 }
@@ -163,7 +163,7 @@ test.beforeEach(() => {
 
 test.afterEach(async () => {
   promptStub.restore();
-  await fs.rm(resolve('.agents'), { recursive: true, force: true });
+  await fs.rm(resolve('.sync-skills'), { recursive: true, force: true });
 });
 
 test('Integration: Auto-configuration - should auto-create config when folders exist', async () => {
@@ -255,7 +255,7 @@ test.afterEach(() => {
   promptStub.restore();
 });
 
-test('Integration: Full Sync Workflow - should refactor skills to .agents', async () => {
+test('Integration: Full Sync Workflow - should refactor skills to .sync-skills', async () => {
   const testDir = await createTestFixture('sync-full', async (dir) => {
     // Create skills in both assistants
     await createSkillFile(dir, '.claude', 'my-skill', `---
@@ -280,15 +280,15 @@ Codex version`);
 
   // Verify .claude skill was refactored
   const claudeContent = await readSkillFile(testDir, '.claude', 'my-skill');
-  assert.ok(claudeContent.includes('@.agents/skills/my-skill/SKILL.md'));
+  assert.ok(claudeContent.includes('@.sync-skills/skills/my-skill/SKILL.md'));
   assert.ok(claudeContent.includes('managed-by: sync-skills'));
 
   // Verify .codex skill was refactored
   const codexContent = await readSkillFile(testDir, '.codex', 'my-skill');
-  assert.ok(codexContent.includes('@.agents/skills/my-skill/SKILL.md'));
+  assert.ok(codexContent.includes('@.sync-skills/skills/my-skill/SKILL.md'));
 
   // Verify common skill exists with frontmatter
-  const commonContent = await fs.readFile(join(testDir, '.agents/skills/my-skill/SKILL.md'), 'utf8');
+  const commonContent = await fs.readFile(join(testDir, '.sync-skills/skills/my-skill/SKILL.md'), 'utf8');
   assert.ok(commonContent.includes('---'));
   assert.ok(commonContent.includes('name: my-skill'));
 
@@ -306,7 +306,7 @@ test('Integration: Sync - should detect conflicts between skills', async () => {
 
   // Verify conflict was handled
   const claudeContent = await readSkillFile(testDir, '.claude', 'conflicting-skill');
-  assert.ok(claudeContent.includes('@.agents'));
+  assert.ok(claudeContent.includes('@.sync-skills'));
 
   await cleanupTestFixture(testDir);
 });
@@ -324,7 +324,7 @@ git add test/integration/sync-workflow.test.ts
 git commit -m "test: add sync workflow integration tests
 
 Add tests for:
-- Full sync workflow refactoring skills to .agents
+- Full sync workflow refactoring skills to .sync-skills
 - Conflict detection between assistant skills
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
@@ -366,7 +366,7 @@ test('Integration: Scenario 1 - .codex folder missing should prompt user', async
 
   // Verify .codex/skills was created
   const codexContent = await readSkillFile(testDir, '.codex', 'my-skill');
-  assert.ok(codexContent.includes('@.agents/skills/my-skill/SKILL.md'));
+  assert.ok(codexContent.includes('@.sync-skills/skills/my-skill/SKILL.md'));
 
   await cleanupTestFixture(testDir);
 });
@@ -381,7 +381,7 @@ test('Integration: Scenario 2 - .codex folder exists should auto-create', async 
 
   // Verify .codex/skills was created without prompt
   const codexContent = await readSkillFile(testDir, '.codex', 'my-skill');
-  assert.ok(codexContent.includes('@.agents/skills/my-skill/SKILL.md'));
+  assert.ok(codexContent.includes('@.sync-skills/skills/my-skill/SKILL.md'));
 
   await cleanupTestFixture(testDir);
 });
@@ -414,7 +414,7 @@ test('Integration: Bidirectional - sync from .codex to .claude', async () => {
 
   // Verify .claude/skills was created
   const claudeContent = await readSkillFile(testDir, '.claude', 'codex-skill');
-  assert.ok(claudeContent.includes('@.agents/skills/codex-skill/SKILL.md'));
+  assert.ok(claudeContent.includes('@.sync-skills/skills/codex-skill/SKILL.md'));
 
   await cleanupTestFixture(testDir);
 });
@@ -527,7 +527,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
     "test": "tsx --test test/config.test.ts",
     "test:integration": "tsx --test test/integration/*.test.ts",
     "test:all": "npm test && npm run test:integration",
-    "test:clean": "rm -rf test/fixtures/*/ .agents"
+    "test:clean": "rm -rf test/fixtures/*/ .sync-skills"
   }
 }
 ```

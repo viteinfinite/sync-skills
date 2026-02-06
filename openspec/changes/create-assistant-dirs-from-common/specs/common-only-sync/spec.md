@@ -4,36 +4,36 @@
 
 ### Requirement: Create assistant directories from common-only skills
 
-When `.agents` contains skills that are referenced in the config but the corresponding assistant directories do not exist, the tool SHALL create those directories with @ references to the common skills.
+When `.sync-skills` contains skills that are referenced in the config but the corresponding assistant directories do not exist, the tool SHALL create those directories with @ references to the common skills.
 
-#### Scenario: Project mode - only .agents exists
+#### Scenario: Project mode - only .sync-skills exists
 
 **GIVEN**:
-- `.agents/skills/my-skill/SKILL.md` exists with content
-- `.agents/config.json` contains `{ "assistants": ["claude", "gemini"] }`
+- `.sync-skills/skills/my-skill/SKILL.md` exists with content
+- `.sync-skills/config.json` contains `{ "assistants": ["claude", "gemini"] }`
 - `.claude/` directory does NOT exist
 - `.gemini/` directory does NOT exist
 
 **WHEN** the user runs `sync-skills`
 
 **THEN**:
-- `.claude/skills/my-skill/SKILL.md` SHALL be created with an @ reference to `.agents/skills/my-skill/SKILL.md`
-- `.gemini/skills/my-skill/SKILL.md` SHALL be created with an @ reference to `.agents/skills/my-skill/SKILL.md`
+- `.claude/skills/my-skill/SKILL.md` SHALL be created with an @ reference to `.sync-skills/skills/my-skill/SKILL.md`
+- `.gemini/skills/my-skill/SKILL.md` SHALL be created with an @ reference to `.sync-skills/skills/my-skill/SKILL.md`
 - Both created files SHALL include core frontmatter from the common skill
 
-#### Scenario: Home mode - only .agents exists
+#### Scenario: Home mode - only .sync-skills exists
 
 **GIVEN**:
-- `~/.agents/skills/my-skill/SKILL.md` exists with content
-- `~/.agents/config.json` contains `{ "assistants": ["claude", "gemini"] }`
+- `~/.sync-skills/skills/my-skill/SKILL.md` exists with content
+- `~/.sync-skills/config.json` contains `{ "assistants": ["claude", "gemini"] }`
 - `~/.claude/` directory does NOT exist
 - `~/.gemini/` directory does NOT exist
 
 **WHEN** the user runs `sync-skills --home`
 
 **THEN**:
-- `~/.claude/skills/my-skill/SKILL.md` SHALL be created with an @ reference to `~/.agents/skills/my-skill/SKILL.md`
-- `~/.gemini/skills/my-skill/SKILL.md` SHALL be created with an @ reference to `~/.agents/skills/my-skill/SKILL.md`
+- `~/.claude/skills/my-skill/SKILL.md` SHALL be created with an @ reference to `~/.sync-skills/skills/my-skill/SKILL.md`
+- `~/.gemini/skills/my-skill/SKILL.md` SHALL be created with an @ reference to `~/.sync-skills/skills/my-skill/SKILL.md`
 - Both created files SHALL include core frontmatter from the common skill
 
 ### Requirement: Dependent files cleanup only for platforms that originally had files
@@ -43,12 +43,12 @@ When cleaning up dependent files from platform folders, the tool SHALL only atte
 #### Scenario: Dependent files cleanup with newly created platform
 
 **GIVEN**:
-- `.claude/skills/new-suffixer/SKILL.md` exists with an @ reference to `.agents`
+- `.claude/skills/new-suffixer/SKILL.md` exists with an @ reference to `.sync-skills`
 - `.claude/skills/new-suffixer/SUFFIX.txt` exists (a dependent file)
-- `.agents/skills/new-suffixer/SKILL.md` exists with frontmatter tracking `SUFFIX.txt`
-- `.agents/skills/new-suffixer/SUFFIX.txt` exists
+- `.sync-skills/skills/new-suffixer/SKILL.md` exists with frontmatter tracking `SUFFIX.txt`
+- `.sync-skills/skills/new-suffixer/SUFFIX.txt` exists
 - `.codex/` directory does NOT exist
-- `.agents/config.json` contains `{ "assistants": ["claude", "codex"] }`
+- `.sync-skills/config.json` contains `{ "assistants": ["claude", "codex"] }`
 
 **WHEN** the user runs `sync-skills` and confirms creation of `.codex/skills`
 
@@ -56,7 +56,7 @@ When cleaning up dependent files from platform folders, the tool SHALL only atte
 - `.codex/skills/new-suffixer/SKILL.md` SHALL be created with an @ reference
 - `.codex/skills/new-suffixer/SUFFIX.txt` SHALL NOT be created (dependent files are centralized)
 - NO warning SHALL be logged about failing to delete `.codex/skills/new-suffixer/SUFFIX.txt`
-- The dependent file SHALL remain in `.agents/skills/new-suffixer/SUFFIX.txt`
+- The dependent file SHALL remain in `.sync-skills/skills/new-suffixer/SUFFIX.txt`
 
 ### Requirement: Non-core frontmatter fields do not cause conflicts
 
@@ -70,14 +70,14 @@ When detecting conflicts between platform skill files, the tool SHALL only compa
   name: my-skill
   description: A test skill
   model: haiku-3.5
-  @.agents/skills/my-skill/SKILL.md
+  @.sync-skills/skills/my-skill/SKILL.md
   ```
 - `.gemini/skills/my-skill/SKILL.md` exists with:
   ```yaml
   name: my-skill
   description: A test skill
   model: gemini-3-pro-preview
-  @.agents/skills/my-skill/SKILL.md
+  @.sync-skills/skills/my-skill/SKILL.md
   ```
 - Both files have the same `name` and `description` (core fields)
 - Both files reference the same common skill
@@ -95,11 +95,11 @@ When a platform skill file has been modified directly (outside of sync-skills), 
 #### Scenario: Platform skill modified externally - user applies edits to common
 
 **GIVEN**:
-- `.agents/skills/my-skill/SKILL.md` exists with content "Original content" and hash `sha256-abc123`
+- `.sync-skills/skills/my-skill/SKILL.md` exists with content "Original content" and hash `sha256-abc123`
 - `.claude/skills/my-skill/SKILL.md` exists with:
-  - An @ reference to `.agents/skills/my-skill/SKILL.md`
+  - An @ reference to `.sync-skills/skills/my-skill/SKILL.md`
   - `metadata.sync.hash: sha256-abc123` (matches common)
-- User directly edits `.claude/skills/my-skill/SKILL.md` to change the body content from "@.agents/skills/my-skill/SKILL.md" to actual new content "Modified content"
+- User directly edits `.claude/skills/my-skill/SKILL.md` to change the body content from "@.sync-skills/skills/my-skill/SKILL.md" to actual new content "Modified content"
 
 **WHEN** the user runs `sync-skills`
 
@@ -107,7 +107,7 @@ When a platform skill file has been modified directly (outside of sync-skills), 
 - A warning SHALL be displayed: "Skill `my-skill` in `.claude/skills/` has been modified outside of sync-skills"
 - User SHALL be prompted: "Do you want to apply these edits to the common skill? (Yes/No/Skip)"
 - When user selects "Yes":
-  - The modified content SHALL be copied to `.agents/skills/my-skill/SKILL.md`
+  - The modified content SHALL be copied to `.sync-skills/skills/my-skill/SKILL.md`
   - The hash SHALL be recalculated and updated in both common and platform files
   - Sync SHALL continue
 - When user selects "No":

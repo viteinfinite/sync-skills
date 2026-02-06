@@ -2,22 +2,22 @@
 
 ## Overview
 
-**Purpose:** Extend the sync-skills tool to handle ALL files in skill folders (not just `SKILL.md`), centralizing dependent files in `.agents/skills/` with hash-based conflict resolution.
+**Purpose:** Extend the sync-skills tool to handle ALL files in skill folders (not just `SKILL.md`), centralizing dependent files in `.sync-skills/skills/` with hash-based conflict resolution.
 
 **Current State:** The tool only processes `SKILL.md` files using `@` references. Other files like `reference.md`, `examples.md`, `scripts/*.js`, or config files are ignored during sync.
 
-**Key Principle:** Dependent files are centralized in `.agents` and NEVER copied to platform folders. Only `SKILL.md` gets `@` references in platform locations.
+**Key Principle:** Dependent files are centralized in `.sync-skills` and NEVER copied to platform folders. Only `SKILL.md` gets `@` references in platform locations.
 
 ## Final State Example
 
 ```
 .claude/myskill/
-└── SKILL.md (@ reference to .agents)
+└── SKILL.md (@ reference to .sync-skills)
 
 .codex/myskill/
-└── SKILL.md (@ reference to .agents)
+└── SKILL.md (@ reference to .sync-skills)
 
-.agents/myskill/
+.sync-skills/myskill/
 ├── SKILL.md (full content + sync metadata with file hashes)
 └── file.js (centralized, not in platform folders)
 ```
@@ -34,8 +34,8 @@
 ```
 .claude/myskill/SKILL.md (@ reference)
 .codex/myskill/SKILL.md (@ reference)
-.agents/myskill/SKILL.md
-.agents/myskill/file.js
+.sync-skills/myskill/SKILL.md
+.sync-skills/myskill/file.js
 ```
 
 ### Scenario 2: Multi-Platform, No Common
@@ -50,8 +50,8 @@
 ```
 .claude/myskill/SKILL.md (@ reference)
 .codex/myskill/SKILL.md (@ reference)
-.agents/myskill/SKILL.md
-.agents/myskill/file.js (after conflict resolution)
+.sync-skills/myskill/SKILL.md
+.sync-skills/myskill/file.js (after conflict resolution)
 ```
 - Hash-based conflict resolution
 - If conflict → user resolves
@@ -64,8 +64,8 @@
 .claude/myskill/file.js
 .codex/myskill/SKILL.md
 .codex/myskill/file.js
-.agents/myskill/SKILL.md
-.agents/myskill/file.js
+.sync-skills/myskill/SKILL.md
+.sync-skills/myskill/file.js
 ```
 **After sync:**
 - Hash-based conflict resolution
@@ -74,28 +74,28 @@
 ### Scenario 4: Common Only, Both Platforms
 **Before:**
 ```
-.agents/myskill/SKILL.md
-.agents/myskill/file.js
+.sync-skills/myskill/SKILL.md
+.sync-skills/myskill/file.js
 ```
 **After sync (with codex and claude enabled):**
 ```
 .claude/myskill/SKILL.md (@ reference)
 .codex/myskill/SKILL.md (@ reference)
-.agents/myskill/SKILL.md
-.agents/myskill/file.js
+.sync-skills/myskill/SKILL.md
+.sync-skills/myskill/file.js
 ```
 
 ### Scenario 5: Common Only, Single Platform
 **Before:**
 ```
-.agents/myskill/SKILL.md
-.agents/myskill/file.js
+.sync-skills/myskill/SKILL.md
+.sync-skills/myskill/file.js
 ```
 **After sync (with claude only):**
 ```
 .claude/myskill/SKILL.md (@ reference)
-.agents/myskill/SKILL.md
-.agents/myskill/file.js
+.sync-skills/myskill/SKILL.md
+.sync-skills/myskill/file.js
 ```
 
 ## Architecture
@@ -117,7 +117,7 @@
 |----------|---------|
 | `detectDependentFiles(skillPath)` | Return list of non-SKILL.md files (recursive) |
 | `collectDependentFilesFromPlatforms(skillName, platformPaths)` | Gather dependent files from all platforms |
-| `consolidateDependentsToCommon(skillName, files)` | Merge into `.agents`, hash-based conflict resolution |
+| `consolidateDependentsToCommon(skillName, files)` | Merge into `.sync-skills`, hash-based conflict resolution |
 | `computeFileHash(filePath)` | Generate sha256 hash |
 | `storeFileHashesInFrontmatter(skillPath, hashes)` | Update `metadata.sync.files` |
 | `cleanupPlatformDependentFiles(platformPath)` | Remove dependent files from platform folders |
@@ -150,7 +150,7 @@ For each platform (.claude, .codex, etc.):
 ### Phase 2: Consolidation (per skill)
 ```
 For each skill:
-  1. Check if .agents/skills/{skillName}/ exists
+  1. Check if .sync-skills/skills/{skillName}/ exists
   2. If NO common:
      - Collect dependent files from all platforms
      - If multiple platforms have same file → hash compare

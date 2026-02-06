@@ -12,11 +12,11 @@ The `syncCommonOnlySkills()` function in `src/assistants.ts:199-276` currently:
 
 ## Problem
 
-When `.agents` exists with skills but assistant directories don't exist:
+When `.sync-skills` exists with skills but assistant directories don't exist:
 
 ```
 my-project/
-  .agents/
+  .sync-skills/
     skills/
       my-skill/
         SKILL.md
@@ -165,7 +165,7 @@ Each platform skill stores a `metadata.sync.hash` that should match the hash of 
 
 Add five new integration test scenarios:
 
-1. **Project mode**: Only `.agents` exists, configured for claude and gemini
+1. **Project mode**: Only `.sync-skills` exists, configured for claude and gemini
 2. **Home mode**: Same scenario with `--home` flag
 3. **Dependent files cleanup with newly created platform**: `.claude/skills/new-suffixer/` has `SUFFIX.txt`, `.codex` doesn't exist. After sync, no warning about deleting non-existent file from `.codex`
 4. **Non-core frontmatter fields don't cause conflicts**: `.claude/skills/my-skill/SKILL.md` has `model: haiku`, `.gemini/skills/my-skill/SKILL.md` has `model: gemini-3-pro-preview`, no conflict should be detected

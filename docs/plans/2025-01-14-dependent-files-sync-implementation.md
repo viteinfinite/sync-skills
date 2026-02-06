@@ -2,7 +2,7 @@
 
 ## Overview
 
-Implement dependent files sync feature to centralize non-SKILL.md files in `.agents/skills/` with hash-based conflict resolution.
+Implement dependent files sync feature to centralize non-SKILL.md files in `.sync-skills/skills/` with hash-based conflict resolution.
 
 ## Reference Design
 
@@ -201,7 +201,7 @@ Add to or create `test/integration/dependent-files.test.ts`:
 describe('Scenario 1: Single platform, no common', () => {
   it('creates common with dependent files', async () => {
     // Setup: .claude/myskill/SKILL.md + file.js
-    // Assert: .agents/myskill/file.js exists
+    // Assert: .sync-skills/myskill/file.js exists
     // Assert: .claude/myskill/file.js removed
   });
 });
@@ -224,7 +224,7 @@ describe('Scenario 3: Existing common + platforms', () => {
 
 describe('Scenario 4: Common only, both platforms', () => {
   it('creates @ references in both platforms', async () => {
-    // Setup: .agents only
+    // Setup: .sync-skills only
     // Assert: Both .claude and .codex get SKILL.md @ references
     // Assert: Dependent files stay in common only
   });
@@ -232,7 +232,7 @@ describe('Scenario 4: Common only, both platforms', () => {
 
 describe('Scenario 5: Common only, single platform', () => {
   it('creates @ reference in one platform', async () => {
-    // Setup: .agents only, claude enabled
+    // Setup: .sync-skills only, claude enabled
     // Assert: Only .claude gets SKILL.md @ reference
   });
 });
@@ -246,7 +246,7 @@ Add new section to `TESTING.md`:
 ## Dependent Files Sync
 
 ### Feature Overview
-Dependent files (all non-SKILL.md files) are centralized in `.agents/skills/`
+Dependent files (all non-SKILL.md files) are centralized in `.sync-skills/skills/`
 with hash-based conflict resolution.
 
 ### Manual Testing
@@ -256,7 +256,7 @@ with hash-based conflict resolution.
 2. Add `.claude/skills/test-skill/util.js`
 3. Run: `npm test` or sync command
 4. Verify:
-   - `.agents/skills/test-skill/util.js` exists
+   - `.sync-skills/skills/test-skill/util.js` exists
    - `.claude/skills/test-skill/util.js` removed
    - Hash in SKILL.md frontmatter
 
@@ -268,7 +268,7 @@ with hash-based conflict resolution.
 5. Verify hash stored in frontmatter
 
 ### Verification Checklist
-- [ ] Dependent files only in `.agents`
+- [ ] Dependent files only in `.sync-skills`
 - [ ] Platform folders have only SKILL.md (@ reference)
 - [ ] Hashes stored in `metadata.sync.files`
 - [ ] Conflicts detected when hashes differ
@@ -318,4 +318,4 @@ if (!hash) {
 - Unit tests cover all core functions
 - TESTING.md documents manual testing steps
 - No regression in existing SKILL.md sync behavior
-- Dependent files only exist in `.agents` after sync
+- Dependent files only exist in `.sync-skills` after sync

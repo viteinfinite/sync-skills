@@ -6,7 +6,7 @@
 
 ## 2. Tests
 - [x] 2.1 Update unit tests for reference generation and out-of-sync detection.
-- [x] 2.2 Update integration tests and fixtures that assert `@.agents/...` to the new relative format.
+- [x] 2.2 Update integration tests and fixtures that assert `@.sync-skills/...` to the new relative format.
 
 ## 3. Docs
 - [x] 3.1 Update README and TESTING docs to show the new reference format.

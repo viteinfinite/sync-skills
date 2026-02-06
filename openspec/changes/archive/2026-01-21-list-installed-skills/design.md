@@ -9,7 +9,7 @@ The listing mode will be implemented as a separate branch in the `run` function 
 2. **Parsing**: For each found `SKILL.md`:
    - Read the file content.
    - Use `parseSkillFile` to extract frontmatter.
-   - If the body starts with an `@` reference (e.g., `@.agents/skills/...`), attempt to read the referenced file to get the actual description if it's missing from the platform file's frontmatter.
+   - If the body starts with an `@` reference (e.g., `@.sync-skills/skills/...`), attempt to read the referenced file to get the actual description if it's missing from the platform file's frontmatter.
 3. **File Counting**:
    - For each skill, identify its directory (parent of `SKILL.md`).
    - Recursively count all files in that directory.

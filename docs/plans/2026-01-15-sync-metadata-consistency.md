@@ -136,10 +136,10 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
     projectRoot = '/' + dirParts.slice(0, agentDirIndex).join('/');
   }
 
-  const commonPath = join(projectRoot, '.agents/skills', skillName, 'SKILL.md');
-  const relativeCommonPath = '.agents/skills/' + skillName + '/SKILL.md';
+  const commonPath = join(projectRoot, '.sync-skills/skills', skillName, 'SKILL.md');
+  const relativeCommonPath = '.sync-skills/skills/' + skillName + '/SKILL.md';
 
-  // Ensure .agents directory exists
+  // Ensure .sync-skills directory exists
   await fs.mkdir(dirname(commonPath), { recursive: true });
 
   // Extract core frontmatter fields to copy to common
@@ -150,7 +150,7 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
     }
   }
 
-  // Write frontmatter + body to .agents (strip leading newline added by gray-matter)
+  // Write frontmatter + body to .sync-skills (strip leading newline added by gray-matter)
   const bodyContent = parsed.content.startsWith('\n') ? parsed.content.slice(1) : parsed.content;
 
   // Compute hash of the new common skill (no dependents yet)
@@ -209,7 +209,7 @@ const commonParsed = matter(commonContent);
 const commonHash = commonParsed.data?.sync?.hash;
 
 // Create @ reference to common skill
-const atReference = `@.agents/skills/${commonSkill.skillName}/SKILL.md`;
+const atReference = `@.sync-skills/skills/${commonSkill.skillName}/SKILL.md`;
 
 // Ensure directory exists
 await fs.mkdir(dirname(platformSkillPath), { recursive: true });
@@ -518,7 +518,7 @@ git commit -m "test: add tests for computeSkillHash"
 Ensure `detectOutOfSyncSkills()` passes the expected reference based on the skill folder name (not frontmatter):
 
 ```typescript
-const expectedRef = `.agents/skills/${platformSkill.skillName}/SKILL.md`;
+const expectedRef = `.sync-skills/skills/${platformSkill.skillName}/SKILL.md`;
 const mismatchType = detectSyncMismatch(platformParsed, commonParsed, expectedRef);
 ```
 
