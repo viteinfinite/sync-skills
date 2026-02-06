@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import matter from 'gray-matter';
 import chalk from 'chalk';
 import { parseSkillFile } from './parser.js';
+import { stableStringify } from './frontmatter.js';
 
 const SKIP_FIELDS = ['sync'];
 const LIST_MERGE_FIELDS = ['allowed-tools'];
@@ -116,7 +117,7 @@ function mergeFrontmatter(
     }
 
     // Values are identical, no action needed
-    if (JSON.stringify(commonValue) === JSON.stringify(targetValue)) {
+    if (stableStringify(commonValue) === stableStringify(targetValue)) {
       continue;
     }
 

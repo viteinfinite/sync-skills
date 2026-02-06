@@ -2,6 +2,7 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import matter from 'gray-matter';
 import { formatDiff } from './detector.js';
+import { extractAtReference, isReferenceToSkill } from './references.js';
 import type { OutOfSyncSkill, SyncMismatchType } from './types.js';
 import type { Conflict, ConflictResolution, DependentConflict, DependentConflictResolution, OutOfSyncResolution } from './types.js';
 
@@ -24,6 +25,9 @@ function formatConflictDetails(conflict: Conflict): string {
 
     lines.push(chalk.magenta(`\n.${conflict.platformB} version frontmatter:`));
     lines.push(chalk.gray(JSON.stringify(parsedB.data, null, 2)));
+  } else if (conflict.conflictType === 'dependents') {
+    lines.push(chalk.yellow(`\nConflict type: Dependent files`));
+    lines.push(chalk.gray(`SKILL.md content matches, but dependent files differ.`));
   } else {
     lines.push(chalk.yellow(`\nConflict type: Content`));
     lines.push(chalk.gray(`The files have different content.`));
@@ -34,15 +38,17 @@ function formatConflictDetails(conflict: Conflict): string {
 
       // Show what each file references or contains
       lines.push(chalk.cyan(`\n.${conflict.platformA} version:`));
-      if (parsedA.content.trim().startsWith('@')) {
-        lines.push(chalk.gray(`  References: ${parsedA.content.trim()}`));
+      const refA = extractAtReference(parsedA.content);
+      if (refA) {
+        lines.push(chalk.gray(`  References: @${refA}`));
       } else {
         lines.push(chalk.gray(`  Has ${parsedA.content.split('\n').length} lines of content`));
       }
 
       lines.push(chalk.magenta(`\n.${conflict.platformB} version:`));
-      if (parsedB.content.trim().startsWith('@')) {
-        lines.push(chalk.gray(`  References: ${parsedB.content.trim()}`));
+      const refB = extractAtReference(parsedB.content);
+      if (refB) {
+        lines.push(chalk.gray(`  References: @${refB}`));
       } else {
         lines.push(chalk.gray(`  Has ${parsedB.content.split('\n').length} lines of content`));
       }
@@ -200,7 +206,8 @@ function formatOutOfSyncDetails(skill: OutOfSyncSkill): string {
   const mismatchDescription: Record<SyncMismatchType, string> = {
     'body': 'Body content is out of sync',
     'frontmatter': 'Frontmatter (metadata) is out of sync',
-    'both': 'Both body and frontmatter are out of sync'
+    'both': 'Both body and frontmatter are out of sync',
+    'dependents': 'Dependent files are out of sync'
   };
 
   lines.push(chalk.bold.yellow(`\nWARNING: Skill out of sync: ${skill.skillName}`));
@@ -213,8 +220,9 @@ function formatOutOfSyncDetails(skill: OutOfSyncSkill): string {
   if (showPreview && skill.platformContent) {
     const platformParsed = matter(skill.platformContent);
     lines.push(chalk.cyan(`\n${skill.platform} content:`));
-    if (platformParsed.content.trim().startsWith('@')) {
-      lines.push(chalk.gray(`${platformParsed.content.trim()}`));
+    const ref = extractAtReference(platformParsed.content);
+    if (ref && isReferenceToSkill(platformParsed.content, skill.skillName)) {
+      lines.push(chalk.gray(`@${ref}`));
     } else {
       const preview = platformParsed.content.split('\n').slice(0, 3).join('\n');
       lines.push(chalk.gray(`${preview}${platformParsed.content.split('\n').length > 3 ? '...' : ''}`));
@@ -245,7 +253,7 @@ function getChoicesForMismatch(skill: OutOfSyncSkill): Array<{ name: string; val
       return false;
     }
     const parsed = matter(skill.platformContent);
-    return parsed.content.trim().startsWith('@');
+    return isReferenceToSkill(parsed.content, skill.skillName);
   })();
   const allowKeepPlatform = skill.allowKeepPlatform !== false;
   const discardLabel = skill.platform === 'multiple' ? 'platform edits' : skill.platform;
@@ -273,7 +281,15 @@ function getChoicesForMismatch(skill: OutOfSyncSkill): Array<{ name: string; val
     ];
   }
 
-  // Case 3: frontmatter mismatch or body without @ reference
+  // Case 3: dependent files mismatch - keep common to avoid conflicting dependent state
+  if (skill.mismatchType === 'dependents') {
+    return [
+      { name: `Keep common version (discard ${discardLabel})`, value: 'keep-common' },
+      { name: 'Abort sync', value: 'abort' }
+    ];
+  }
+
+  // Case 4: frontmatter mismatch or body without @ reference
   return [
     { name: `Keep ${skill.platform} version (use ${skill.platform})`, value: 'keep-platform' },
     { name: `Keep common version (discard ${discardLabel})`, value: 'keep-common' },

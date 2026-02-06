@@ -1,10 +1,12 @@
 import { promises as fs } from 'fs';
-import { createHash } from 'crypto';
+import { dirname, resolve } from 'path';
 import matter from 'gray-matter';
 import { diffLines } from 'diff';
 import chalk from 'chalk';
-import { pickCoreFrontmatter } from './frontmatter.js';
-import { getRelativeCommonSkillPath } from './references.js';
+import { normalizeBodyContent, pickCoreFrontmatter, stableStringify } from './frontmatter.js';
+import { extractAtReference, getReferenceSkillName, getRelativeCommonSkillPath, isReferenceToPath, isReferenceToSkill } from './references.js';
+import { computeSkillHash } from './syncer.js';
+import { detectDependentFiles } from './dependents.js';
 import type { Conflict, SkillFile, OutOfSyncSkill, SyncMismatchType } from './types.js';
 
 /**
@@ -13,7 +15,7 @@ import type { Conflict, SkillFile, OutOfSyncSkill, SyncMismatchType } from './ty
  */
 function normalizeFrontmatter(content: string): string {
   const parsed = matter(content);
-  const normalizedContent = parsed.content.trim();
+  const normalizedContent = normalizeBodyContent(parsed.content);
 
   // Keep only core frontmatter fields for conflict comparison
   const coreData = pickCoreFrontmatter(parsed.data as Record<string, unknown>);
@@ -79,22 +81,13 @@ function sortObjectKeys(obj: unknown): unknown {
   return sorted;
 }
 
-/**
- * Compute hash of normalized content (order-independent frontmatter)
- */
-async function hashNormalized(filePath: string): Promise<string> {
-  const content = await fs.readFile(filePath, 'utf8');
-  const normalized = normalizeFrontmatter(content);
-  return createHash('sha256').update(normalized).digest('hex');
-}
-
 function getConflictType(contentA: string, contentB: string): 'content' | 'frontmatter' {
   const parsedA = matter(contentA);
   const parsedB = matter(contentB);
 
   // If both have @ references, check if they point to the same file
-  const refA = extractReference(parsedA.content);
-  const refB = extractReference(parsedB.content);
+  const refA = extractAtReference(parsedA.content);
+  const refB = extractAtReference(parsedB.content);
 
   if (refA && refB) {
     // Both are references - conflict is in frontmatter
@@ -103,11 +96,6 @@ function getConflictType(contentA: string, contentB: string): 'content' | 'front
 
   // At least one has actual content
   return 'content';
-}
-
-function extractReference(content: string): string | null {
-  const match = content.trim().match(/^@(.+)$/);
-  return match ? match[1] : null;
 }
 
 function formatDiff(contentA: string, contentB: string): string {
@@ -130,6 +118,63 @@ function formatDiff(contentA: string, contentB: string): string {
   return output.join('\n');
 }
 
+async function resolveBodyForHash(
+  skillPath: string,
+  parsed: matter.GrayMatterFile<string>
+): Promise<{ bodyContent: string; referenceDir: string | null }> {
+  const ref = extractAtReference(parsed.content);
+  if (!ref) {
+    return { bodyContent: normalizeBodyContent(parsed.content), referenceDir: null };
+  }
+
+  const referencedPath = resolve(dirname(skillPath), ref);
+  try {
+    const referencedContent = await fs.readFile(referencedPath, 'utf8');
+    const referencedParsed = matter(referencedContent);
+    return {
+      bodyContent: normalizeBodyContent(referencedParsed.content),
+      referenceDir: dirname(referencedPath)
+    };
+  } catch {
+    return { bodyContent: normalizeBodyContent(parsed.content), referenceDir: null };
+  }
+}
+
+async function collectDependentHashes(
+  skillPath: string,
+  referenceDir: string | null
+): Promise<Array<{ path: string; hash: string }>> {
+  const platformDir = dirname(skillPath);
+  const baseDir = referenceDir ?? platformDir;
+  const merged = new Map<string, string>();
+
+  const baseDependents = await detectDependentFiles(baseDir);
+  for (const dep of baseDependents) {
+    merged.set(dep.relativePath, dep.hash);
+  }
+
+  if (referenceDir && referenceDir !== platformDir) {
+    const platformDependents = await detectDependentFiles(platformDir);
+    for (const dep of platformDependents) {
+      merged.set(dep.relativePath, dep.hash);
+    }
+  }
+
+  return Array.from(merged.entries()).map(([path, hash]) => ({ path, hash }));
+}
+
+async function computeFolderHash(
+  skillPath: string,
+  content: string
+): Promise<{ hash: string; normalized: string }> {
+  const parsed = matter(content);
+  const coreFrontmatter = stripSyncMetadata(pickCoreFrontmatter(parsed.data as Record<string, unknown>));
+  const { bodyContent, referenceDir } = await resolveBodyForHash(skillPath, parsed);
+  const dependents = await collectDependentHashes(skillPath, referenceDir);
+  const hash = computeSkillHash(coreFrontmatter, bodyContent, dependents);
+  return { hash, normalized: normalizeFrontmatter(content) };
+}
+
 export async function detectConflicts(
   skillsA: SkillFile[],
   skillsB: SkillFile[],
@@ -145,12 +190,15 @@ export async function detectConflicts(
       const contentA = await fs.readFile(skillA.path, 'utf8');
       const contentB = await fs.readFile(skillB.path, 'utf8');
 
-      // Use normalized hashes to ignore field order differences
-      const hashA = await hashNormalized(skillA.path);
-      const hashB = await hashNormalized(skillB.path);
+      // Use folder-based hashes (core frontmatter + body + dependents)
+      const { hash: hashA, normalized: normalizedA } = await computeFolderHash(skillA.path, contentA);
+      const { hash: hashB, normalized: normalizedB } = await computeFolderHash(skillB.path, contentB);
 
       if (hashA !== hashB) {
-        const conflictType = getConflictType(contentA, contentB);
+        let conflictType: Conflict['conflictType'] = getConflictType(contentA, contentB);
+        if (normalizedA === normalizedB) {
+          conflictType = 'dependents';
+        }
 
         conflicts.push({
           skillName: skillA.skillName,
@@ -200,23 +248,8 @@ export async function detectOutOfSyncSkills(
       const commonContent = await fs.readFile(commonSkill.path, 'utf8');
       const commonParsed = matter(commonContent);
 
-      // Extract common hash from metadata
-      const commonMetadata =
-        commonParsed.data?.metadata &&
-        typeof commonParsed.data.metadata === 'object' &&
-        !Array.isArray(commonParsed.data.metadata)
-          ? (commonParsed.data.metadata as Record<string, unknown>)
-          : undefined;
-      const commonSync =
-        commonMetadata?.sync && typeof commonMetadata.sync === 'object' && !Array.isArray(commonMetadata.sync)
-          ? (commonMetadata.sync as Record<string, unknown>)
-          : undefined;
-      const storedCommonHash = commonSync?.hash as string | undefined;
-
-      if (!storedCommonHash) {
-        // Common skill has no hash, skip
-        continue;
-      }
+      const { hash: commonFolderHash } = await computeFolderHash(commonSkill.path, commonContent);
+      const { hash: platformFolderHash } = await computeFolderHash(platformSkill.path, platformContent);
 
       // Detect mismatches
       const expectedRef = getRelativeCommonSkillPath(platformSkill.path, commonSkill.path);
@@ -226,13 +259,13 @@ export async function detectOutOfSyncSkills(
         expectedRef
       );
 
-      if (mismatchType) {
+      if (platformFolderHash !== commonFolderHash) {
         outOfSync.push({
           skillName: platformSkill.skillName,
           platform: platformName,
           platformPath: platformSkill.path,
           commonPath: commonSkill.path,
-          mismatchType,
+          mismatchType: mismatchType ?? 'dependents',
           platformContent,
           commonContent
         });
@@ -258,18 +291,18 @@ function detectSyncMismatch(
   commonParsed: matter.GrayMatterFile<string>,
   expectedRef: string
 ): SyncMismatchType | null {
-  const platformBody = platformParsed.content.trim();
-  const commonBody = commonParsed.content.trim();
+  const platformBody = normalizeBodyContent(platformParsed.content);
+  const commonBody = normalizeBodyContent(commonParsed.content);
 
   // Check if platform has @ reference
-  const platformHasReference = platformBody.startsWith('@');
-  const platformReference = extractReference(platformBody);
+  const expectedSkillName = getReferenceSkillName(expectedRef);
+  const platformHasReference = isReferenceToSkill(platformBody, expectedSkillName);
 
   // Check body mismatch
   let bodyMismatch = false;
   if (platformHasReference) {
     // Platform has @ reference - check if it points to the correct common skill
-    if (platformReference !== expectedRef) {
+    if (!isReferenceToPath(platformBody, expectedRef)) {
       bodyMismatch = true;
     }
   } else {
@@ -309,8 +342,8 @@ function detectSyncMismatch(
     }
   }
 
-  const platformHash = JSON.stringify(platformCompare);
-  const commonHash = JSON.stringify(commonCompare);
+  const platformHash = stableStringify(platformCompare);
+  const commonHash = stableStringify(commonCompare);
   const frontmatterMismatch = platformHash !== commonHash;
 
   // Determine mismatch type based on the rules:

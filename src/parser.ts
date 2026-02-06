@@ -1,4 +1,6 @@
 import matter from 'gray-matter';
+import { normalizeBodyContent } from './frontmatter.js';
+import { extractAtReference } from './references.js';
 import type { ParsedSkill } from './types.js';
 
 /**
@@ -13,8 +15,8 @@ export function parseSkillFile(content: string): ParsedSkill | null {
 
   const parsed = matter(content);
 
-  const body = parsed.content.trim();
-  const hasAtReference = body.startsWith('@');
+  const body = normalizeBodyContent(parsed.content);
+  const hasAtReference = extractAtReference(body) !== null;
 
   return {
     data: parsed.data,

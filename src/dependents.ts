@@ -78,8 +78,8 @@ export async function detectDependentFiles(skillPath: string): Promise<Dependent
           continue;
         }
 
-        // Skip ignored directories
-        if (entry.isDirectory() && IGNORED_DIRECTORIES.has(entry.name)) {
+        // Skip ignored entries
+        if (IGNORED_DIRECTORIES.has(entry.name)) {
           continue;
         }
 

@@ -5,7 +5,7 @@ import { run } from '../src/index.js';
 import { VERSION } from '../src/version.js';
 
 const argv = minimist(process.argv.slice(2), {
-  boolean: ['fail-on-conflict', 'help', 'home', 'list', 'reconfigure', 'version'],
+  boolean: ['fail-on-conflict', 'help', 'home', 'list', 'reconfigure', 'verbose', 'version'],
   alias: {
     'fail-on-conflict': 'f',
     'help': 'h',
@@ -33,6 +33,7 @@ Options:
   --home, -H                Use home directory configuration
   --list, -l                List installed skills
   --reconfigure, -r         Reconfigure settings
+  --verbose                 Print detailed operation logs
   --version, -v             Show version
   --help, -h                Show this help
 
@@ -43,6 +44,7 @@ Examples:
   sync-skills --fail-on-conflict           # Fail on conflicts
   sync-skills --home                       # Use home config
   sync-skills --reconfigure                # Reconfigure settings
+  sync-skills --verbose                    # Detailed sync operation logs
   sync-skills --version                    # Show version
   `);
   process.exit(0);
@@ -53,7 +55,8 @@ try {
     failOnConflict: argv['fail-on-conflict'],
     homeMode: argv.home,
     reconfigure: argv.reconfigure,
-    listMode: argv.list
+    listMode: argv.list,
+    verbose: argv.verbose
   });
 } catch (error) {
   const errorMessage = error instanceof Error ? error.message : String(error);
