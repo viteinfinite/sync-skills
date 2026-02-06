@@ -136,8 +136,10 @@ export const ASSISTANT_MAP: Record<string, string | AssistantPathConfig> = {
   'gemini':   '.gemini/skills',
   'github':   '.github/skills',
   'kilo':     '.kilocode/skills',
+  'kiro':     '.kiro/skills',
   'opencode': { project: '.opencode/skill', home: '.config/opencode/skill' },
   'roo':      '.roo/skills',
+  'vibe':     '.vibe/skills',
   'windsurf': { project: '.windsurf/skills', home: '.codeium/windsurf/skills' },
 };
 
