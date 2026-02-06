@@ -22,7 +22,7 @@ import {
 import { getAssistantConfigs } from './types.js';
 import type { RunOptions, AssistantConfig, SkillFile, OutOfSyncSkill } from './types.js';
 import { VerboseLogger } from './logger.js';
-import { COMMON_DIR, COMMON_SKILLS_DIR, MANAGED_SKILLS_PATH } from './constants.js';
+import { COMMON_SKILLS_DIR } from './constants.js';
 
 export async function run(options: RunOptions = {}): Promise<void> {
   let {
@@ -34,6 +34,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
     verbose = false
   } = options;
   const logger = new VerboseLogger(verbose);
+  let syncCompleted = false;
   try {
 
   // Handle --home flag
@@ -679,13 +680,12 @@ export async function run(options: RunOptions = {}): Promise<void> {
     }
   }
 
-  // Refresh state and persist managed skills manifest at the end of sync.
-  ({ common } = await scanSkills(baseDir, activeConfigs));
-  await writeManagedSkillsManifest(baseDir, common.map(skill => skill.skillName));
-
-  console.log(chalk.greenBright('Sync complete'));
+  syncCompleted = true;
   } finally {
     logger.printSummary();
+    if (syncCompleted) {
+      console.log(chalk.greenBright('Sync complete'));
+    }
   }
 }
 
@@ -826,16 +826,4 @@ function logIgnoredSymlinkedSkills(ignored: IgnoredSkill[]): void {
     seen.add(skill.skillName);
     console.log(chalk.yellowBright(`Ignored ${skill.skillName} because it was symlinked`));
   }
-}
-
-async function writeManagedSkillsManifest(baseDir: string, managedSkills: string[]): Promise<void> {
-  const uniqueSkills = Array.from(new Set(managedSkills)).sort((a, b) => a.localeCompare(b));
-  const manifestPath = join(baseDir, MANAGED_SKILLS_PATH);
-  const manifest = {
-    version: 1,
-    skills: uniqueSkills
-  };
-
-  await fs.mkdir(join(baseDir, COMMON_DIR), { recursive: true });
-  await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
 }

@@ -8,6 +8,3 @@ export const COMMON_DIR = '.sync-skills';
 
 /** Common managed skills directory */
 export const COMMON_SKILLS_DIR = `${COMMON_DIR}/skills`;
-
-/** Managed skills manifest path */
-export const MANAGED_SKILLS_PATH = `${COMMON_DIR}/managed-skills.json`;

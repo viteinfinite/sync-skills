@@ -41,11 +41,6 @@ Content`);
     const content = await fs.readFile(claudePath, 'utf8');
     assert.ok(content.includes('@../../../.sync-skills/skills/test-skill/SKILL.md'));
 
-    const managedSkillsRaw = await fs.readFile(`${testDir}/.sync-skills/managed-skills.json`, 'utf8');
-    const managedSkills = JSON.parse(managedSkillsRaw) as { version: number; skills: string[] };
-    assert.equal(managedSkills.version, 1);
-    assert.deepEqual(managedSkills.skills, ['test-skill']);
-
     await cleanupTestFixture(testDir);
   });
 

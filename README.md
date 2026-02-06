@@ -134,7 +134,6 @@ npm install -g .
 │                                                                  │
 │  .sync-skills/                 ←  Managed sync metadata + shared skills│
 │  ├── config.json                                                  │
-│  ├── managed-skills.json                                          │
 │  └── skills/                                                      │
 │     ├── skill-a/SKILL.md                                          │
 │     ├── skill-a/util.js   ←  Supporting files also synced!       │
