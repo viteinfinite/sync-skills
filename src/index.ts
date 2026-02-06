@@ -103,6 +103,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
   logger.decision({ phase: 'sync-common-only', action: 'sync-complete' });
 
   // Phase 3: Refactor platform skills that don't have @ references
+  const refactoredSkillPaths = new Set<string>();
   for (const config of activeConfigs) {
     const platformSkills = platforms[config.name] || [];
     for (const skill of platformSkills) {
@@ -128,6 +129,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
 
         const commonPath = await refactorSkill(skill.path);
         if (commonPath) {
+          refactoredSkillPaths.add(skill.path);
           logger.skillOperation({
             phase: 'refactor',
             action: 'create',
@@ -157,7 +159,9 @@ export async function run(options: RunOptions = {}): Promise<void> {
   const outOfSyncSkills: OutOfSyncSkill[] = [];
   for (const config of activeConfigs) {
     const platformSkills = platforms[config.name] || [];
-    const platformOutOfSync = await detectOutOfSyncSkills(platformSkills, common, config.name);
+    // Skip brand-new refactors in this run to avoid transient mismatch detection.
+    const skillsToCheck = platformSkills.filter(skill => !refactoredSkillPaths.has(skill.path));
+    const platformOutOfSync = await detectOutOfSyncSkills(skillsToCheck, common, config.name);
     outOfSyncSkills.push(...platformOutOfSync);
   }
 
