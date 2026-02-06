@@ -25,7 +25,7 @@ describe('config', () => {
     it('should read existing config file', async () => {
       TEST_DIR = await createTestFixture('read-config');
       const testConfig = { version: 1, assistants: ['claude', 'codex'] };
-      await fs.mkdir(join(TEST_DIR, '.agents'), { recursive: true });
+      await fs.mkdir(join(TEST_DIR, '.sync-skills'), { recursive: true });
       await fs.writeFile(join(TEST_DIR, CONFIG_PATH), JSON.stringify(testConfig));
 
       const result = await readConfig(TEST_DIR);

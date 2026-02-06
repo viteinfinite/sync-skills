@@ -7,4 +7,4 @@ metadata:
     managed-by: sync-skills
     refactored: '2026-01-12T01:12:40.972Z'
 ---
-@../../../.agents/skills/pr-review/SKILL.md
+@../../../.sync-skills/skills/pr-review/SKILL.md

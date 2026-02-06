@@ -19,7 +19,7 @@ Managing the same AI agent skills across multiple platforms (Claude, Cursor Copi
 
 **sync-skills** solves this by:
 - 🔄 **Keep skills in sync** across all your AI assistants automatically
-- 📦 **Single source of truth** in `.agents/` directory
+- 📦 **Single source of truth** in `.sync-skills/` directory
 - 🚀 **Auto-setup** on first run - just run and go
 - ⚙️ **Reconfigure anytime** with interactive prompts
 
@@ -75,7 +75,7 @@ If you change source files locally, run `npm run build` to refresh `dist/`.
 
 That's it! The tool will:
 1. Prompt you to select which AI assistants to configure (preselecting detected ones)
-2. Create a shared `.agents/` directory
+2. Create a shared `.sync-skills/` directory
 3. Sync all your skills across platforms
 
 ---
@@ -86,7 +86,7 @@ sync-skills supports the following AI assistants out of the box:
 
 | Assistant | Project Directory | Home Directory | Description |
 |-----------|-------------------|----------------|-------------|
-| **amp** | `.amp/skills` | — | Amp |
+| **amp** | `.agents/skills` | — | Amp |
 | **claude** | `.claude/skills` | — | Claude Code |
 | **cline** | `.cline/skills` | — | Cline |
 | **codex** | `.codex/skills` | — | Codex |
@@ -133,7 +133,7 @@ npm install -g .
 │                           Your Project                           │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  .agents/                 ←  Managed sync metadata + shared skills│
+│  .sync-skills/                 ←  Managed sync metadata + shared skills│
 │  ├── config.json                                                  │
 │  ├── managed-skills.json                                          │
 │  └── skills/                                                      │
@@ -143,19 +143,19 @@ npm install -g .
 │     └── skill-b/SKILL.md                                          │
 │                                                                  │
 │  .claude/skills/          ←  References to common skills         │
-│  ├── skill-a/SKILL.md     →  @../../../.agents/skills/... |
+│  ├── skill-a/SKILL.md     →  @../../../.sync-skills/skills/... |
 │  └── skill-b/SKILL.md     →  (dependent files removed)           │
 │                                                                  │
 │  .codex/skills/           ←  Same skills, same references        │
-│  ├── skill-a/SKILL.md     →  @../../../.agents/skills/... │
+│  ├── skill-a/SKILL.md     →  @../../../.sync-skills/skills/... │
 │  └── skill-b/SKILL.md     →  (dependent files removed)           │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-**The magic:** Edit once in `.agents/`, and all your AI assistants see the changes!
+**The magic:** Edit once in `.sync-skills/`, and all your AI assistants see the changes!
 
-**Dependent files** (scripts, docs, configs) are automatically centralized in `.agents/` with hash-based conflict resolution.
+**Dependent files** (scripts, docs, configs) are automatically centralized in `.sync-skills/` with hash-based conflict resolution.
 
 ---
 
@@ -188,7 +188,7 @@ my-custom-skill          [common, gemini] - A custom workflow for my project
 Keep your personal skill collection in `~/` and share across projects:
 
 ```bash
-sync-skills --home       # Sync ~/.claude, ~/.codex, ~/.agents
+sync-skills --home       # Sync ~/.claude, ~/.codex, ~/.sync-skills
 ```
 
 ### Reconfigure
@@ -221,8 +221,8 @@ Use this when investigating unexpected file changes. Verbose output includes rea
 
 ```bash
 # 1. Create skill in common directory
-mkdir -p .agents/skills/my-new-skill
-echo "# My Skill" > .agents/skills/my-new-skill/SKILL.md
+mkdir -p .sync-skills/skills/my-new-skill
+echo "# My Skill" > .sync-skills/skills/my-new-skill/SKILL.md
 
 # 2. Run sync
 npx github:viteinfinite/sync-skills
@@ -241,14 +241,14 @@ ls .claude/skills/
 npx github:viteinfinite/sync-skills
 
 # 3. ✅ Skills are now available in both assistants!
-#    📁 .agents/ contains the source of truth
+#    📁 .sync-skills/ contains the source of truth
 #    🔗 .claude/skills/ and .codex/skills/ both reference the common files
 ```
 
 **What happens:**
-- Existing `.claude` skills are moved to `.agents/`
+- Existing `.claude` skills are moved to `.sync-skills/`
 - Both `.claude` and `.codex` get reference files pointing to common skills
-- Future edits in `.agents/` sync to both platforms automatically
+- Future edits in `.sync-skills/` sync to both platforms automatically
 
 ### Setting Up a New Project
 
@@ -261,7 +261,7 @@ sync-skills    # Auto-detects and sets up everything
 
 ## 🛠️ Configuration
 
-Configuration is stored in `.agents/config.json`:
+Configuration is stored in `.sync-skills/config.json`:
 
 ```json
 {
@@ -294,7 +294,7 @@ Configuration is stored in `.agents/config.json`:
   - Any other supporting files
 
 **How it works:**
-1. Dependent files are centralized in `.agents/skills/{skill}/`
+1. Dependent files are centralized in `.sync-skills/skills/{skill}/`
 2. Platform folders contain only `SKILL.md` (with `@` references)
 3. Hash-based conflict resolution detects changes across `SKILL.md` and dependent files (main hash includes all files)
 4. Identical `SKILL.md` content can still conflict if dependent files differ

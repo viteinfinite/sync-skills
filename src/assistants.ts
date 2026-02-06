@@ -221,7 +221,7 @@ export async function processSyncPairs(
 }
 
 /**
- * Sync skills that exist only in .agents to enabled platforms
+ * Sync skills that exist only in .sync-skills to enabled platforms
  * Creates @ references in platform folders for common-only skills
  */
 export async function syncCommonOnlySkills(

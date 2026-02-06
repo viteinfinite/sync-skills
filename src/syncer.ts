@@ -47,13 +47,13 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
 
   const commonPath = join(projectRoot, COMMON_SKILLS_DIR, skillName, 'SKILL.md');
 
-  // Ensure .agents directory exists
+  // Ensure .sync-skills directory exists
   await fs.mkdir(dirname(commonPath), { recursive: true });
 
   // Extract core frontmatter fields to copy to common
   const coreFrontmatter = pickCoreFrontmatter(parsed.data as Record<string, unknown>);
 
-  // Write frontmatter + body to .agents (strip leading newline added by gray-matter)
+  // Write frontmatter + body to .sync-skills (strip leading newline added by gray-matter)
   const bodyContent = normalizeBodyContent(parsed.content);
 
   // Compute hash of the new common skill (no dependents yet)

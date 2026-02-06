@@ -92,7 +92,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
   // Re-scan after sync to get updated state (including common skills)
   let { platforms, common } = await scanSkills(baseDir, activeConfigs);
 
-  // Phase 2.5: Sync skills that exist only in .agents to enabled platforms
+  // Phase 2.5: Sync skills that exist only in .sync-skills to enabled platforms
   await syncCommonOnlySkills(
     baseDir,
     common.map(c => ({ path: c.path, skillName: c.skillName })),

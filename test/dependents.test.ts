@@ -181,7 +181,7 @@ describe('dependents', () => {
   describe('consolidateDependentsToCommon', () => {
     it('should copy single source to common', async () => {
       TEST_DIR = await createTestFixture('consolidate-single');
-      const commonPath = join(TEST_DIR, '.agents', 'skills');
+      const commonPath = join(TEST_DIR, '.sync-skills', 'skills');
       await fs.mkdir(commonPath, { recursive: true });
 
       const claudePath = join(TEST_DIR, '.claude', 'skills');
@@ -209,7 +209,7 @@ describe('dependents', () => {
 
     it('should detect conflict when hashes differ', async () => {
       TEST_DIR = await createTestFixture('consolidate-conflict');
-      const commonPath = join(TEST_DIR, '.agents', 'skills');
+      const commonPath = join(TEST_DIR, '.sync-skills', 'skills');
       await fs.mkdir(commonPath, { recursive: true });
 
       const claudePath = join(TEST_DIR, '.claude', 'skills');
@@ -249,7 +249,7 @@ describe('dependents', () => {
 
       const claudeSkillsPath = join(TEST_DIR, '.claude', 'skills');
       const codexSkillsPath = join(TEST_DIR, '.codex', 'skills');
-      const agentsSkillPath = join(TEST_DIR, '.agents', 'skills', 'linked-skill');
+      const agentsSkillPath = join(TEST_DIR, '.sync-skills', 'skills', 'linked-skill');
 
       await fs.mkdir(join(claudeSkillsPath, 'linked-skill'), { recursive: true });
       await fs.writeFile(join(claudeSkillsPath, 'linked-skill', 'SKILL.md'), '---\nname: linked-skill\n---\ncontent');

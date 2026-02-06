@@ -39,10 +39,10 @@ test.describe('scenarios', { concurrency: 1 }, () => {
 
     // Verify .codex/skills was created with @ reference
     const codexContent = await readSkillFile(testDir, '.codex', 'my-skill');
-    assert.ok(codexContent.includes('@../../../.agents/skills/my-skill/SKILL.md'),
+    assert.ok(codexContent.includes('@../../../.sync-skills/skills/my-skill/SKILL.md'),
       'codex skill should have @ reference');
 
-    // Verify .agents/skills was created with the skill content
+    // Verify .sync-skills/skills was created with the skill content
     const commonContent = await readCommonSkill(testDir, 'my-skill');
     assert.ok(commonContent.includes('# My Skill'),
       'common skill should have original content');
@@ -67,7 +67,7 @@ test.describe('scenarios', { concurrency: 1 }, () => {
 
     // Verify .codex/skills was created without prompt
     const codexContent = await readSkillFile(testDir, '.codex', 'my-skill');
-    assert.ok(codexContent.includes('@../../../.agents/skills/my-skill/SKILL.md'),
+    assert.ok(codexContent.includes('@../../../.sync-skills/skills/my-skill/SKILL.md'),
       'codex skill should have @ reference');
 
     promptStub.restore();
@@ -86,10 +86,10 @@ test.describe('scenarios', { concurrency: 1 }, () => {
     // Verify no assistant skill directories were created
     const codexSkillsExist = await exists(testDir, '.codex/skills');
     const claudeSkillsExist = await exists(testDir, '.claude/skills');
-    const commonExists = await exists(testDir, '.agents');
+    const commonExists = await exists(testDir, '.sync-skills');
     assert.ok(!codexSkillsExist, '.codex/skills should not exist');
     assert.ok(!claudeSkillsExist, '.claude/skills should not exist');
-    assert.ok(!commonExists, '.agents should not exist');
+    assert.ok(!commonExists, '.sync-skills should not exist');
     assert.strictEqual(promptStub.callCount, 0, 'should not prompt when no skills exist');
 
     promptStub.restore();
@@ -110,16 +110,16 @@ test.describe('scenarios', { concurrency: 1 }, () => {
 
     await run({ baseDir: testDir });
 
-    // Verify .agents/skills was created
+    // Verify .sync-skills/skills was created
     const commonContent = await readCommonSkill(testDir, 'codex-skill');
     assert.ok(commonContent.includes('# Codex Skill'),
       'common skill should have original content');
-    const configExists = await exists(testDir, '.agents/config.json');
-    assert.ok(configExists, 'config should be created in .agents');
+    const configExists = await exists(testDir, '.sync-skills/config.json');
+    assert.ok(configExists, 'config should be created in .sync-skills');
 
     // Verify .codex/skills was refactored with @ reference
     const codexContent = await readSkillFile(testDir, '.codex', 'codex-skill');
-    assert.ok(codexContent.includes('@../../../.agents/skills/codex-skill/SKILL.md'),
+    assert.ok(codexContent.includes('@../../../.sync-skills/skills/codex-skill/SKILL.md'),
       'codex skill should have @ reference');
 
     // Verify .claude/skills was NOT created
@@ -144,26 +144,26 @@ test.describe('scenarios', { concurrency: 1 }, () => {
 
     await run({ baseDir: testDir });
 
-    // Verify .agents/skills was created
+    // Verify .sync-skills/skills was created
     const commonContent = await readCommonSkill(testDir, 'codex-skill');
     assert.ok(commonContent.includes('# Codex Skill'),
       'common skill should have original content');
 
     // Verify .codex/skills was refactored with @ reference
     const codexContent = await readSkillFile(testDir, '.codex', 'codex-skill');
-    assert.ok(codexContent.includes('@../../../.agents/skills/codex-skill/SKILL.md'),
+    assert.ok(codexContent.includes('@../../../.sync-skills/skills/codex-skill/SKILL.md'),
       'codex skill should have @ reference');
 
     // Verify .claude/skills WAS created with @ reference
     const claudeContent = await readSkillFile(testDir, '.claude', 'codex-skill');
-    assert.ok(claudeContent.includes('@../../../.agents/skills/codex-skill/SKILL.md'),
+    assert.ok(claudeContent.includes('@../../../.sync-skills/skills/codex-skill/SKILL.md'),
       'claude skill should have @ reference');
 
     promptStub.restore();
     await cleanupTestFixture(testDir);
   });
 
-  test('Scenario 6: Only .agents + config exist - creates assistant directories', async () => {
+  test('Scenario 6: Only .sync-skills + config exist - creates assistant directories', async () => {
     const promptStub = stubInquirer({ 
       assistants: ['claude', 'codex'],
       create: true
@@ -171,7 +171,7 @@ test.describe('scenarios', { concurrency: 1 }, () => {
 
     const testDir = await createTestFixture('scenario6', async (dir) => {
       await createConfig(dir, ['claude', 'codex']);
-      // Create skill only in .agents
+      // Create skill only in .sync-skills
       await createCommonSkill(dir, 'common-skill', '---\nname: common-skill\n---\n# Common Skill\nThis is a common skill.');
     });
 
@@ -181,9 +181,9 @@ test.describe('scenarios', { concurrency: 1 }, () => {
     const claudeContent = await readSkillFile(testDir, '.claude', 'common-skill');
     const codexContent = await readSkillFile(testDir, '.codex', 'common-skill');
 
-    assert.ok(claudeContent.includes('@../../../.agents/skills/common-skill/SKILL.md'),
+    assert.ok(claudeContent.includes('@../../../.sync-skills/skills/common-skill/SKILL.md'),
       'claude skill should have @ reference');
-    assert.ok(codexContent.includes('@../../../.agents/skills/common-skill/SKILL.md'),
+    assert.ok(codexContent.includes('@../../../.sync-skills/skills/common-skill/SKILL.md'),
       'codex skill should have @ reference');
 
     promptStub.restore();
@@ -200,8 +200,8 @@ test.describe('scenarios', { concurrency: 1 }, () => {
       await createCommonSkill(dir, 'equal-skill', '---\nname: equal-skill\nmetadata:\n  sync:\n    hash: sha256-abc123\n    version: 2\n---\n# Equal Skill\nSame content');
 
       // Create both platform skills with @ reference and same frontmatter
-      await createSkillFile(dir, '.claude', 'equal-skill', '---\nname: equal-skill\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.agents/skills/equal-skill/SKILL.md\n');
-      await createSkillFile(dir, '.codex', 'equal-skill', '---\nname: equal-skill\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.agents/skills/equal-skill/SKILL.md\n');
+      await createSkillFile(dir, '.claude', 'equal-skill', '---\nname: equal-skill\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.sync-skills/skills/equal-skill/SKILL.md\n');
+      await createSkillFile(dir, '.codex', 'equal-skill', '---\nname: equal-skill\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.sync-skills/skills/equal-skill/SKILL.md\n');
     });
 
     // First run - should succeed
@@ -226,8 +226,8 @@ test.describe('scenarios', { concurrency: 1 }, () => {
       await createCommonSkill(dir, 'model-skill', '---\nname: model-skill\nmetadata:\n  sync:\n    hash: sha256-abc123\n    version: 2\n---\n# Model Skill\nSame content');
 
       // Create platform skills with different model fields (non-CORE_FIELD)
-      await createSkillFile(dir, '.claude', 'model-skill', '---\nname: model-skill\nmodel: claude-3-opus\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.agents/skills/model-skill/SKILL.md\n');
-      await createSkillFile(dir, '.codex', 'model-skill', '---\nname: model-skill\nmodel: gpt-4\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.agents/skills/model-skill/SKILL.md\n');
+      await createSkillFile(dir, '.claude', 'model-skill', '---\nname: model-skill\nmodel: claude-3-opus\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.sync-skills/skills/model-skill/SKILL.md\n');
+      await createSkillFile(dir, '.codex', 'model-skill', '---\nname: model-skill\nmodel: gpt-4\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.sync-skills/skills/model-skill/SKILL.md\n');
     });
 
     // Should not detect conflicts - different model fields are allowed
@@ -252,19 +252,19 @@ test.describe('scenarios', { concurrency: 1 }, () => {
     const testDir = await createTestFixture('scenario9', async (dir) => {
       await createConfig(dir, ['claude', 'codex']);
       await createCommonSkill(dir, 'dep-skill', '---\nname: dep-skill\n---\nCommon content\n');
-      await fs.writeFile(join(dir, '.agents/skills/dep-skill/util.js'), 'console.log("common");');
+      await fs.writeFile(join(dir, '.sync-skills/skills/dep-skill/util.js'), 'console.log("common");');
 
       await createSkillFile(
         dir,
         '.claude',
         'dep-skill',
-        '---\nname: dep-skill\n---\n@../../../.agents/skills/dep-skill/SKILL.md\n'
+        '---\nname: dep-skill\n---\n@../../../.sync-skills/skills/dep-skill/SKILL.md\n'
       );
       await createSkillFile(
         dir,
         '.codex',
         'dep-skill',
-        '---\nname: dep-skill\n---\n@../../../.agents/skills/dep-skill/SKILL.md\n'
+        '---\nname: dep-skill\n---\n@../../../.sync-skills/skills/dep-skill/SKILL.md\n'
       );
 
       await fs.writeFile(join(dir, '.claude/skills/dep-skill/extra.js'), 'console.log("extra");');
@@ -285,19 +285,19 @@ test.describe('scenarios', { concurrency: 1 }, () => {
     const testDir = await createTestFixture('scenario10', async (dir) => {
       await createConfig(dir, ['claude', 'codex']);
       await createCommonSkill(dir, 'clean-skill', '---\nname: clean-skill\n---\nCommon content\n');
-      await fs.writeFile(join(dir, '.agents/skills/clean-skill/util.js'), 'console.log("common");');
+      await fs.writeFile(join(dir, '.sync-skills/skills/clean-skill/util.js'), 'console.log("common");');
 
       await createSkillFile(
         dir,
         '.claude',
         'clean-skill',
-        '---\nname: clean-skill\n---\n@../../../.agents/skills/clean-skill/SKILL.md\n'
+        '---\nname: clean-skill\n---\n@../../../.sync-skills/skills/clean-skill/SKILL.md\n'
       );
       await createSkillFile(
         dir,
         '.codex',
         'clean-skill',
-        '---\nname: clean-skill\n---\n@../../../.agents/skills/clean-skill/SKILL.md\n'
+        '---\nname: clean-skill\n---\n@../../../.sync-skills/skills/clean-skill/SKILL.md\n'
       );
     });
 
@@ -323,7 +323,7 @@ test.describe('scenarios', { concurrency: 1 }, () => {
       await createCommonSkill(dir, 'body-sync-skill', '---\nname: body-sync-skill\nmetadata:\n  sync:\n    hash: sha256-abc123\n    version: 2\n---\n# Body Sync\nOriginal content');
 
       // Create platform skill with wrong @ reference (body out of sync, starts with @)
-      await createSkillFile(dir, '.claude', 'body-sync-skill', '---\nname: body-sync-skill\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.agents/skills/wrong-skill/SKILL.md\n');
+      await createSkillFile(dir, '.claude', 'body-sync-skill', '---\nname: body-sync-skill\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.sync-skills/skills/wrong-skill/SKILL.md\n');
     });
 
     await run({ baseDir: testDir });
@@ -335,7 +335,7 @@ test.describe('scenarios', { concurrency: 1 }, () => {
 
     // Verify platform was fixed with correct @ reference
     const claudeContent = await readSkillFile(testDir, '.claude', 'body-sync-skill');
-    assert.ok(claudeContent.includes('@../../../.agents/skills/body-sync-skill/SKILL.md'),
+    assert.ok(claudeContent.includes('@../../../.sync-skills/skills/body-sync-skill/SKILL.md'),
       'claude skill should have correct @ reference after resolution');
 
     promptStub.restore();
@@ -355,8 +355,8 @@ test.describe('scenarios', { concurrency: 1 }, () => {
       await createCommonSkill(dir, 'multi-sync-skill', '---\nname: multi-sync-skill\nmetadata:\n  sync:\n    hash: sha256-abc123\n    version: 2\n---\n# Multi Sync\nOriginal content');
 
       // Both platforms have wrong @ references
-      await createSkillFile(dir, '.claude', 'multi-sync-skill', '---\nname: multi-sync-skill\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.agents/skills/wrong1/SKILL.md\n');
-      await createSkillFile(dir, '.codex', 'multi-sync-skill', '---\nname: multi-sync-skill\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.agents/skills/wrong2/SKILL.md\n');
+      await createSkillFile(dir, '.claude', 'multi-sync-skill', '---\nname: multi-sync-skill\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.sync-skills/skills/wrong1/SKILL.md\n');
+      await createSkillFile(dir, '.codex', 'multi-sync-skill', '---\nname: multi-sync-skill\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.sync-skills/skills/wrong2/SKILL.md\n');
     });
 
     await run({ baseDir: testDir });
@@ -370,9 +370,9 @@ test.describe('scenarios', { concurrency: 1 }, () => {
     const claudeContent = await readSkillFile(testDir, '.claude', 'multi-sync-skill');
     const codexContent = await readSkillFile(testDir, '.codex', 'multi-sync-skill');
 
-    assert.ok(claudeContent.includes('@../../../.agents/skills/multi-sync-skill/SKILL.md'),
+    assert.ok(claudeContent.includes('@../../../.sync-skills/skills/multi-sync-skill/SKILL.md'),
       'claude skill should have correct @ reference');
-    assert.ok(codexContent.includes('@../../../.agents/skills/multi-sync-skill/SKILL.md'),
+    assert.ok(codexContent.includes('@../../../.sync-skills/skills/multi-sync-skill/SKILL.md'),
       'codex skill should have correct @ reference');
 
     promptStub.restore();
@@ -435,9 +435,9 @@ test.describe('scenarios', { concurrency: 1 }, () => {
 
     const claudeContent = await readSkillFile(testDir, '.claude', 'multi-body-skill');
     const codexContent = await readSkillFile(testDir, '.codex', 'multi-body-skill');
-    assert.ok(claudeContent.includes('@../../../.agents/skills/multi-body-skill/SKILL.md'),
+    assert.ok(claudeContent.includes('@../../../.sync-skills/skills/multi-body-skill/SKILL.md'),
       'claude should reference common after keep-common');
-    assert.ok(codexContent.includes('@../../../.agents/skills/multi-body-skill/SKILL.md'),
+    assert.ok(codexContent.includes('@../../../.sync-skills/skills/multi-body-skill/SKILL.md'),
       'codex should reference common after keep-common');
 
     promptStub.restore();
@@ -454,7 +454,7 @@ test.describe('scenarios', { concurrency: 1 }, () => {
 
       await createCommonSkill(dir, 'fm-skill', '---\nname: fm-skill\ndescription: Original description\nmetadata:\n  sync:\n    hash: sha256-abc123\n    version: 2\n---\nContent');
 
-      await createSkillFile(dir, '.claude', 'fm-skill', '---\nname: fm-skill\ndescription: Modified description\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.agents/skills/fm-skill/SKILL.md\n');
+      await createSkillFile(dir, '.claude', 'fm-skill', '---\nname: fm-skill\ndescription: Modified description\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.sync-skills/skills/fm-skill/SKILL.md\n');
     });
 
     await run({ baseDir: testDir });
@@ -483,8 +483,8 @@ test.describe('scenarios', { concurrency: 1 }, () => {
 
       await createCommonSkill(dir, 'multi-fm-skill', '---\nname: multi-fm-skill\ndescription: Original\nmetadata:\n  sync:\n    hash: sha256-abc123\n    version: 2\n---\nContent');
 
-      await createSkillFile(dir, '.claude', 'multi-fm-skill', '---\nname: multi-fm-skill\ndescription: Claude desc\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.agents/skills/multi-fm-skill/SKILL.md\n');
-      await createSkillFile(dir, '.codex', 'multi-fm-skill', '---\nname: multi-fm-skill\ndescription: Codex desc\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.agents/skills/multi-fm-skill/SKILL.md\n');
+      await createSkillFile(dir, '.claude', 'multi-fm-skill', '---\nname: multi-fm-skill\ndescription: Claude desc\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.sync-skills/skills/multi-fm-skill/SKILL.md\n');
+      await createSkillFile(dir, '.codex', 'multi-fm-skill', '---\nname: multi-fm-skill\ndescription: Codex desc\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.sync-skills/skills/multi-fm-skill/SKILL.md\n');
     });
 
     await run({ baseDir: testDir });
@@ -511,7 +511,7 @@ test.describe('scenarios', { concurrency: 1 }, () => {
       await createCommonSkill(dir, 'both-at-skill', '---\nname: both-at-skill\ndescription: Original\nmetadata:\n  sync:\n    hash: sha256-abc123\n    version: 2\n---\nOriginal content');
 
       // Platform has wrong @ reference AND different CORE_FIELD frontmatter
-      await createSkillFile(dir, '.claude', 'both-at-skill', '---\nname: both-at-skill\ndescription: Modified\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.agents/skills/wrong/SKILL.md\n');
+      await createSkillFile(dir, '.claude', 'both-at-skill', '---\nname: both-at-skill\ndescription: Modified\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.sync-skills/skills/wrong/SKILL.md\n');
     });
 
     await run({ baseDir: testDir });
@@ -522,7 +522,7 @@ test.describe('scenarios', { concurrency: 1 }, () => {
     assert.ok(!choices.some(choice => choice.value === 'keep-platform'), 'should not offer keep-platform');
 
     const claudeContent = await readSkillFile(testDir, '.claude', 'both-at-skill');
-    assert.ok(claudeContent.includes('@../../../.agents/skills/both-at-skill/SKILL.md'),
+    assert.ok(claudeContent.includes('@../../../.sync-skills/skills/both-at-skill/SKILL.md'),
       'should have correct @ reference');
     assert.ok(claudeContent.includes('description: Original'),
       'should have common frontmatter');
@@ -576,8 +576,8 @@ test.describe('scenarios', { concurrency: 1 }, () => {
       await createCommonSkill(dir, 'skill1', '---\nname: skill1\ndescription: Original1\nmetadata:\n  sync:\n    hash: sha256-abc123\n    version: 2\n---\nContent1');
       await createCommonSkill(dir, 'skill2', '---\nname: skill2\ndescription: Original2\nmetadata:\n  sync:\n    hash: sha256-def456\n    version: 2\n---\nContent2');
 
-      await createSkillFile(dir, '.claude', 'skill1', '---\nname: skill1\ndescription: Modified1\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.agents/skills/wrong1/SKILL.md\n');
-      await createSkillFile(dir, '.claude', 'skill2', '---\nname: skill2\ndescription: Modified2\nmetadata:\n  sync:\n    hash: sha256-def456\n---\n@../../../.agents/skills/wrong2/SKILL.md\n');
+      await createSkillFile(dir, '.claude', 'skill1', '---\nname: skill1\ndescription: Modified1\nmetadata:\n  sync:\n    hash: sha256-abc123\n---\n@../../../.sync-skills/skills/wrong1/SKILL.md\n');
+      await createSkillFile(dir, '.claude', 'skill2', '---\nname: skill2\ndescription: Modified2\nmetadata:\n  sync:\n    hash: sha256-def456\n---\n@../../../.sync-skills/skills/wrong2/SKILL.md\n');
     });
 
     await run({ baseDir: testDir });

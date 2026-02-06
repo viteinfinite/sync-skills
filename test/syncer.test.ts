@@ -10,14 +10,14 @@ describe('refactorSkill', () => {
 
   beforeEach(async () => {
     await fs.mkdir(`${testDir}/.claude/skills/test-skill`, { recursive: true });
-    await fs.mkdir(`${testDir}/.agents/skills/test-skill`, { recursive: true });
+    await fs.mkdir(`${testDir}/.sync-skills/skills/test-skill`, { recursive: true });
   });
 
   afterEach(async () => {
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
-  it('should extract body to .agents and replace with @ reference', async () => {
+  it('should extract body to .sync-skills and replace with @ reference', async () => {
     const sourcePath = `${testDir}/.claude/skills/test-skill/SKILL.md`;
     await fs.writeFile(sourcePath, `---
 name: test-skill
@@ -31,7 +31,7 @@ This is content`);
     await refactorSkill(sourcePath);
 
     const sourceContent = await fs.readFile(sourcePath, 'utf8');
-    const commonPath = `${testDir}/.agents/skills/test-skill/SKILL.md`;
+    const commonPath = `${testDir}/.sync-skills/skills/test-skill/SKILL.md`;
     const commonContent = await fs.readFile(commonPath, 'utf8');
     const expectedRef = buildCommonSkillReference(sourcePath, commonPath);
 
@@ -51,7 +51,7 @@ This is content`);
 
   it('should not refactor if @ reference already exists', async () => {
     const sourcePath = `${testDir}/.claude/skills/test-skill/SKILL.md`;
-    const commonPath = `${testDir}/.agents/skills/test-skill/SKILL.md`;
+    const commonPath = `${testDir}/.sync-skills/skills/test-skill/SKILL.md`;
     const atReference = buildCommonSkillReference(sourcePath, commonPath);
     await fs.writeFile(sourcePath, `---
 name: test-skill
@@ -59,11 +59,11 @@ name: test-skill
 
 ${atReference}`);
 
-    await fs.writeFile(`${testDir}/.agents/skills/test-skill/SKILL.md`, 'original');
+    await fs.writeFile(`${testDir}/.sync-skills/skills/test-skill/SKILL.md`, 'original');
 
     await refactorSkill(sourcePath);
 
-    const commonContent = await fs.readFile(`${testDir}/.agents/skills/test-skill/SKILL.md`, 'utf8');
+    const commonContent = await fs.readFile(`${testDir}/.sync-skills/skills/test-skill/SKILL.md`, 'utf8');
     assert.strictEqual(commonContent, 'original'); // Should not overwrite
   });
 });

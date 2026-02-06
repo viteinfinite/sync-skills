@@ -19,7 +19,7 @@
     "test": "tsx --test test/*.test.ts",
     "test:integration": "tsx --test test/integration/*.test.ts",
     "test:all": "npm test && npm run test:integration",
-    "test:clean": "rm -rf test/fixtures/*/ .agents"
+    "test:clean": "rm -rf test/fixtures/*/ .sync-skills"
   },
   "dependencies": {
     "chalk": "^5.3",

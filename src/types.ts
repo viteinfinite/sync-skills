@@ -129,7 +129,7 @@ export interface ParsedSkill {
  * Use getAssistantConfigs() to convert this map into AssistantConfig[] objects.
  */
 export const ASSISTANT_MAP: Record<string, string | AssistantPathConfig> = {
-  'amp':      '.amp/skills',
+  'amp':      '.agents/skills',
   'claude':   '.claude/skills',
   'cline':    '.cline/skills',
   'codex':    '.codex/skills',

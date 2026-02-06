@@ -106,7 +106,7 @@ export async function writeConfig(baseDir: string, config: Config): Promise<void
   const configPath = join(baseDir, CONFIG_PATH);
   const configDir = join(baseDir, dirname(CONFIG_PATH));
 
-  // Ensure .agents directory exists
+  // Ensure .sync-skills directory exists
   await fs.mkdir(configDir, { recursive: true });
 
   // Write config with pretty formatting

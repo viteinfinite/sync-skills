@@ -27,7 +27,7 @@ describe('list mode', () => {
       await fs.writeFile(join(claudeSkillDir, 'extra.js'), 'console.log("hi")');
 
       // Create a skill in common with @ reference from codex
-      const commonSkillDir = join(dir, '.agents/skills/skill-2');
+      const commonSkillDir = join(dir, '.sync-skills/skills/skill-2');
       await fs.mkdir(commonSkillDir, { recursive: true });
       await fs.writeFile(join(commonSkillDir, 'SKILL.md'), '---\ndescription: Common skill 2 description\n---\nCommon body');
 

@@ -6,4 +6,4 @@ metadata:
     managed-by: sync-skills
     refactored: '2026-01-12T01:12:40.960Z'
 ---
-@../../../.agents/skills/commit-message/SKILL.md
+@../../../.sync-skills/skills/commit-message/SKILL.md

@@ -28,11 +28,11 @@ test('Integration: --reconfigure - should update config and then continue to syn
   await run({ baseDir: testDir, reconfigure: true });
 
   // Verify config exists
-  const configCreated = await exists(testDir, '.agents/config.json');
+  const configCreated = await exists(testDir, '.sync-skills/config.json');
   assert.ok(configCreated, 'Config should be created');
 
-  // Verify sync happened: skill should be refactored to .agents
-  const commonExists = await exists(testDir, '.agents/skills/test-skill/SKILL.md');
+  // Verify sync happened: skill should be refactored to .sync-skills
+  const commonExists = await exists(testDir, '.sync-skills/skills/test-skill/SKILL.md');
   assert.ok(commonExists, 'Skill should be refactored to common (sync phase continued)');
 
   await cleanupTestFixture(testDir);
