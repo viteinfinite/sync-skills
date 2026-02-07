@@ -47,5 +47,9 @@
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
-  "type": "module"
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/viteinfinite/sync-skills.git"
+  }
 }
