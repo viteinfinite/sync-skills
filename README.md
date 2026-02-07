@@ -93,8 +93,10 @@ sync-skills supports the following AI assistants out of the box:
 | **gemini** | `.gemini/skills` | — | Google Gemini |
 | **github** | `.github/skills` | — | GitHub Copilot |
 | **kilo** | `.kilocode/skills` | — | Kilo |
+| **kiro** | `.kiro/skills` | — | Kiro |
 | **opencode** | `.opencode/skill` | `.config/opencode/skill` | OpenCode |
 | **roo** | `.roo/skills` | — | Roo Code |
+| **vibe** | `.vibe/skills` | — | Mistral Vibe |
 | **windsurf** | `.windsurf/skills` | `.codeium/windsurf/skills` | Codeium Windsurf |
 
 *Some assistants have separate project and home directory configurations. Use `--home` flag to sync home directories.*
@@ -128,27 +130,27 @@ npm install -g .
 ## 💡 How It Works
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                           Your Project                           │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  .sync-skills/                 ←  Managed sync metadata + shared skills│
-│  ├── config.json                                                  │
-│  └── skills/                                                      │
-│     ├── skill-a/SKILL.md                                          │
-│     ├── skill-a/util.js   ←  Supporting files also synced!       │
-│     ├── skill-a/docs/guide.md                                     │
-│     └── skill-b/SKILL.md                                          │
-│                                                                  │
-│  .claude/skills/          ←  References to common skills         │
-│  ├── skill-a/SKILL.md     →  @../../../.sync-skills/skills/... |
-│  └── skill-b/SKILL.md     →  (dependent files removed)           │
-│                                                                  │
-│  .codex/skills/           ←  Same skills, same references        │
-│  ├── skill-a/SKILL.md     →  @../../../.sync-skills/skills/... │
-│  └── skill-b/SKILL.md     →  (dependent files removed)           │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                           Your Project                             │
+├────────────────────────────────────────────────────────────────────┤
+│                                                                    │
+│  .sync-skills/            ←  Managed sync metadata + shared skills │
+│  ├── config.json                                                   │
+│  └── skills/                                                       │
+│     ├── skill-a/SKILL.md                                           │
+│     ├── skill-a/util.js   ←  Supporting files also synced!         │
+│     ├── skill-a/docs/guide.md                                      │
+│     └── skill-b/SKILL.md                                           │
+│                                                                    │
+│  .claude/skills/          ←  References to common skills           │
+│  ├── skill-a/SKILL.md     →  @../../../.sync-skills/skills/...     |
+│  └── skill-b/SKILL.md     →  (dependent files removed)             │
+│                                                                    │
+│  .codex/skills/           ←  Same skills, same references          │
+│  ├── skill-a/SKILL.md     →  @../../../.sync-skills/skills/...     │
+│  └── skill-b/SKILL.md     →  (dependent files removed)             │
+│                                                                    │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 **The magic:** Edit once in `.sync-skills/`, and all your AI assistants see the changes!
@@ -277,12 +279,14 @@ Configuration is stored in `.sync-skills/config.json`:
 ### Skills (SKILL.md)
 - ✅ Skill body
 - ✅ Frontmatter metadata (cf [Agent Skill Specs](https://agentskills.io/specification)):
-  - name
-  - description
-  - allowed-tools
-  - license
-  - metadata
-  - compatibility
+  - `name`
+  - `description`
+  - `allowed-tools`
+  - `license`
+  - `metadata`
+  - `compatibility`
+  - `user-invocable`
+  - `disable-model-invocation`
 
 ### Dependent Files
 - ✅ **All non-SKILL.md files** in skill folders are also synced:
@@ -331,11 +335,3 @@ npm run test:clean
 ---
 
 ## Contributions welcome!
-
----
-
-<div align="center">
-
-**Made with Claude Code**
-
-</div>
