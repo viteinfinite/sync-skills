@@ -52,10 +52,10 @@ From the test directory, check the created structure:
 
 ```bash
 # Configuration
-cat .agents-common/config.json
+cat .sync-skills/config.json
 
 # Common skills
-cat .agents-common/skills/skill-a/SKILL.md
+cat .sync-skills/skills/skill-a/SKILL.md
 
 # Source skills (with @ reference + sync metadata)
 cat .claude/skills/skill-a/SKILL.md
@@ -64,7 +64,7 @@ cat .claude/skills/skill-a/SKILL.md
 cat .codex/skills/skill-a/SKILL.md
 
 # Directory tree
-ls -laR .agents-common/ .claude/skills/ .codex/skills/
+ls -laR .sync-skills/ .claude/skills/ .codex/skills/
 ```
 
 ### 4. Test Reconfiguration
@@ -90,7 +90,7 @@ Remove test artifacts:
 npm run test:clean
 
 # Remove all generated files
-rm -rf .agents-common .claude .codex
+rm -rf .sync-skills .claude .codex
 ```
 
 ## Expected Behavior
@@ -105,18 +105,18 @@ When no configuration exists:
 
 1. **Phase 1 - Discovery:** Detect which assistants have skills
 2. **Phase 2 - Bidirectional Sync:** Create missing assistant folders
-3. **Phase 2.5 - Common-Only Sync:** Create @ references in platform folders for skills that only exist in `.agents-common`
+3. **Phase 2.5 - Common-Only Sync:** Create @ references in platform folders for skills that only exist in `.sync-skills`
 4. **Phase 2.75 - Out-of-Sync Detection:** Detect platform skills modified outside of sync-skills
-5. **Phase 3 - Refactoring:** Move skills without `@` references to `.agents-common`
+5. **Phase 3 - Refactoring:** Move skills without `@` references to `.sync-skills`
 6. **Phase 4 - Conflict Resolution:** Detect and resolve skill conflicts
 7. **Phase 5 - Frontmatter Propagation:** Sync frontmatter from common to targets
-8. **Phase 6 - Dependent Files Sync:** Centralize non-SKILL.md files in `.agents-common`
+8. **Phase 6 - Dependent Files Sync:** Centralize non-SKILL.md files in `.sync-skills`
 
 ## Dependent Files Sync
 
 ### Feature Overview
 
-Dependent files (all non-SKILL.md files in skill folders) are centralized in `.agents-common/skills/` with hash-based conflict resolution. These files are NOT copied to platform folders - they only exist in the common folder.
+Dependent files (all non-SKILL.md files in skill folders) are centralized in `.sync-skills/skills/` with hash-based conflict resolution. These files are NOT copied to platform folders - they only exist in the common folder.
 
 ### Supported File Types
 
@@ -144,8 +144,8 @@ Excluded from sync:
 ```
 .claude/myskill/SKILL.md (@ reference)
 .codex/myskill/SKILL.md (@ reference)
-.agents-common/myskill/SKILL.md
-.agents-common/myskill/util.js (centralized)
+.sync-skills/skills/myskill/SKILL.md
+.sync-skills/skills/myskill/util.js (centralized)
 ```
 
 #### Scenario 2: Multi-Platform, No Common
@@ -175,33 +175,33 @@ Excluded from sync:
 
 **Before:**
 ```
-.agents-common/myskill/SKILL.md
-.agents-common/myskill/util.js
+.sync-skills/skills/myskill/SKILL.md
+.sync-skills/skills/myskill/util.js
 ```
 
 **After sync (with codex and claude enabled):**
 ```
 .claude/myskill/SKILL.md (@ reference created)
 .codex/myskill/SKILL.md (@ reference created)
-.agents-common/myskill/SKILL.md (unchanged)
-.agents-common/myskill/util.js (unchanged - centralized)
+.sync-skills/skills/myskill/SKILL.md (unchanged)
+.sync-skills/skills/myskill/util.js (unchanged - centralized)
 ```
 
 #### Scenario 5: Common Only, Both Platforms
 
 **Before:**
 ```
-.agents-common/myskill-1/SKILL.md
-.agents-common/myskill-1/util.js
-.agents-common/myskill-2/SKILL.md
+.sync-skills/skills/myskill-1/SKILL.md
+.sync-skills/skills/myskill-1/util.js
+.sync-skills/skills/myskill-2/SKILL.md
 .claude/myskill-1/SKILL.md
 ```
 
 **After sync (with claude enabled):**
 ```
-.agents-common/myskill-1/SKILL.md
-.agents-common/myskill-1/util.js
-.agents-common/myskill-2/SKILL.md
+.sync-skills/skills/myskill-1/SKILL.md
+.sync-skills/skills/myskill-1/util.js
+.sync-skills/skills/myskill-2/SKILL.md
 .claude/myskill-1/SKILL.md
 .claude/myskill-2/SKILL.md (new, with @ reference)
 ```
@@ -241,7 +241,7 @@ echo 'console.log("hello");' > .claude/skills/test-skill/util.js
 npx tsx bin/sync-skills.ts
 
 # Verify
-cat .agents-common/skills/test-skill/util.js
+cat .sync-skills/skills/test-skill/util.js
 ls .claude/skills/test-skill/util.js  # Should not exist (removed)
 ```
 
@@ -273,14 +273,14 @@ echo 'console.log("codex");' > .codex/skills/conflict-skill/util.js
 npx tsx bin/sync-skills.ts
 
 # Verify hash stored in frontmatter (includes all files)
-grep -A5 'metadata:' .agents-common/skills/conflict-skill/SKILL.md
+grep -A5 'metadata:' .sync-skills/skills/conflict-skill/SKILL.md
 ```
 
 ### Verification Checklist
 
 After running dependent files sync, verify:
 
-- [ ] Dependent files exist only in `.agents-common/skills/{skill}/`
+- [ ] Dependent files exist only in `.sync-skills/skills/{skill}/`
 - [ ] Platform folders contain only `SKILL.md` (@ reference)
 - [ ] Main hash stored in `metadata.sync.hash` field (includes frontmatter + body + all dependent files)
 - [ ] Conflicts detected when file hashes differ
@@ -292,8 +292,8 @@ After running dependent files sync, verify:
 
 ```bash
 # Create skill with stored hash
-mkdir -p .agents-common/skills/hash-test
-cat > .agents-common/skills/hash-test/SKILL.md << 'EOF'
+mkdir -p .sync-skills/skills/hash-test
+cat > .sync-skills/skills/hash-test/SKILL.md << 'EOF'
 ---
 name: hash-test
 metadata:
@@ -304,7 +304,7 @@ metadata:
 # Hash Test
 EOF
 
-echo 'original content' > .agents-common/skills/hash-test/util.js
+echo 'original content' > .sync-skills/skills/hash-test/util.js
 
 # Modify platform version - should detect out-of-sync
 mkdir -p .claude/skills/hash-test
@@ -328,17 +328,17 @@ npx tsx bin/sync-skills.ts
 ### Directory Structure After Sync
 
 ```
-.agents-common/
+.sync-skills/
 ├── config.json
 └── skills/
     ├── skill-a/SKILL.md (full content)
     └── skill-b/SKILL.md (full content)
 
 .claude/skills/
-└── skill-a/SKILL.md (@../../../.agents-common/... + sync metadata)
+└── skill-a/SKILL.md (@../../../.sync-skills/... + sync metadata)
 
 .codex/skills/
-└── skill-a/SKILL.md (@../../../.agents-common/...)
+└── skill-a/SKILL.md (@../../../.sync-skills/...)
 ```
 
 ### Conflict Detection
@@ -369,6 +369,6 @@ npx tsx --test test/integration.test.ts
 - [ ] `--reconfigure` opens interactive prompt
 - [ ] `--home` uses `~/.claude`, `~/.codex`
 - [ ] `--fail-on-conflict` exits with error on conflicts
-- [ ] Skills are properly refactored to `.agents-common`
+- [ ] Skills are properly refactored to `.sync-skills`
 - [ ] Conflicts are detected and can be resolved
 - [ ] Config persistence works across runs
