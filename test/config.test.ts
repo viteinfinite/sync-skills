@@ -1,13 +1,3 @@
-import { test } from 'node:test';
-import { strict as assert } from 'assert';
-import { promises as fs } from 'fs';
-import { join } from 'path';
-import { describe, it, beforeEach, afterEach } from 'node:test';
-import inquirer from 'inquirer';
-import sinon from 'sinon';
-import { readConfig, writeConfig, detectAvailableAssistants, ensureConfig, reconfigure, CONFIG_PATH } from '../src/config.js';
-import { getAssistantConfigs, ASSISTANT_MAP } from '../src/types.js';
-
 import { test, describe, it } from 'node:test';
 import { strict as assert } from 'assert';
 import { promises as fs } from 'fs';
@@ -155,6 +145,47 @@ test('getAssistantConfigs - includes kilo in ASSISTANT_MAP', () => {
   assert.strictEqual(configs[0].skillsDir, '.kilocode/skills');
 });
 
+test('getAssistantConfigs - includes .agents, pi, openclaw, and hermes', () => {
+  assert.strictEqual(ASSISTANT_MAP['agents'], '.agents/skills');
+  assert.deepEqual(ASSISTANT_MAP['pi'], {
+    project: '.pi/skills',
+    home: '.pi/agent/skills'
+  });
+  assert.deepEqual(ASSISTANT_MAP['openclaw'], {
+    home: '.openclaw/skills'
+  });
+  assert.deepEqual(ASSISTANT_MAP['hermes'], {
+    home: '.hermes/skills'
+  });
+});
+
+test('getAssistantConfigs - omits home-only assistants outside home mode', () => {
+  const projectConfigs = getAssistantConfigs(['agents', 'openclaw', 'hermes', 'pi']);
+
+  assert.deepEqual(
+    projectConfigs.map(config => config.name),
+    ['agents', 'pi']
+  );
+});
+
+test('getAssistantConfigs - includes home-only assistants in home mode', () => {
+  const homeConfigs = getAssistantConfigs(['agents', 'openclaw', 'hermes', 'pi'], true);
+
+  assert.deepEqual(
+    homeConfigs.map(config => ({
+      name: config.name,
+      dir: config.dir,
+      skillsDir: config.skillsDir
+    })),
+    [
+      { name: 'agents', dir: '.agents', skillsDir: '.agents/skills' },
+      { name: 'openclaw', dir: '.openclaw', skillsDir: '.openclaw/skills' },
+      { name: 'hermes', dir: '.hermes', skillsDir: '.hermes/skills' },
+      { name: 'pi', dir: '.pi', skillsDir: '.pi/agent/skills' }
+    ]
+  );
+});
+
 test('getAssistantConfigs - supports non-standard skill folder names', () => {
   // Add a custom assistant for testing
   const originalMap = { ...ASSISTANT_MAP };
@@ -182,5 +213,19 @@ test('detectAvailableAssistants - detects by folder name not skills path', async
   assert.ok(!detected.includes('codex'));
 
   // Cleanup
+  await cleanupTestFixture(testDir);
+});
+
+test('detectAvailableAssistants - detects home-only assistants in home mode', async () => {
+  const testDir = await createTestFixture('detect-home-only');
+
+  await fs.mkdir(join(testDir, '.hermes'), { recursive: true });
+  await fs.mkdir(join(testDir, '.openclaw'), { recursive: true });
+
+  const detected = await detectAvailableAssistants(testDir, true);
+
+  assert.ok(detected.includes('hermes'));
+  assert.ok(detected.includes('openclaw'));
+
   await cleanupTestFixture(testDir);
 });

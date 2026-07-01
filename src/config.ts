@@ -113,30 +113,24 @@ export async function writeConfig(baseDir: string, config: Config): Promise<void
   await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
 }
 
+function getAssistantChoices(homeMode: boolean = false): string[] {
+  return getAssistantConfigs(undefined, homeMode).map(config => config.name);
+}
+
 /**
  * Detect which assistant folders exist in the directory
  * @param baseDir - Base directory to scan
  * @returns Array of assistant names that have folders present
  */
-export async function detectAvailableAssistants(baseDir: string): Promise<string[]> {
+export async function detectAvailableAssistants(baseDir: string, homeMode: boolean = false): Promise<string[]> {
   const available: string[] = [];
 
-  for (const [name, config] of Object.entries(ASSISTANT_MAP)) {
-    // Handle both string and AssistantPathConfig types
-    let skillsPath: string;
-    if (typeof config === 'string') {
-      skillsPath = config;
-    } else {
-      // For assistants with dual paths, check the project path
-      skillsPath = config.project;
-    }
-
-    // Extract the folder name (first path segment before /)
-    const folder = skillsPath.split('/')[0];
+  for (const config of getAssistantConfigs(undefined, homeMode)) {
+    const folder = config.dir;
     const dir = join(baseDir, folder);
     try {
       await fs.access(dir);
-      available.push(name);
+      available.push(config.name);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         throw error; // Re-throw unexpected errors
@@ -152,12 +146,12 @@ export async function detectAvailableAssistants(baseDir: string): Promise<string
  * Interactive reconfiguration flow
  * @param baseDir - Base directory for config
  */
-export async function reconfigure(baseDir: string): Promise<void> {
+export async function reconfigure(baseDir: string, homeMode: boolean = false): Promise<void> {
   // Detect which folders exist for pre-selection
-  const detected = await detectAvailableAssistants(baseDir);
+  const detected = await detectAvailableAssistants(baseDir, homeMode);
 
   // Build choices for all available assistants
-  const choices = Object.keys(ASSISTANT_MAP).map(name => ({
+  const choices = getAssistantChoices(homeMode).map(name => ({
     name: name,
     checked: detected.includes(name)
   }));
@@ -202,7 +196,7 @@ export async function reconfigure(baseDir: string): Promise<void> {
  * @param baseDir - Base directory for config
  * @returns Config object
  */
-export async function ensureConfig(baseDir: string): Promise<Config> {
+export async function ensureConfig(baseDir: string, homeMode: boolean = false): Promise<Config> {
   // Check if config already exists
   const existing = await readConfig(baseDir);
   if (existing) {
@@ -210,7 +204,7 @@ export async function ensureConfig(baseDir: string): Promise<Config> {
   }
 
   // Detect which assistant folders exist
-  const detected = await detectAvailableAssistants(baseDir);
+  const detected = await detectAvailableAssistants(baseDir, homeMode);
 
   if (detected.length === 0) {
     // No folders exist - prompt user to select
@@ -219,7 +213,7 @@ export async function ensureConfig(baseDir: string): Promise<Config> {
 
   let selected: string[];
 
-  const choices = Object.keys(ASSISTANT_MAP).map(name => ({
+  const choices = getAssistantChoices(homeMode).map(name => ({
     name: name,
     checked: detected.includes(name)
   }));

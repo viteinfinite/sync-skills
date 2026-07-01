@@ -24,10 +24,10 @@ export async function refactorSkill(sourcePath: string): Promise<string | null> 
   let projectRoot = resolve('.'); // Default to current working directory
 
   // Extract all assistant directory names
-  const assistantDirs = Object.values(ASSISTANT_MAP).map(config => {
-    const skillsPath = typeof config === 'string' ? config : config.project;
-    return skillsPath.split('/')[0];
-  });
+  const assistantDirs = Object.values(ASSISTANT_MAP)
+    .map(config => typeof config === 'string' ? config : config.project)
+    .filter((skillsPath): skillsPath is string => Boolean(skillsPath))
+    .map(skillsPath => skillsPath.split('/')[0]);
 
   // Check if we're in any assistant directory structure
   const dirParts = sourceDir.split('/');

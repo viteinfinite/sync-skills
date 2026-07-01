@@ -57,7 +57,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
   // Handle --reconfigure flag
   if (reconfigure) {
     logger.decision({ phase: 'config', action: 'reconfigure-start' });
-    await runReconfigure(baseDir);
+    await runReconfigure(baseDir, homeMode);
     logger.decision({ phase: 'config', action: 'reconfigure-complete' });
   }
 
@@ -72,7 +72,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
   }
 
   // Ensure config exists
-  const config = await ensureConfig(baseDir);
+  const config = await ensureConfig(baseDir, homeMode);
   logger.decision({ phase: 'config', action: 'config-ready' });
 
   // Phase 1: Get enabled assistants and find sync pairs

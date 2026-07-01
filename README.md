@@ -4,6 +4,29 @@
 
 **Synchronize AI agent skills across different platforms with a single command**
 
+</div>
+
+### Before
+
+```text
+my-project/
+├── .claude/skills/release-notes/SKILL.md
+├── .agents/skills/release-notes/SKILL.md
+└── .pi/skills/release-notes/SKILL.md
+```
+
+### After
+
+```text
+my-project/
+├── .sync-skills/skills/release-notes/SKILL.md
+├── .claude/skills/release-notes/SKILL.md    -> @../../../.sync-skills/...
+├── .agents/skills/release-notes/SKILL.md    -> @../../../.sync-skills/...
+└── .pi/skills/release-notes/SKILL.md        -> @../../../.sync-skills/...
+```
+
+<div align="center">
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Node](https://img.shields.io/badge/Node-20+-green.svg)](https://nodejs.org/)
@@ -15,7 +38,7 @@
 
 ## ✨ Why?
 
-Managing the same AI agent skills across multiple platforms (Claude, Cursor, Copilot, etc.) is **painful**. You end up duplicating files, keeping them in sync manually, and dealing with version conflicts.
+Managing the same AI agent skills across multiple platforms (Claude, Cursor, Copilot, `.agents`, `pi`, etc.) is **painful**. You end up duplicating files, keeping them in sync manually, and dealing with version conflicts.
 
 **sync-skills** solves this by:
 - 🔄 **Keep skills in sync** across all your AI assistants automatically
@@ -25,7 +48,7 @@ Managing the same AI agent skills across multiple platforms (Claude, Cursor, Cop
 
 ### Why not just use symlinks?
 
-You might wonder: *"Why not just symlink `.claude/skills`, `.codex/skills`, etc. to a common directory?"*
+You might wonder: *"Why not just symlink* *`.claude/skills`,* *`.agents/skills`,* *`.pi/skills`, etc. to a common directory?"*
 
 While symlinks work for basic cases, **sync-skills** provides important advantages:
 
@@ -51,7 +74,7 @@ Many companies have policies allowing developers to use their preferred AI assis
 - Each developer can run with their own assistant set: `sync-skills --reconfigure`
 - Skills sync across all configured assistants automatically
 - No need to maintain separate skill sets or manually copy files
-- Works seamlessly whether you use Claude, Codex, Cursor, Gemini, or all of them
+- Works seamlessly whether you use Claude, Codex, Cursor, `pi`, OpenClaw, Hermes, or all of them
 
 **3. Conflict resolution and safety**
 
@@ -86,20 +109,24 @@ sync-skills supports the following AI assistants out of the box:
 
 | Assistant | Project Directory | Home Directory | Description |
 |-----------|-------------------|----------------|-------------|
+| **agents** | `.agents/skills` | — | Agents |
 | **claude** | `.claude/skills` | — | Claude Code, Amp |
 | **cline** | `.cline/skills` | — | Cline |
 | **codex** | `.codex/skills` | — | Codex |
 | **cursor** | `.cursor/skills` | — | Cursor |
 | **gemini** | `.gemini/skills` | — | Google Gemini |
 | **github** | `.github/skills` | — | GitHub Copilot |
+| **hermes** | — | `.hermes/skills` | Hermes |
 | **kilo** | `.kilocode/skills` | — | Kilo |
 | **kiro** | `.kiro/skills` | — | Kiro |
+| **openclaw** | — | `.openclaw/skills` | OpenClaw |
 | **opencode** | `.opencode/skill` | `.config/opencode/skill` | OpenCode |
+| **pi** | `.pi/skills` | `.pi/agent/skills` | pi |
 | **roo** | `.roo/skills` | — | Roo Code |
 | **vibe** | `.vibe/skills` | — | Mistral Vibe |
 | **windsurf** | `.windsurf/skills` | `.codeium/windsurf/skills` | Codeium Windsurf |
 
-*Some assistants have separate project and home directory configurations. Use `--home` flag to sync home directories.*
+*Some assistants are project-only, some are home-only, and some support both. Use `--home` to sync home directories when available.*
 
 ### Adding Custom Assistants
 
@@ -142,11 +169,11 @@ npm install -g .
 │     ├── skill-a/docs/guide.md                                      │
 │     └── skill-b/SKILL.md                                           │
 │                                                                    │
-│  .claude/skills/          ←  References to common skills           │
+│  .agents/skills/          ←  References to common skills           │
 │  ├── skill-a/SKILL.md     →  @../../../.sync-skills/skills/...     |
 │  └── skill-b/SKILL.md     →  (dependent files removed)             │
 │                                                                    │
-│  .codex/skills/           ←  Same skills, same references          │
+│  .pi/skills/              ←  Same skills, same references          │
 │  ├── skill-a/SKILL.md     →  @../../../.sync-skills/skills/...     │
 │  └── skill-b/SKILL.md     →  (dependent files removed)             │
 │                                                                    │
@@ -179,8 +206,8 @@ sync-skills -l
 
 Example output:
 ```
-before-pushing           [common, claude, codex] - Use when about to push commits to remote repository
-my-custom-skill          [common, gemini] - A custom workflow for my project
+before-pushing           [common, agents, claude, pi] - Use when about to push commits to remote repository
+my-custom-skill          [common, gemini, openclaw] - A custom workflow for my project
 ```
 
 ### Home Directory Mode
@@ -188,7 +215,7 @@ my-custom-skill          [common, gemini] - A custom workflow for my project
 Keep your personal skill collection in `~/` and share across projects:
 
 ```bash
-sync-skills --home       # Sync ~/.claude, ~/.codex, ~/.sync-skills
+sync-skills --home       # Sync ~/.hermes, ~/.openclaw, ~/.pi/agent, ~/.sync-skills
 ```
 
 ### Reconfigure
@@ -228,27 +255,27 @@ echo "# My Skill" > .sync-skills/skills/my-new-skill/SKILL.md
 npx github:viteinfinite/sync-skills
 
 # 3. ✅ Done! All assistants now have access to this skill
-#    🔗 .claude/skills/ and .codex/skills/ both reference the common files
+#    🔗 .agents/skills/, .claude/skills/, and .pi/skills/ all reference the common files
 ```
 
-### Syncing Existing .claude Skills to .codex
+### Syncing Existing `.claude` Skills to `.agents` and `.pi`
 
 ```bash
 # 1. Ensure you have existing skills in .claude/skills/
 ls .claude/skills/
 
-# 2. Run sync (auto-detects both .claude and .codex)
+# 2. Run sync (auto-detects .claude, .agents, and .pi)
 npx github:viteinfinite/sync-skills
 
-# 3. ✅ Skills are now available in both assistants!
+# 3. ✅ Skills are now available across your configured assistants!
 #    📁 .sync-skills/ contains the source of truth
-#    🔗 .claude/skills/ and .codex/skills/ both reference the common files
+#    🔗 .claude/skills/, .agents/skills/, and .pi/skills/ all reference the common files
 ```
 
 **What happens:**
 - Existing `.claude` skills are moved to `.sync-skills/`
-- Both `.claude` and `.codex` get reference files pointing to common skills
-- Future edits in `.sync-skills/` sync to both platforms automatically
+- `.claude`, `.agents`, and `.pi` get reference files pointing to common skills
+- Future edits in `.sync-skills/` sync to all configured platforms automatically
 
 ### Setting Up a New Project
 
@@ -266,7 +293,7 @@ Configuration is stored in `.sync-skills/config.json`:
 ```json
 {
   "version": 1,
-  "assistants": ["claude", "codex"]
+  "assistants": ["agents", "claude", "pi"]
 }
 ```
 

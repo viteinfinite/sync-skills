@@ -19,9 +19,9 @@ export interface AssistantConfig {
  */
 export interface AssistantPathConfig {
   /** Project-local skills path */
-  project: string;
+  project?: string;
   /** Home/global skills path */
-  home: string;
+  home?: string;
 }
 
 /**
@@ -129,15 +129,19 @@ export interface ParsedSkill {
  * Use getAssistantConfigs() to convert this map into AssistantConfig[] objects.
  */
 export const ASSISTANT_MAP: Record<string, string | AssistantPathConfig> = {
+  'agents':   '.agents/skills',
   'claude':   '.claude/skills',
   'cline':    '.cline/skills',
   'codex':    '.codex/skills',
   'cursor':   '.cursor/skills',
   'gemini':   '.gemini/skills',
   'github':   '.github/skills',
+  'hermes':   { home: '.hermes/skills' },
   'kilo':     '.kilocode/skills',
   'kiro':     '.kiro/skills',
+  'openclaw': { home: '.openclaw/skills' },
   'opencode': { project: '.opencode/skill', home: '.config/opencode/skill' },
+  'pi':       { project: '.pi/skills', home: '.pi/agent/skills' },
   'roo':      '.roo/skills',
   'vibe':     '.vibe/skills',
   'windsurf': { project: '.windsurf/skills', home: '.codeium/windsurf/skills' },
@@ -159,12 +163,16 @@ export function getAssistantConfigs(names?: string[], homeMode: boolean = false)
       const config = ASSISTANT_MAP[name];
 
       // Handle both string and AssistantPathConfig types
-      let skillsPath: string;
+      let skillsPath: string | undefined;
       if (typeof config === 'string') {
         skillsPath = config;
       } else {
         // AssistantPathConfig: use project or home path based on mode
         skillsPath = homeMode ? config.home : config.project;
+      }
+
+      if (!skillsPath) {
+        continue;
       }
 
       // Extract the folder name (first path segment)
@@ -177,7 +185,7 @@ export function getAssistantConfigs(names?: string[], homeMode: boolean = false)
       };
 
       // Add home properties if in home mode and config has home path
-      if (homeMode && typeof config === 'object') {
+      if (homeMode && typeof config === 'object' && config.home) {
         const homeFolder = config.home.split('/')[0];
         assistantConfig.homeDir = homeFolder;
         assistantConfig.homeSkillsDir = config.home;
