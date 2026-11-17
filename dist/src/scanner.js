@@ -1,0 +1,97 @@
+import { promises as fs } from 'fs';
+import { join } from 'path';
+import { isSymlinkedSkill } from './symlinks.js';
+import { COMMON_DIR } from './constants.js';
+async function* walkDir(dir, agent, baseDir, originalBaseDir, ignoredDirs = new Set()) {
+    try {
+        const entries = await fs.readdir(dir, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = join(dir, entry.name);
+            if (entry.isDirectory()) {
+                if (ignoredDirs.has(fullPath)) {
+                    continue;
+                }
+                yield* walkDir(fullPath, agent, baseDir, originalBaseDir, ignoredDirs);
+            }
+            else if (entry.name === 'SKILL.md') {
+                const relativePath = fullPath.substring(baseDir.length + 1);
+                const parts = relativePath.split('/');
+                const skillName = parts[2];
+                // Reconstruct the path using the original baseDir to preserve format
+                // Use string concatenation to avoid path normalization
+                const separator = originalBaseDir.endsWith('/') ? '' : '/';
+                const resultPath = originalBaseDir + separator + relativePath;
+                yield {
+                    agent,
+                    skillName,
+                    path: resultPath,
+                    relativePath
+                };
+            }
+        }
+    }
+    catch {
+        // Directory doesn't exist
+    }
+}
+/**
+ * Scan for skills in all enabled assistant directories and .sync-skills
+ * @param baseDir - Base directory to scan
+ * @param assistantConfigs - Array of assistant configs to scan
+ * @returns ScanResult with platform skills map and common skills
+ */
+export async function scanSkills(baseDir = process.cwd(), assistantConfigs) {
+    // If no configs provided, use default for backwards compatibility
+    const configs = assistantConfigs || [
+        { name: 'claude', dir: '.claude', skillsDir: '.claude/skills' },
+        { name: 'codex', dir: '.codex', skillsDir: '.codex/skills' }
+    ];
+    const platforms = {};
+    const common = [];
+    const ignored = [];
+    // Normalize the base directory for filesystem operations
+    const normalizedBaseDir = join(baseDir);
+    // Scan each enabled assistant platform
+    for (const config of configs) {
+        const platformSkills = [];
+        const skillsPath = join(baseDir, config.skillsDir);
+        const ignoredDirs = new Set();
+        try {
+            const entries = await fs.readdir(skillsPath, { withFileTypes: true });
+            for (const entry of entries) {
+                if (!entry.isDirectory() && !entry.isSymbolicLink()) {
+                    continue;
+                }
+                const fullPath = join(skillsPath, entry.name);
+                const isSymlinked = await isSymlinkedSkill(fullPath);
+                if (!isSymlinked) {
+                    continue;
+                }
+                ignoredDirs.add(fullPath);
+                const relativePath = fullPath.substring(normalizedBaseDir.length + 1);
+                const separator = baseDir.endsWith('/') ? '' : '/';
+                const resultPath = baseDir + separator + relativePath;
+                ignored.push({
+                    agent: config.name,
+                    skillName: entry.name,
+                    path: resultPath,
+                    relativePath,
+                    reason: 'symlinked'
+                });
+            }
+        }
+        catch {
+            // Skills directory doesn't exist
+        }
+        for await (const skill of walkDir(skillsPath, config.name, normalizedBaseDir, baseDir, ignoredDirs)) {
+            platformSkills.push(skill);
+        }
+        platforms[config.name] = platformSkills;
+    }
+    // Scan .sync-skills
+    for await (const skill of walkDir(join(baseDir, COMMON_DIR), 'common', normalizedBaseDir, baseDir)) {
+        common.push(skill);
+    }
+    return { platforms, common, ignored };
+}
+//# sourceMappingURL=scanner.js.map
