@@ -16,7 +16,7 @@
     "build": "node ./scripts/generate-version.mjs && npm exec --yes --package typescript -- tsc",
     "prepare": "node ./scripts/ensure-dist.mjs",
     "prepublishOnly": "npm run build",
-    "test": "tsx --test test/*.test.ts",
+    "test": "tsx --test test/*.test.ts && mocha",
     "test:integration": "tsx --test test/integration/*.test.ts",
     "test:all": "npm test && npm run test:integration",
     "test:clean": "rm -rf test/fixtures/*/ .sync-skills"
@@ -38,7 +38,7 @@
     "@types/node": "^25.0.6",
     "@types/sinon": "^17.0.4",
     "chai": "^5.0",
-    "mocha": "^10.0",
+    "mocha": "^12.0.3",
     "sinon": "^21.0.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
@@ -51,5 +51,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/viteinfinite/sync-skills.git"
+  },
+  "overrides": {
+    "glob": "^14.0.6",
+    "minimatch": "^11.0.9"
   }
 }
