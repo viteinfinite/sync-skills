@@ -1,0 +1,7 @@
+FROM docker.io/library/node:22-bookworm-slim
+
+WORKDIR /app
+COPY . .
+RUN npm ci
+
+CMD ["npm", "run", "test:all"]

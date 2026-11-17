@@ -7,6 +7,28 @@ This document outlines the testing procedures for the sync-skills tool.
 - Node.js with ES modules support
 - Project dependencies installed (`npm install`)
 
+## Run tests with Podman
+
+Install Podman and start its machine on macOS (`podman machine start`), then
+from the repository root run:
+
+```bash
+npm run test:podman
+```
+
+This builds a Node 22 image from `Containerfile.test`, installs the locked
+dependencies, and runs the unit and integration suites in a disposable
+container. The image is cached for later runs; rebuilding picks up local source
+changes. The command requires Node.js and npm on the host to invoke the script.
+To run without host Node.js, use:
+
+```bash
+podman build -f Containerfile.test -t localhost/sync-skills-test .
+podman run --rm localhost/sync-skills-test
+```
+
+On macOS, stop the VM when finished with `podman machine stop`.
+
 ## Test Sequence
 
 ### 0. Setup Test Environment
@@ -352,8 +374,11 @@ Use `--fail-on-conflict` to exit on conflicts, or resolve interactively.
 ## Running Unit Tests
 
 ```bash
-# Run all tests
+# Run unit tests (Node test runner and Mocha)
 npm test
+
+# Run unit and integration tests
+npm run test:all
 
 # Run specific test file
 npx tsx --test test/config.test.ts
