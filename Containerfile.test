@@ -4,4 +4,6 @@ WORKDIR /app
 COPY . .
 RUN npm ci
 
-CMD ["npm", "run", "test:all"]
+ENV SYNC_SKILLS_CONTAINER_TESTS=1
+
+CMD ["sh", "-c", "npm run test:all && npm run test:container"]

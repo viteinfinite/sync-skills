@@ -65,6 +65,7 @@ export async function run(options: RunOptions = {}): Promise<void> {
   logIgnoredSymlinkedSkills(preConfigScan.ignored);
   const anyInitialSkills = Object.values(preConfigScan.platforms).some(skills => skills.length > 0);
   const hasInitialCommonSkills = preConfigScan.common.length > 0;
+  const initialCommonSkillNames = new Set(preConfigScan.common.map(skill => skill.skillName));
   if (!anyInitialSkills && !hasInitialCommonSkills) {
     console.log(chalk.yellowBright('No skills found. Exiting.'));
     logger.decision({ phase: 'scan', action: 'exit-no-skills' });
@@ -86,7 +87,8 @@ export async function run(options: RunOptions = {}): Promise<void> {
   });
 
   // Phase 2: Process sync pairs (bidirectional)
-  const blockedAssistants = await processSyncPairs(baseDir, syncPairs, logger);
+  const clonedSkillPaths = new Set<string>();
+  const blockedAssistants = await processSyncPairs(baseDir, syncPairs, logger, clonedSkillPaths);
   const activeConfigs = enabledConfigs.filter(config => !blockedAssistants.has(config.name));
   const activeStates = states.filter(state => activeConfigs.some(config => config.name === state.config.name));
 
@@ -160,8 +162,12 @@ export async function run(options: RunOptions = {}): Promise<void> {
   const outOfSyncSkills: OutOfSyncSkill[] = [];
   for (const config of activeConfigs) {
     const platformSkills = platforms[config.name] || [];
-    // Skip brand-new refactors in this run to avoid transient mismatch detection.
-    const skillsToCheck = platformSkills.filter(skill => !refactoredSkillPaths.has(skill.path));
+    // Newly refactored or cloned skills can temporarily differ from common
+    // until their dependent files are consolidated later in this run.
+    const skillsToCheck = platformSkills.filter(skill =>
+      !refactoredSkillPaths.has(skill.path) &&
+      !(clonedSkillPaths.has(skill.path) && !initialCommonSkillNames.has(skill.skillName))
+    );
     const platformOutOfSync = await detectOutOfSyncSkills(skillsToCheck, common, config.name);
     outOfSyncSkills.push(...platformOutOfSync);
   }

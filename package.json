@@ -20,7 +20,8 @@
     "test:integration": "tsx --test test/integration/*.test.ts",
     "test:all": "npm test && npm run test:integration",
     "test:clean": "rm -rf test/fixtures/*/ .sync-skills",
-    "test:podman": "podman build -f Containerfile.test -t localhost/sync-skills-test . && podman run --rm localhost/sync-skills-test"
+    "test:podman": "podman build -f Containerfile.test -t localhost/sync-skills-test . && podman run --rm localhost/sync-skills-test",
+    "test:container": "node --test test/container/*.test.mjs"
   },
   "dependencies": {
     "chalk": "^5.3",

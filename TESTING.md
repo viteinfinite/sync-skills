@@ -17,8 +17,13 @@ npm run test:podman
 ```
 
 This builds a Node 22 image from `Containerfile.test`, installs the locked
-dependencies, and runs the unit and integration suites in a disposable
-container. The image is cached for later runs; rebuilding picks up local source
+dependencies, and runs the unit, integration, and container end-to-end suites
+in a disposable container. The end-to-end tests invoke the built CLI in fresh
+temporary workspaces, including a conflict case. A separate test installs the
+package globally and exercises `--home` as root inside the disposable container.
+This root user is confined to the container, even with rootless Podman. The
+global installation test needs registry access to resolve package dependencies.
+The image is cached for later runs; rebuilding picks up local source
 changes. The command requires Node.js and npm on the host to invoke the script.
 To run without host Node.js, use:
 

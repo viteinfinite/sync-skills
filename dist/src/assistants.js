@@ -1,5 +1,5 @@
-import { promises as fs } from 'fs';
-import { join, dirname } from 'path';
+import { constants, promises as fs } from 'fs';
+import { join, dirname, sep } from 'path';
 import inquirer from 'inquirer';
 import matter from 'gray-matter';
 import { pickCoreFrontmatter } from './frontmatter.js';
@@ -7,6 +7,7 @@ import chalk from 'chalk';
 import { buildCommonSkillReference } from './references.js';
 import { getAssistantConfigs } from './types.js';
 import { isSymlinkedSkill } from './symlinks.js';
+import { detectDependentFiles } from './dependents.js';
 import { COMMON_SKILLS_DIR } from './constants.js';
 /**
  * Discover the state of configured assistants
@@ -117,7 +118,7 @@ async function promptForSync(targetName) {
 /**
  * Clone skills from source assistant to target assistant
  */
-async function cloneAssistantSkills(baseDir, sourceSkills, targetConfig, logger) {
+async function cloneAssistantSkills(baseDir, sourceSkills, targetConfig, logger, clonedPaths) {
     for (const skill of sourceSkills) {
         const content = await fs.readFile(skill.path, 'utf-8');
         const parsed = matter(content);
@@ -126,11 +127,44 @@ async function cloneAssistantSkills(baseDir, sourceSkills, targetConfig, logger)
         const targetPath = join(baseDir, targetConfig.skillsDir, skill.skillName, 'SKILL.md');
         const commonPath = join(baseDir, COMMON_SKILLS_DIR, skill.skillName, 'SKILL.md');
         const atReference = buildCommonSkillReference(targetPath, commonPath);
-        // Ensure directory exists
+        // Do not write through a linked skill directory.
+        if (await isSymlinkedSkill(dirname(targetPath)))
+            continue;
         await fs.mkdir(dirname(targetPath), { recursive: true });
+        // Keep the initial copy complete for conflict detection. Existing target
+        // files must not be overwritten: differences are resolved by the normal
+        // conflict handling later in the sync.
+        const dependents = await detectDependentFiles(dirname(skill.path));
+        for (const dependent of dependents) {
+            const targetFile = join(dirname(targetPath), dependent.relativePath);
+            let targetDir = dirname(targetPath);
+            const relativeDir = dirname(dependent.relativePath);
+            for (const part of relativeDir === '.' ? [] : relativeDir.split(sep)) {
+                targetDir = join(targetDir, part);
+                try {
+                    await fs.mkdir(targetDir);
+                }
+                catch (error) {
+                    if (error.code !== 'EEXIST')
+                        throw error;
+                }
+                const stat = await fs.lstat(targetDir);
+                if (!stat.isDirectory()) {
+                    throw new Error(`Cannot copy supporting file into non-directory: ${targetDir}`);
+                }
+            }
+            try {
+                await fs.copyFile(dependent.absolutePath, targetFile, constants.COPYFILE_EXCL);
+            }
+            catch (error) {
+                if (error.code !== 'EEXIST')
+                    throw error;
+            }
+        }
         // Write the target skill file with @ reference and core frontmatter
         const targetContent = matter.stringify(atReference + '\n', coreFrontmatter);
         await fs.writeFile(targetPath, targetContent);
+        clonedPaths?.add(targetPath);
         logger?.skillOperation({
             phase: 'sync-pairs',
             action: 'create',
@@ -144,7 +178,7 @@ async function cloneAssistantSkills(baseDir, sourceSkills, targetConfig, logger)
 /**
  * Process all sync pairs with appropriate prompts
  */
-export async function processSyncPairs(baseDir, pairs, logger) {
+export async function processSyncPairs(baseDir, pairs, logger, clonedPaths) {
     const blockedAssistants = new Set();
     const approvedAssistants = new Set();
     for (const pair of pairs) {
@@ -154,7 +188,7 @@ export async function processSyncPairs(baseDir, pairs, logger) {
         }
         // Skip if already approved in a previous iteration
         if (approvedAssistants.has(targetName)) {
-            await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config, logger);
+            await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config, logger, clonedPaths);
             continue;
         }
         const shouldPrompt = needsPrompt(pair);
@@ -169,7 +203,7 @@ export async function processSyncPairs(baseDir, pairs, logger) {
         }
         if (shouldSync) {
             approvedAssistants.add(targetName);
-            await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config, logger);
+            await cloneAssistantSkills(baseDir, pair.source.skills, pair.target.config, logger, clonedPaths);
         }
         else {
             blockedAssistants.add(targetName);
